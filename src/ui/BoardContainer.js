@@ -1,12 +1,20 @@
 import React, { Component, useState } from 'react';
 
 import Gameboard from "./Gameboard";
+
+import { Realm, SharedSlot } from '/Users/wyrm/Documents/coding/TMP/tempi/src/rules/cards.ts'
 import { libraryOne } from '/Users/wyrm/Documents/coding/TMP/tempi/src/playerDecks/deckOne.ts'
 import { draftList } from '/Users/wyrm/Documents/coding/TMP/tempi/src/systemDecks/draft.ts'
 
-function TheaterRealm() {
+
+// SolariumRealm.js
+function Solarium({ onRealmSelect }) {
+    return <div className="realm solarium" onClick={() => onRealmSelect('SOLARIUM')}>Solarium</div>;
+}
+
+function Theater({ onRealmSelect }) {
     return (
-        <div className="realm theater">
+        <div className="realm theater" onClick={() => onRealmSelect('THEATER')}>
             Theater
             <div className="slot-container">
                 <div className="slot-holder">
@@ -20,15 +28,10 @@ function TheaterRealm() {
     );
 }
 
-// SolariumRealm.js
-function SolariumRealm() {
-    return <div className="realm solarium">Solarium</div>;
-}
-
 // UnderpassRealm.js
-function UnderpassRealm() {
+function Underpass({ onRealmSelect }) {
     return (
-        <div className="realm underpass">
+        <div className="realm underpass" onClick={() => onRealmSelect('UNDERPASS')}>
             Underpass
             <div className="slot-container">
                 <div className="slot-holder">
@@ -40,7 +43,6 @@ function UnderpassRealm() {
                     <div className="thing-slot" id="8"></div>
                     <div className="thing-slot" id="9"></div>
                     <div className="thing-slot" id="10"></div>
-                    <div className="thing-slot" id="11"></div>
                 </div>
             </div>
         </div>
@@ -48,9 +50,9 @@ function UnderpassRealm() {
 }
 
 // GridRealm.js
-function GridRealm() {
+function Grid({ onRealmSelect }) {
     return (
-        <div className="realm grid">
+        <div className="realm grid" onClick={() => onRealmSelect('GRID')}>
             Grid
             <div className="slot-container">
                 <div className="slot-holder">
@@ -58,7 +60,6 @@ function GridRealm() {
                     <div className="thing-slot" id="13"></div>
                     <div className="thing-slot" id="14"></div>
                     <div className="thing-slot" id="15"></div>
-                    <div className="thing-slot" id="16"></div>
                 </div>
             </div>
         </div>
@@ -66,25 +67,11 @@ function GridRealm() {
 }
 
 const realms = [
-    <SolariumRealm />,
-    <TheaterRealm />,
-    <UnderpassRealm />,
-    <GridRealm />
+    Solarium,
+    Theater,
+    Underpass,
+    Grid
 ];
-
-// class PlayerBoard {
-//     graveyard: Graveyard = new Graveyard();
-//     hand: Hand = new Hand();
-//     library: Library = new Library();
-//     realms: Realm[] = [
-//         new Realm('SOLARIUM'),
-//         new Realm('THEATER'),
-//         new Realm('UNDERPASS'),
-//         new Realm('GRID'),
-//     ];
-//     focus: Focus = 'MIND'; // Set the initial focus
-//     // Other properties and methods as needed
-// }
 
 export function BoardContainer() {
     const createLibrary = () => {
@@ -94,10 +81,12 @@ export function BoardContainer() {
             const cardEntityInstance = {
                 id: i.toString(),
                 card: card,
-                wounds: 0,
-                online: false,
+                damage: 0,
                 exposed: false,
-                scored: false
+                scored: false,
+                rezzed: false,
+                active: false,
+                steps: 0
             };
             libraryInstanceArray.push(cardEntityInstance);
         }
@@ -112,14 +101,24 @@ export function BoardContainer() {
                 id: i.toString(),
                 card: card,
                 wounds: 0,
-                online: false,
                 exposed: false,
-                scored: false
+                scored: false,
+                rezzed: false,
+                active: false,
+                steps: 0
             };
             draftInstanceArray.push(cardEntityInstance);
         }
         return draftInstanceArray;
     };
+
+    function createRealm(name, elements) {
+        return new Realm(name, elements);
+    }
+
+    function createSlotOperator(max, type) {
+        return new SharedSlot(max, type);
+    }
 
     const [playerLibrary, setPlayerLibrary] = useState(createLibrary());
     const [draft, setDraft] = useState(createDraft());
@@ -131,9 +130,72 @@ export function BoardContainer() {
     const [playerDebt, setPlayerDebt] = useState(3);
     const [playerWounds, setPlayerWounds] = useState(2);
 
+    const [playerSolarium, setPlayerSolarium] = useState(createRealm('SOLARIUM', ['MAGI']));
+    const [playerTheater, setPlayerTheater] = useState(createRealm('THEATER', ['MAGI', 'PHYS']));
+    const [playerUnderpass, setPlayerUnderpass] = useState(createRealm('UNDERPASS', ['PHYS', 'TECH']));
+    const [playerGrid, setPlayerGrid] = useState(createRealm('GRID', ['TECH']));
+
+    const [playerTheaterPlaces, setPlayerTheaterPlaces] = useState(createSlotOperator(4, ['PLACE']));
+    const [playerUnderpassPlaces, setPlayerUnderpassPlaces] = useState(createSlotOperator(3, ['PLACE']));
+    const [playerUnderpassThings, setPlayerUnderpassThings] = useState(createSlotOperator(3, ['THING']));
+    const [playerGridThings, setPlayerGridThings] = useState(createSlotOperator(4, ['THING']));
+
+    const [selectedCard, setSelectedCard] = useState(null);
+
+    const handleCardSelect = (cardEntity) => {
+        console.log('card select ', cardEntity.id )
+        setSelectedCard(cardEntity);
+    };
+
+    const handleRealmSelect = (realmName) => {
+        console.log('realm ', realmName)
+        console.log('selectedCard ', selectedCard)
+        if (!selectedCard) return;
+
+        switch (realmName) {
+            case 'Solarium':
+                setPlayerSolarium(prevRealm => {
+                    return {
+                        ...prevRealm,
+                        people: [...prevRealm.people, selectedCard]
+                    };
+                });
+                break;
+            case 'Theater':
+                setPlayerTheater(prevRealm => {
+                    return {
+                        ...prevRealm,
+                        people: [...prevRealm.people, selectedCard]
+                    };
+                });
+            case 'Underpass':
+                setPlayerUnderpass(prevRealm => {
+                    return {
+                        ...prevRealm,
+                        people: [...prevRealm.people, selectedCard]
+                    };
+                });
+            case 'Grid':
+                setPlayerGrid(prevRealm => {
+                    return {
+                        ...prevRealm,
+                        people: [...prevRealm.people, selectedCard]
+                    };
+                });
+                break;
+        }
+
+        // Remove card from hand
+        setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
+        // Reset selected card state
+        setSelectedCard(null);
+    };
+
+
+
     function playerDraw(num) {
         let remainingCards = num;
-    
+
         if (playerWounds > 0) {
             const newWounds = playerWounds - num;
 
@@ -152,7 +214,7 @@ export function BoardContainer() {
         }
     }
 
-    
+
 
     function playerDraft(cardNum) {
         const newHandCards = draft.slice(0, cardNum);
@@ -167,7 +229,7 @@ export function BoardContainer() {
 
     function playerGainBits(num) {
         let remainingBits = num;
-    
+
         if (playerDebt > 0) {
             const newDebt = playerDebt - num;
 
@@ -207,7 +269,19 @@ export function BoardContainer() {
 
     return (
         <div className="game-container">
-            <Gameboard realms={realms} playerOneLibrary={playerLibrary} playerOneHand={playerHand} playerDraw={playerDraw} playerDraft={playerDraft} playerWounds={playerWounds} playerBits={playerBits} playerDebt={playerDebt} playerGainBits={playerGainBits} playerAshes={playerAshes} />
+            <Gameboard
+            realms={realms}
+            onRealmSelect={handleRealmSelect}
+            playerOneLibrary={playerLibrary} 
+            playerOneHand={playerHand} 
+            playerDraw={playerDraw} 
+            playerDraft={playerDraft} 
+            playerWounds={playerWounds} 
+            playerBits={playerBits} 
+            playerDebt={playerDebt} 
+            playerGainBits={playerGainBits} 
+            playerAshes={playerAshes}
+            onCardSelect={handleCardSelect} />
         </div>
     );
 }

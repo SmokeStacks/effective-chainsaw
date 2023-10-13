@@ -15,17 +15,13 @@ enum Element {
 class Realm {
     name: RealmName;
     elements: Element[];
-    // Other properties and methods as needed
-
-    constructor(name: RealmName, elements: Element[]) {
-        this.name = name;
-        this.elements = elements;
-        this.elements = elements;
-    }
     people: CardEntity[] = [];
     places: CardEntity[] = [];
     things: CardEntity[] = [];
-    slotOperator: SharedSlot;
+    constructor(name: RealmName, elements: Element[]) {
+        this.name = name;
+        this.elements = elements;
+    }
 }
 
 

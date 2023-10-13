@@ -100,7 +100,8 @@ export class CardEntity {
   id: string;
   card: Card;
   wounds: number;
-  online: boolean;
+  rezzed: boolean;
+  active: boolean;
   exposed: boolean;
   scored: boolean;
 
@@ -108,8 +109,9 @@ export class CardEntity {
     this.id = id;
     this.card = card;
     this.wounds = wounds;
-    this.online = online;
-    this.exposed = exposed;
+    this.rezzed = false;
+    this.active = false;
+    this.exposed = false;
     this.scored = false;
   }
 }
@@ -124,13 +126,6 @@ export type Hand = {
 
 export type Graveyard = {
   cards: [CardEntity]
-};
-
-export type Realm = {
-  creatures: CardEntity[];
-  places: CardEntity[];
-  things: CardEntity[];
-  realmName: RealmName;
 };
 
 export type Focus = 'MIND' | 'BODY' | 'SOUL'; // can only cast and attack with cards that share element with current Focus (Tech, Phys, Magi)
@@ -158,15 +153,31 @@ export type PlayerBoard = {
 
 export type CardType = 'INSTALL' | 'RITUAL';
 
-// export type EventType =
-//   | 'DRAW'
-//   | 'BIT' // gain 1 bit (currency)
-//   | 'BOOST' // pay 1 bit: place 1 Boost counter on a nonCreature card or reduce a creature's Timer by 1
-//   | 'REBOOT' // pay 1 bit: change Focus
-//   | 'WISH' // pay 5 Runes: Gain a Wish
-//   | 'QUEST' // choose and Exhaust (reset to Timer) any # of Magi creatures in a Realm to attempt a Quest (gain 1 Rune for each "damage" dealt to Avatar)
-//   | 'RAID' // choose and Exhaust any # of Phys creatures in a Realm to attempt a Raid on target LM, LOC, or Avatar (Deal damage to Avatar as Burden or Wounds)
-//   | 'HACK'; // choose and Exhaust any # of Magi creatures in a Realm to attempt a Hack on target server in Realm (gain 1 Insight for each "damage" dealt to Server. If >0, access 1 card in Central or all cards in Remote)
+export class Realm {
+  name: RealmName;
+  elements: Element[];
+  people: CardEntity[] = [];
+  places: CardEntity[] = [];
+  things: CardEntity[] = [];
+  constructor(name: RealmName, elements: Element[]) {
+      this.name = name;
+      this.elements = elements;
+  }
+}
+
+
+// Define a class for shared slots (Landmarks, Locations, ISO Servers)
+export class SharedSlot {
+  max: number;
+  current: number;
+  type: 'PLACE' | 'THING';
+
+  constructor(maxSlots: number, typeSpec: 'PLACE' | 'THING') {
+      this.max = maxSlots;
+      this.current = 0;
+      this.type = typeSpec;
+  }
+}
 
 export type RealmName = 'SOLARIUM' | 'THEATER' | 'UNDERPASS' | 'GRID';
 
@@ -176,13 +187,12 @@ export type Roadmap = { // indication of where a card should be played
 };
 
 export type EventTemplate = { // used when playing cards or perforimg some kind of effect
-  id: number;
   name: string;
   slow: boolean; // ends control
-  card?: CardEntity;
+  cardEntity?: CardEntity;
   cardType?: CardType;
   effect?: Effect;  
   roadmap?: Roadmap;
-  target?: number; // id of card
+  target?: number; // id of card being targeted
   discard: boolean; // discard card after completion
 };

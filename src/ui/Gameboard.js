@@ -31,9 +31,12 @@ class Gameboard extends Component {
     };
 
     render() {
-        const { playerOneHand, playerDraft, playerDraw, playerWounds, playerBits, playerDebt, playerGainBits, playerAshes, realms } = this.props;
-        const currentRealm = realms[this.state.currentRealmIndex];
-        const nextRealm = realms[this.state.currentRealmIndex + 1];
+        const { playerOneHand, playerDraft, playerDraw, playerWounds, playerBits, playerDebt, playerGainBits, playerAshes, realms, onCardSelect, onRealmSelect } = this.props;
+
+        const displayedRealms = [
+            this.props.realms[this.state.currentRealmIndex],
+            this.props.realms[this.state.currentRealmIndex + 1]
+        ];
 
         return (
             <div className="game-boardz">
@@ -45,8 +48,12 @@ class Gameboard extends Component {
                         <i className="fas fa-chevron-left"></i>
                     </button>
                     <div className="realms-container">
-                        {realms[this.state.currentRealmIndex]}
-                        {realms[this.state.currentRealmIndex + 1]}
+                    {displayedRealms.map((RealmComponent, index) => (
+                        <RealmComponent 
+                            key={index} 
+                            onRealmSelect={() => onRealmSelect(RealmComponent.name)}
+                        />
+                    ))}
                     </div>
                     <button
                         className="nav-button pan-right-button"
@@ -61,7 +68,7 @@ class Gameboard extends Component {
                         <FocusDisplay />
                         <HUD ashes={playerAshes} wounds={playerWounds} bits={playerBits} debt={playerDebt}/>
                     </div>
-                    <PlayerHandDisplay cards={playerOneHand} />
+                    <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />
                 </div>
             </div>
         );

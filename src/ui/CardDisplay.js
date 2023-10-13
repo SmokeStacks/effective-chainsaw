@@ -126,7 +126,12 @@ class CardDisplay extends Component {
             text,
             flavor,
             art
-        } = this.props.card;
+        } = this.props.entity.card;
+
+        const {
+            onCardSelect,
+            entity
+        } = this.props;
 
         const isCreatureOrRitual = category === "CREATURE" || category === "RITUAL";
         const isOtherCategory =
@@ -138,7 +143,7 @@ class CardDisplay extends Component {
 
         if (isCreatureOrRitual) {
             return (
-                <div className="card">
+                <div className="card" onClick={() => onCardSelect(entity)}>
                     <div className="top-bar">
                         {<RezCost rezCost={rezCost} />}
                         <Title ash={category} name={name} category={category} soul={soul} />
@@ -169,7 +174,7 @@ class CardDisplay extends Component {
             );
         } else if (isOtherCategory) {
             return (
-                <div className="card">
+                <div className="card" onClick={() => onCardSelect(this.props)}>
                     <div className="top-bar">
                         {isMundane && <RezCost rezCost={rezCost} />}
                         <Title category={category} name={name} />
