@@ -1,6 +1,7 @@
 import React, { Component, useState } from 'react';
 
 import Gameboard from "./Gameboard";
+import RealmCreatures from "./RealmCreatures";
 
 import { Realm, SharedSlot } from '/Users/wyrm/Documents/coding/TMP/tempi/src/rules/cards.ts'
 import { libraryOne } from '/Users/wyrm/Documents/coding/TMP/tempi/src/playerDecks/deckOne.ts'
@@ -8,8 +9,16 @@ import { draftList } from '/Users/wyrm/Documents/coding/TMP/tempi/src/systemDeck
 
 
 // SolariumRealm.js
-function Solarium({ onRealmSelect }) {
-    return <div className="realm solarium" onClick={() => onRealmSelect('SOLARIUM')}>Solarium</div>;
+function Solarium({ onRealmSelect, onRealmCardSelect, realmState  }) {
+    return (
+        <div className="realm solarium" onClick={() => onRealmSelect('SOLARIUM')}>
+            Solarium
+            <div className="slot-holder"></div>
+            <div className="creatures-container">
+                <RealmCreatures cards={realmState.people} onCardSelect={onRealmCardSelect} />
+            </div>
+        </div>
+    );
 }
 
 function Theater({ onRealmSelect }) {
@@ -66,12 +75,13 @@ function Grid({ onRealmSelect }) {
     );
 }
 
-const realms = [
+const realmComponents = [
     Solarium,
     Theater,
     Underpass,
     Grid
 ];
+
 
 export function BoardContainer() {
     const createLibrary = () => {
@@ -143,8 +153,13 @@ export function BoardContainer() {
     const [selectedCard, setSelectedCard] = useState(null);
 
     const handleCardSelect = (cardEntity) => {
-        console.log('card select ', cardEntity.id )
+        console.log('card select ', cardEntity.id)
         setSelectedCard(cardEntity);
+    };
+
+    const handleRealmCardSelect = (cardEntity) => {
+        console.log('card select ', cardEntity.id)
+        //setSelectedCard(cardEntity);
     };
 
     const handleRealmSelect = (realmName) => {
@@ -270,18 +285,24 @@ export function BoardContainer() {
     return (
         <div className="game-container">
             <Gameboard
-            realms={realms}
-            onRealmSelect={handleRealmSelect}
-            playerOneLibrary={playerLibrary} 
-            playerOneHand={playerHand} 
-            playerDraw={playerDraw} 
-            playerDraft={playerDraft} 
-            playerWounds={playerWounds} 
-            playerBits={playerBits} 
-            playerDebt={playerDebt} 
-            playerGainBits={playerGainBits} 
-            playerAshes={playerAshes}
-            onCardSelect={handleCardSelect} />
+                realmComponents={realmComponents}
+                onRealmSelect={handleRealmSelect}
+                playerOneLibrary={playerLibrary}
+                playerOneHand={playerHand}
+                playerDraw={playerDraw}
+                playerDraft={playerDraft}
+                playerWounds={playerWounds}
+                playerBits={playerBits}
+                playerDebt={playerDebt}
+                playerGainBits={playerGainBits}
+                playerAshes={playerAshes}
+                onCardSelect={handleCardSelect}
+                onRealmCardSelect={handleRealmCardSelect}
+                playerSolarium={playerSolarium}
+                playerTheater={playerTheater}
+                playerUnderpass={playerUnderpass}
+                playerGrid={playerGrid}
+            />
         </div>
     );
 }

@@ -31,12 +31,19 @@ class Gameboard extends Component {
     };
 
     render() {
-        const { playerOneHand, playerDraft, playerDraw, playerWounds, playerBits, playerDebt, playerGainBits, playerAshes, realms, onCardSelect, onRealmSelect } = this.props;
+        const { playerOneHand, playerDraft, playerDraw, playerWounds, playerBits, playerDebt, playerGainBits, playerAshes, realmComponents, onCardSelect, onRealmSelect, playerSolarium, playerTheater, playerUnderpass, playerGrid, onRealmCardSelect } = this.props;
 
         const displayedRealms = [
-            this.props.realms[this.state.currentRealmIndex],
-            this.props.realms[this.state.currentRealmIndex + 1]
+            realmComponents[this.state.currentRealmIndex],
+            realmComponents[this.state.currentRealmIndex + 1]
         ];
+
+        const playerRealmsState = {
+            Solarium: playerSolarium,
+            Theater: playerTheater,
+            Underpass: playerUnderpass,
+            Grid: playerGrid,
+        };
 
         return (
             <div className="game-boardz">
@@ -52,6 +59,8 @@ class Gameboard extends Component {
                         <RealmComponent 
                             key={index} 
                             onRealmSelect={() => onRealmSelect(RealmComponent.name)}
+                            realmState={playerRealmsState[RealmComponent.name]}
+                            onRealmCardSelect={onRealmCardSelect}
                         />
                     ))}
                     </div>

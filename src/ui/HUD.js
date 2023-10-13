@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { Button } from 'react-bootstrap';
 
-import dnaIcon from '../images/dna.png'
+import dnaIcon from '../images/repeat.png'
 
 const goldIcon = "https://www.symbols.com/images/symbol/719_gold.png";
 const fateIcon = "https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/77bf3ba9-0aac-4452-be82-de536b5aab32/df20ljo-609a3e25-fb40-47fb-8d63-a678e01a99a1.png/v1/fill/w_894,h_894/ex_ruby_sapphire_set_symbol_by_biochao_df20ljo-pre.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9MTI4MCIsInBhdGgiOiJcL2ZcLzc3YmYzYmE5LTBhYWMtNDQ1Mi1iZTgyLWRlNTM2YjVhYWIzMlwvZGYyMGxqby02MDlhM2UyNS1mYjQwLTQ3ZmItOGQ2My1hNjc4ZTAxYTk5YTEucG5nIiwid2lkdGgiOiI8PTEyODAifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6aW1hZ2Uub3BlcmF0aW9ucyJdfQ.Nnnj_6_zeqS8khRjO0Xh4XZYNWYn0FjdQKEKVA25ehA";

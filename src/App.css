@@ -1,3 +1,15 @@
+:root {
+  --card-width: 200px;
+  --card-height: 300px;
+}
+
+.card-realm {
+  --card-width: 150px;
+  /* 75% of original size */
+  --card-height: 225px;
+  /* 75% of original size */
+}
+
 .game-board {
   display: flex;
   flex-direction: column;
@@ -83,7 +95,6 @@
   align-items: center;
   flex-wrap: wrap;
   justify-content: center;
-  height: 100%;
 }
 
 .place-slot {
@@ -104,11 +115,11 @@
 .card {
   background-color: white;
   box-shadow: 10px 5px 5px black;
-  width: 200px;
-  height: 300px;
+  width: var(--card-width);
+  height: var(--card-height);
   border: 3px solid black;
   border-radius: 3%;
-  margin: 0 7px;
+  margin: 0 calc(var(--card-height) * 0.05);
 }
 
 .top-bar {
@@ -123,12 +134,13 @@
 .rez,
 .promo {
   box-shadow: 2px 0px 2px 2px gray;
+  color: black;
   display: flex;
   align-items: center;
   padding: 5px;
-  font-size: 35px;
+  font-size: calc(var(--card-height) * 0.11);
   background: white;
-  margin-top: 15px;
+  margin-top: calc(var(--card-height) * 0.05);
 }
 
 .rez {
@@ -136,7 +148,7 @@
 }
 
 .rez-icon {
-  height: 35px;
+  height: calc(var(--card-height) * 0.12);
 }
 
 .promo {
@@ -144,54 +156,57 @@
 }
 
 .promo-icon {
-  height: 32px;
+  height: calc(var(--card-height) * 0.11);
 }
 
 .title-container {
   display: flex;
   flex-direction: column;
-  margin: 5px;
-  padding-top: 25px;
+  margin: calc(var(--card-height) * 0.01);
+  padding-top: calc(var(--card-height) * 0.08);
 }
 
 .title {
   border-radius: 0 3% 0 0;
   text-align: center;
-  font-size: 22px;
+  font-size: calc(var(--card-height) * 0.07);
+  color: black;
 }
 
 .soul-ash-container {
   align-items: center;
   position: absolute;
-  margin-top: 100px;
+  margin-top: calc(var(--card-height) * 0.32);
   display: flex;
   justify-content: space-between;
-  width: 200px;
+  width: var(--card-width);
 }
 
 .ash {
+  color: black;
   display: flex;
   align-items: center;
-  font-size: 30px;
+  font-size: calc(var(--card-height) * 0.08);
   font-family: "Gotu";
-  margin: 3px 3px 3px 160px;
-  padding-top: 5px;
+  margin-left: calc(var(--card-height) * 0.57);
+  margin-top: calc(var(--card-height) * 0.05);
 }
 
 .ash-icon {
-  height: 50px;
-  margin-left: -18px;
-  margin-bottom: -26px;
+  margin-left: calc(var(--card-height) * -0.09);
+  margin-top: calc(var(--card-height) * -0.01);
+  height: calc(var(--card-height) * 0.14);
 }
 
 .soul-icon {
-  height: 15px;
+  height: calc(var(--card-height) * 0.05);
 }
 
 .cat-left,
-cat-right {
+.cat-right {
   border-radius: 0 3% 0 0;
-  font-size: 18px;
+  font-size: calc(var(--card-height) * 0.06);
+  color: black;
 }
 
 .cat-left {
@@ -206,36 +221,35 @@ cat-right {
   height: 50%;
   background-image: url(https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png);
   background-size: cover;
-  height: 150px;
 }
 
 .text {
+  font-size: 16px;
+  color: black;
   text-align: center;
   height: 70%;
-  margin-top: 20px;
-  padding: 5px;
-  width: 95%;
+  padding: calc(var(--card-height) * 0.03);
+  width: 90%;
 }
 
 
 .attack-block {
   display: grid;
   grid-template-rows: repeat(3, 1fr);
-  height: 100%;
-  margin-top: 8px;
-  width: 32px;
+  height: 75%;
+  width: 25%;
 }
 
 .blue-stat,
 .red-stat,
 .yellow-stat {
   box-shadow: 2px 2px 2px 2px gray;
-  width: 30px;
-  height: 30px;
+  height: calc(var(--card-height) * 0.11);
+  width: calc(var(--card-height) * 0.11);
   border-radius: 50%;
   text-align: center;
-  font-size: 22px;
-  line-height: 30px;
+  font-size: calc(var(--card-height) * 0.07);
+  line-height: calc(var(--card-height) * 0.11);
 }
 
 .blue-stat,
@@ -255,7 +269,7 @@ cat-right {
   background-color: #db1d5c;
   color: white;
   grid-row: 2;
-  margin-top: -2px;
+  margin-top: calc(var(--card-height) * -0.02);
   z-index: 2;
 }
 
@@ -263,7 +277,7 @@ cat-right {
   background-color: #b8f511;
   color: black;
   grid-row: 3;
-  margin-top: -2px;
+  margin-top: calc(var(--card-height) * -0.04);
   z-index: 3;
 }
 
@@ -279,8 +293,9 @@ cat-right {
   color: white;
   background: black;
   width: 40px;
-  height: 40px;
-  margin-top: 30px;
+  width: calc(var(--card-height) * 0.15);
+  height: calc(var(--card-height) * 0.15);
+  margin-top: calc(var(--card-height) * 0.15);
 }
 
 .scrap-cost {
@@ -293,14 +308,14 @@ cat-right {
   font-size: 22px;
   color: white;
   background: black;
-  width: 40px;
-  height: 40px;
-  margin-bottom: -40px;
+  width: calc(var(--card-height) * 0.15);
+  height: calc(var(--card-height) * 0.15);
+  margin-top: calc(var(--card-height) * -0.15);
 }
 
 .place-hp {
-  margin-bottom: -40px;
-  margin-left: 150px;
+  margin-bottom: calc(var(--card-height) * -0.15);
+  margin-left: calc(var(--card-width) * -0.5);
 }
 
 
@@ -320,8 +335,8 @@ cat-right {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 5px;
-  width: 40px;
+  padding: calc(var(--card-height) * 0.05);
+  width: calc(var(--card-width) * 0.2);
 }
 
 .heart-icon,
@@ -337,7 +352,7 @@ cat-right {
 }
 
 .timer-icon {
-  height: 25px;
+  height: calc(var(--card-height) * 0.08);
 }
 
 .place-hp,
@@ -359,10 +374,11 @@ cat-right {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 5px;
+  padding: calc(var(--card-width) * 0.02);
 }
 
 .timer {
+  color: black;
   font-size: 22px;
   width: 25px;
   height: 25px;
@@ -455,9 +471,10 @@ cat-right {
 
 .stats {
   display: flex;
-flex-direction: row;
-justify-content: space-between;
-padding-top: 50px;
+  flex-direction: row;
+  height: 100%;
+  justify-content: space-between;
+  padding-top: calc(var(--card-height) * 0.16);
 }
 
 .stat {

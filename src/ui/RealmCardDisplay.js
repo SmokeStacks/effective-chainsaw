@@ -98,7 +98,7 @@ class PromoCost extends Component {
     }
 }
 
-class CardDisplay extends Component {
+class RealmCardDisplay extends Component {
     constructor(props) {
         super(props)
 
@@ -143,7 +143,7 @@ class CardDisplay extends Component {
 
         if (isCreatureOrRitual) {
             return (
-                <div className="card" onClick={() => onCardSelect(entity)}>
+                <div className="card card-realm" onClick={() => onCardSelect(entity)}>
                     <div className="top-bar">
                         {<RezCost rezCost={rezCost} />}
                         <Title ash={category} name={name} category={category} soul={soul} />
@@ -207,4 +207,4 @@ class CardDisplay extends Component {
     }
 }
 
-export default CardDisplay;
+export default RealmCardDisplay;
