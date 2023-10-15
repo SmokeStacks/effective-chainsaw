@@ -5,9 +5,7 @@
 
 .card-realm {
   --card-width: 150px;
-  /* 75% of original size */
   --card-height: 225px;
-  /* 75% of original size */
 }
 
 .game-board {
@@ -119,7 +117,46 @@
   height: var(--card-height);
   border: 3px solid black;
   border-radius: 3%;
-  margin: 0 calc(var(--card-height) * 0.05);
+  margin: 4px calc(var(--card-height) * 0.05);
+}
+
+.battle-card {
+  border-bottom: 6px solid black;
+  height: calc(var(--card-height) * 0.5);
+}
+
+.battle-card .top-bar {
+  height: 20%; /* adjust as needed */
+}
+
+.battle-card .rez,
+.battle-card .promo {
+  margin-top: calc(var(--card-height) * 0.025);
+}
+
+.battle-card .title-container {
+  padding-top: calc(var(--card-height) * 0.08);
+}
+
+.battle-card .soul-ash-container {
+  margin-top: calc(var(--card-height) * 0.31);
+}
+
+.battle-card .mid {
+  height: 80%;
+}
+
+.battle-card .attack-block {
+  height: 85%;
+}
+
+.battle-card .stats {
+  padding-top: calc(var(--card-height) * 0.13);
+}
+
+.battle-card  .creature-hp,
+.battle-card  .place-hp {
+  box-shadow: 2px 0px 2px 0px gray;
 }
 
 .top-bar {
@@ -515,4 +552,13 @@
   display: flex;
   flex-direction: column;
   padding: 5px;
+}
+
+.battlefield {
+  padding: 10px;
+}
+
+.battlefield-creatures {
+  display: flex;
+  padding: 10px;
 }

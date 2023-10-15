@@ -23,12 +23,38 @@ class Actions extends Component {
 
     actionClick = (type) => {
         console.log('click ', type)
+        if (type === 'QUEST') {
+            this.props.onQuest();
+        }
     };
 
     render() {
-        const { playerDraft, playerDraw, playerGainBits } = this.props;
+        const { playerDraft, playerDraw, playerGainBits, playerAttackMode, onConfirmBattleSelection, onCancelSelection } = this.props;
+
+        const renderQuestAction = () => {
+            if (playerAttackMode === 'QUEST') {
+                return (
+                    <div className="action">
+                        <Button className="action-button" onClick={onConfirmBattleSelection}>
+                            <img className="action-icon" src="path_to_confirm_icon.png" alt="Confirm" />
+                        </Button>
+                        <Button className="action-button" onClick={onCancelSelection}>
+                            <img className="action-icon" src="path_to_cancel_icon.png" alt="Cancel" />
+                        </Button>
+                    </div>
+                );
+            } else {
+                return (
+                    <div className="action">
+                        <img className="big-icon" src={questIcon} alt="Quest Icon" />
+                        <Button className="action-button blue-button" onClick={() => this.actionClick('QUEST')}>Quest</Button>
+                    </div>
+                );
+            }
+        };
 
         return (
+
             <div className="action-list">
                 <div className="actions">
                     <div className="action"><img className="action-icon" src={drawIcon}></img><Button className="action-button" onClick={() => playerDraw(1)}>Draw</Button></div>
@@ -41,13 +67,14 @@ class Actions extends Component {
                     <div className="action"><img className="big-icon" src={wishIcon}></img><Button className="action-button" onClick={() => this.actionClick('WISH')}>Wish</Button></div>
                 </div>
                 <div className="actions">
-                    <div className="action"><img className="big-icon" src={questIcon}></img><Button className="action-button blue-button" onClick={() => this.actionClick('QUEST')}>Quest</Button></div>
+                    {renderQuestAction()}
                     <div className="action"><img className="action-icon" src={raidIcon}></img><Button className="action-button red-button" onClick={() => this.actionClick('RAID')}>Raid</Button></div>
                     <div className="action"><img className="action-icon" src={hackIcon}></img><Button className="action-button yellow-button" onClick={() => this.actionClick('HACK')}>Hack</Button></div>
                 </div>
             </div>
         );
     }
+
 }
 
 export default Actions;

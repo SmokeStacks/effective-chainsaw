@@ -140,6 +140,13 @@ export function BoardContainer() {
     const [playerDebt, setPlayerDebt] = useState(3);
     const [playerWounds, setPlayerWounds] = useState(2);
 
+    const [selectedCard, setSelectedCard] = useState(null);
+    const [playerBattleCreatures, setPlayerBattleCreatures] = useState([]);
+    const [playerBattleSelection, setPlayerBattleSelection] = useState({}); // select creatures in Realm for battle
+    const [playerAttackMode, setPlayerAttackMode] = useState('NONE');
+    const [enemyBattleCreatures, setEnemyBattleCreatures] = useState([]);
+
+
     const [playerSolarium, setPlayerSolarium] = useState(createRealm('SOLARIUM', ['MAGI']));
     const [playerTheater, setPlayerTheater] = useState(createRealm('THEATER', ['MAGI', 'PHYS']));
     const [playerUnderpass, setPlayerUnderpass] = useState(createRealm('UNDERPASS', ['PHYS', 'TECH']));
@@ -150,17 +157,41 @@ export function BoardContainer() {
     const [playerUnderpassThings, setPlayerUnderpassThings] = useState(createSlotOperator(3, ['THING']));
     const [playerGridThings, setPlayerGridThings] = useState(createSlotOperator(4, ['THING']));
 
-    const [selectedCard, setSelectedCard] = useState(null);
-
     const handleCardSelect = (cardEntity) => {
         console.log('card select ', cardEntity.id)
         setSelectedCard(cardEntity);
     };
 
-    const handleRealmCardSelect = (cardEntity) => {
-        console.log('card select ', cardEntity.id)
-        //setSelectedCard(cardEntity);
+    const handleQuest = () => {
+        setPlayerAttackMode('QUEST')
     };
+
+    const handleRealmCardSelect = (cardEntity) => {
+        console.log('card select ', cardEntity.id);
+        if (playerAttackMode !== 'none') {
+            setPlayerBattleSelection(prev => {
+                if (prev[cardEntity.id]) { // select
+                    const newSelection = { ...prev };
+                    delete newSelection[cardEntity.id];
+                    return newSelection;
+                } else {
+                    return { ...prev, [cardEntity.id]: cardEntity }; // deselect
+                }
+            });
+        }
+    };
+
+    const handleConfirmBattleSelection = () => {
+        setPlayerBattleCreatures(prev => [...prev, ...Object.values(playerBattleSelection)]);
+        setPlayerBattleSelection({});
+    };
+    
+
+    const handleCancelSelection = () => {
+        setPlayerBattleSelection([]);
+        setSelectedCard(null);
+    };
+
 
     const handleRealmSelect = (realmName) => {
         console.log('realm ', realmName)
@@ -296,12 +327,18 @@ export function BoardContainer() {
                 playerDebt={playerDebt}
                 playerGainBits={playerGainBits}
                 playerAshes={playerAshes}
-                onCardSelect={handleCardSelect}
-                onRealmCardSelect={handleRealmCardSelect}
                 playerSolarium={playerSolarium}
                 playerTheater={playerTheater}
                 playerUnderpass={playerUnderpass}
                 playerGrid={playerGrid}
+                onCardSelect={handleCardSelect}
+                onRealmCardSelect={handleRealmCardSelect}
+                onQuest={handleQuest}
+                onConfirmBattleSelection={handleConfirmBattleSelection}
+                onCancelSelection={handleCancelSelection}
+                playerBattleCreatures={playerBattleCreatures}
+                enemyBattleCreatures={enemyBattleCreatures}
+                playerAttackMode={playerAttackMode}
             />
         </div>
     );

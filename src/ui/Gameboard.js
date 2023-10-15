@@ -6,6 +6,7 @@ import PlayerHandDisplay from "./PlayerHandDisplay";
 import Actions from "./Actions";
 import HUD from './HUD';
 import FocusDisplay from './FocusDisplay';
+import BattlefieldCreatures from './BattlefieldCreatures';
 
 class Gameboard extends Component {
     constructor(props) {
@@ -31,7 +32,30 @@ class Gameboard extends Component {
     };
 
     render() {
-        const { playerOneHand, playerDraft, playerDraw, playerWounds, playerBits, playerDebt, playerGainBits, playerAshes, realmComponents, onCardSelect, onRealmSelect, playerSolarium, playerTheater, playerUnderpass, playerGrid, onRealmCardSelect } = this.props;
+        const { 
+            playerOneHand, 
+            playerDraft, 
+            playerDraw, 
+            playerWounds, 
+            playerBits, 
+            playerDebt, 
+            playerGainBits, 
+            playerAshes, 
+            realmComponents, 
+            onCardSelect, 
+            onRealmSelect, 
+            playerSolarium, 
+            playerTheater, 
+            playerUnderpass, 
+            playerGrid, 
+            onRealmCardSelect,
+            enemyBattleCreatures,
+            playerBattleCreatures,
+            playerAttackMode,
+            onQuest,
+            onConfirmBattleSelection,
+            onCancelSelection
+        } = this.props;
 
         const displayedRealms = [
             realmComponents[this.state.currentRealmIndex],
@@ -55,14 +79,14 @@ class Gameboard extends Component {
                         <i className="fas fa-chevron-left"></i>
                     </button>
                     <div className="realms-container">
-                    {displayedRealms.map((RealmComponent, index) => (
-                        <RealmComponent 
-                            key={index} 
-                            onRealmSelect={() => onRealmSelect(RealmComponent.name)}
-                            realmState={playerRealmsState[RealmComponent.name]}
-                            onRealmCardSelect={onRealmCardSelect}
-                        />
-                    ))}
+                        {displayedRealms.map((RealmComponent, index) => (
+                            <RealmComponent
+                                key={index}
+                                onRealmSelect={() => onRealmSelect(RealmComponent.name)}
+                                realmState={playerRealmsState[RealmComponent.name]}
+                                onRealmCardSelect={onRealmCardSelect}
+                            />
+                        ))}
                     </div>
                     <button
                         className="nav-button pan-right-button"
@@ -72,10 +96,22 @@ class Gameboard extends Component {
                     </button>
                 </div>
                 <div className="board-bottom">
+                    <div className="battlefield">
+                        <BattlefieldCreatures cards={enemyBattleCreatures} onCardSelect={onCardSelect} />
+                        <BattlefieldCreatures cards={playerBattleCreatures} onCardSelect={onCardSelect} />
+                    </div>
                     <div className="action-hud">
-                        <Actions playerDraw={playerDraw} playerDraft={playerDraft} playerGainBits={playerGainBits} />
+                        <Actions 
+                        playerDraw={playerDraw} 
+                        playerDraft={playerDraft} 
+                        playerGainBits={playerGainBits} 
+                        playerAttackMode={playerAttackMode}
+                        onQuest={onQuest}
+                        onConfirmBattleSelection={onConfirmBattleSelection}
+                        onCancelSelection={onCancelSelection}
+                        />
                         <FocusDisplay />
-                        <HUD ashes={playerAshes} wounds={playerWounds} bits={playerBits} debt={playerDebt}/>
+                        <HUD ashes={playerAshes} wounds={playerWounds} bits={playerBits} debt={playerDebt} />
                     </div>
                     <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />
                 </div>
