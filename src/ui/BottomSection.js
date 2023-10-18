@@ -45,11 +45,11 @@ class BottomSection extends Component {
         this.state = {}
     }
     render() {
-        const { category, HP, timer, scrap, text } = this.props;
+        const { category, HP, timer, scrap, text, mode } = this.props;
 
         return (
             <div className="bottom">
-                <div className="text">{text}</div>
+                {mode !== "SHORT" && <div className="text">{text}</div>}
                 {category == "LANDMARK" && <PlaceHP HP={HP} />}
                 {category == "LOCATION" && <PlaceHP HP={HP} />}
                 {category == "SNIP" && <ScrapCost scrap={scrap} />}

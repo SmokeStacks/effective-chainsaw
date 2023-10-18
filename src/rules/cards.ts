@@ -100,15 +100,17 @@ export class CardEntity {
   id: string;
   card: Card;
   wounds: number;
+  steps: number;
   rezzed: boolean;
   active: boolean;
   exposed: boolean;
   scored: boolean;
 
-  constructor(id: string, card: Card, wounds: number, online: boolean, exposed: boolean) {
+  constructor(id: string, card: Card) {
     this.id = id;
     this.card = card;
-    this.wounds = wounds;
+    this.wounds = 0;
+    this.steps = 0;
     this.rezzed = false;
     this.active = false;
     this.exposed = false;
@@ -128,7 +130,7 @@ export type Graveyard = {
   cards: [CardEntity]
 };
 
-export type Focus = 'MIND' | 'BODY' | 'SOUL'; // can only cast and attack with cards that share element with current Focus (Tech, Phys, Magi)
+export type Focus = 'MIND' | 'BODY' | 'SOUL'; // can only cast and attack with cards that share aspect with current Focus (Tech, Phys, Magi)
 
 export type PlayerBoard = {
   graveyard: Graveyard;
@@ -153,15 +155,17 @@ export type PlayerBoard = {
 
 export type CardType = 'INSTALL' | 'RITUAL';
 
+export type Aspect = 'MAGI' | 'PHYS' | 'TECH';
+
 export class Realm {
   name: RealmName;
-  elements: Element[];
+  aspects: Aspect[];
   people: CardEntity[] = [];
   places: CardEntity[] = [];
   things: CardEntity[] = [];
-  constructor(name: RealmName, elements: Element[]) {
+  constructor(name: RealmName, aspects: Aspect[]) {
       this.name = name;
-      this.elements = elements;
+      this.aspects = aspects;
   }
 }
 

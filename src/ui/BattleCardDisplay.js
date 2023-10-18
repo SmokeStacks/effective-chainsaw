@@ -130,7 +130,8 @@ class BattleCardDisplay extends Component {
 
         const {
             onCardSelect,
-            entity
+            entity,
+            mode
         } = this.props;
 
         const isCreatureOrRitual = category === "CREATURE" || category === "RITUAL";
@@ -162,6 +163,14 @@ class BattleCardDisplay extends Component {
                     HP={HP}
                     promoCost={promoCost}
                 />
+                <BottomSection
+                        category={category}
+                        HP={HP}
+                        mode={'SHORT'}
+                        scrap={scrap}
+                        text={text}
+                        timer={timer}
+                    />
             </div>
         );
     }

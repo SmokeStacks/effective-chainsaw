@@ -6,10 +6,11 @@ import RealmCreatures from "./RealmCreatures";
 import { Realm, SharedSlot } from '/Users/wyrm/Documents/coding/TMP/tempi/src/rules/cards.ts'
 import { libraryOne } from '/Users/wyrm/Documents/coding/TMP/tempi/src/playerDecks/deckOne.ts'
 import { draftList } from '/Users/wyrm/Documents/coding/TMP/tempi/src/systemDecks/draft.ts'
+import { enemyOne } from '/Users/wyrm/Documents/coding/TMP/tempi/src/systemDecks/enemyOne.ts'
 
 
 // SolariumRealm.js
-function Solarium({ onRealmSelect, onRealmCardSelect, realmState  }) {
+function Solarium({ onRealmSelect, onRealmCardSelect, realmState }) {
     return (
         <div className="realm solarium" onClick={() => onRealmSelect('SOLARIUM')}>
             Solarium
@@ -103,6 +104,25 @@ export function BoardContainer() {
         return libraryInstanceArray;
     };
 
+    const createEnemyLibrary = () => {
+        const libraryInstanceArray = [];
+        for (let i = 0; i < enemyOne.length; i++) {
+            const card = enemyOne[i];
+            const cardEntityInstance = {
+                id: i.toString(),
+                card: card,
+                damage: 0,
+                exposed: false,
+                scored: false,
+                rezzed: false,
+                active: false,
+                steps: 0
+            };
+            libraryInstanceArray.push(cardEntityInstance);
+        }
+        return libraryInstanceArray;
+    };
+
     const createDraft = () => {
         const draftInstanceArray = [];
         for (let i = 0; i < draftList.length; i++) {
@@ -133,6 +153,7 @@ export function BoardContainer() {
     const [playerLibrary, setPlayerLibrary] = useState(createLibrary());
     const [draft, setDraft] = useState(createDraft());
     const [playerHand, setPlayerHand] = useState([]);
+    const [graveyard, setPlayerGraveyard] = useState([]);
     const [playerBits, setPlayerBits] = useState(0);
     const [playerActions, setPlayerActions] = useState(0);
     const [playerAshes, setPlayerAshes] = useState(0);
@@ -140,22 +161,39 @@ export function BoardContainer() {
     const [playerDebt, setPlayerDebt] = useState(3);
     const [playerWounds, setPlayerWounds] = useState(2);
 
+    const [enemyLibrary, setEnemyLibrary] = useState(createEnemyLibrary());
+    const [enemyHand, setEnemyHand] = useState([]);
+    const [enemyGraveyard, setEnemyGraveyard] = useState([]);
+    const [priorityLeft, setPriorityLeft] = useState(true);
+    const [enemyBits, setEnemyBits] = useState(0);
+    const [enemyActions, setEnemyActions] = useState(2);
+    const [enemyFate, setEnemyFate] = useState(0);
+    const [enemyDebt, setEnemyDebt] = useState(3);
+    const [enemyWounds, setEnemyWounds] = useState(3);
+
+
     const [selectedCard, setSelectedCard] = useState(null);
     const [playerBattleCreatures, setPlayerBattleCreatures] = useState([]);
     const [playerBattleSelection, setPlayerBattleSelection] = useState({}); // select creatures in Realm for battle
     const [playerAttackMode, setPlayerAttackMode] = useState('NONE');
-    const [enemyBattleCreatures, setEnemyBattleCreatures] = useState([]);
 
+    const [enemyBattleCreatures, setEnemyBattleCreatures] = useState([]);
+    const [enemyAttackMode, setEnemyAttackMode] = useState('NONE');
 
     const [playerSolarium, setPlayerSolarium] = useState(createRealm('SOLARIUM', ['MAGI']));
     const [playerTheater, setPlayerTheater] = useState(createRealm('THEATER', ['MAGI', 'PHYS']));
     const [playerUnderpass, setPlayerUnderpass] = useState(createRealm('UNDERPASS', ['PHYS', 'TECH']));
     const [playerGrid, setPlayerGrid] = useState(createRealm('GRID', ['TECH']));
 
-    const [playerTheaterPlaces, setPlayerTheaterPlaces] = useState(createSlotOperator(4, ['PLACE']));
-    const [playerUnderpassPlaces, setPlayerUnderpassPlaces] = useState(createSlotOperator(3, ['PLACE']));
-    const [playerUnderpassThings, setPlayerUnderpassThings] = useState(createSlotOperator(3, ['THING']));
-    const [playerGridThings, setPlayerGridThings] = useState(createSlotOperator(4, ['THING']));
+    const [enemySolarium, setEnemySolarium] = useState(createRealm('SOLARIUM', ['MAGI']));
+    const [enemyTheater, setEnemyTheater] = useState(createRealm('THEATER', ['MAGI', 'PHYS']));
+    const [enemyUnderpass, setEnemyUnderpass] = useState(createRealm('UNDERPASS', ['PHYS', 'TECH']));
+    const [enemyGrid, setEnemyGrid] = useState(createRealm('GRID', ['TECH']));
+
+    const [TheaterPlaces, setTheaterPlaces] = useState(createSlotOperator(4, ['PLACE']));
+    const [UnderpassPlaces, setUnderpassPlaces] = useState(createSlotOperator(3, ['PLACE']));
+    const [UnderpassThings, setUnderpassThings] = useState(createSlotOperator(3, ['THING']));
+    const [GridThings, setGridThings] = useState(createSlotOperator(4, ['THING']));
 
     const handleCardSelect = (cardEntity) => {
         console.log('card select ', cardEntity.id)
@@ -185,59 +223,468 @@ export function BoardContainer() {
         setPlayerBattleCreatures(prev => [...prev, ...Object.values(playerBattleSelection)]);
         setPlayerBattleSelection({});
     };
-    
+
 
     const handleCancelSelection = () => {
         setPlayerBattleSelection([]);
         setSelectedCard(null);
     };
 
+    const handleDamage = (location, id, num) => {
+        let cardToWound;
+
+        switch (location) {
+            case 'BATTLE':
+                cardToWound = playerBattleCreatures.find(cardEntity => cardEntity.id === id);
+                if (cardToWound) {
+                    const newWounds = cardToWound.wounds + num;
+
+                    if (newWounds >= cardToWound.card.HP) {
+                        handleDeadPlayerCard(location, id);
+                    }
+                    else {
+                        setPlayerBattleCreatures(prev => {
+                            return prev.map(card => {
+                                if (card.id === id) {
+                                    return {
+                                        ...card,
+                                        wounds: newWounds
+                                    };
+                                }
+                                return card;
+                            });
+                        });
+                    }
+                }
+                break;
+            case 'SOLARIUM':
+                cardToWound = playerSolarium.people.find(cardEntity => cardEntity.id === id);
+                if (cardToWound) {
+                    const newWounds = cardToWound.wounds + num;
+
+                    if (newWounds >= cardToWound.card.HP) {
+                        handleDeadPlayerCard(location, id);
+                    }
+                    else {
+                        setPlayerSolarium(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.map(card => {
+                                    if (card.id === id) {
+                                        return {
+                                            ...card,
+                                            wounds: newWounds
+                                        };
+                                    }
+                                    return card;
+                                })
+                            };
+                        });
+                    }
+                }
+                break;
+            case 'THEATER':
+                cardToWound = playerTheater.people.find(cardEntity => cardEntity.id === id);
+                if (cardToWound) {
+                    const newWounds = cardToWound.wounds + num;
+
+                    if (newWounds >= cardToWound.card.HP) {
+                        handleDeadPlayerCard(location, id);
+                    }
+                    else {
+                        setPlayerTheater(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.map(card => {
+                                    if (card.id === id) {
+                                        return {
+                                            ...card,
+                                            wounds: newWounds
+                                        };
+                                    }
+                                    return card;
+                                })
+                            };
+                        });
+                    }
+                }
+                break;
+            case 'UNDERPASS':
+                cardToWound = playerUnderpass.people.find(cardEntity => cardEntity.id === id);
+                if (cardToWound) {
+                    const newWounds = cardToWound.wounds + num;
+
+                    if (newWounds >= cardToWound.card.HP) {
+                        handleDeadPlayerCard(location, id);
+                    }
+                    else {
+                        setPlayerUnderpass(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.map(card => {
+                                    if (card.id === id) {
+                                        return {
+                                            ...card,
+                                            wounds: newWounds
+                                        };
+                                    }
+                                    return card;
+                                })
+                            };
+                        });
+                    }
+                }
+                break;
+            case 'GRID':
+                cardToWound = playerGrid.people.find(cardEntity => cardEntity.id === id);
+                if (cardToWound) {
+                    const newWounds = cardToWound.wounds + num;
+
+                    // If the new wounds are greater than or equal to the card's HP, remove it from Solarium
+                    if (newWounds >= cardToWound.card.HP) {
+                        handleDeadPlayerCard(location, id);
+                    }
+                    // If the card isn't dead, just update its wounds
+                    else {
+                        setPlayerGrid(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.map(card => {
+                                    if (card.id === id) {
+                                        return {
+                                            ...card,
+                                            wounds: newWounds
+                                        };
+                                    }
+                                    return card;
+                                })
+                            };
+                        });
+                    }
+                }
+                break;
+
+            default:
+                console.error("Invalid location");
+                return;
+        }
+    }
+
+
+    const handleDeadPlayerCard = (location, id) => {
+        let cardToRemove;
+
+        // Based on the location, find and remove the card
+        switch (location) {
+            case 'BATTLE':
+                cardToRemove = playerBattleCreatures.find(card => card.id === id);
+                setPlayerBattleCreatures(prev => prev.filter(card => card.id !== id));
+                break;
+
+            case 'SOLARIUM':
+                cardToRemove = playerSolarium.people.find(card => card.id === id);
+                setPlayerSolarium(prevRealm => {
+                    return {
+                        ...prevRealm,
+                        people: prevRealm.people.filter(card => card.id !== id)
+                    };
+                });
+                break;
+
+            case 'THEATER':
+                cardToRemove = playerTheater.people.find(card => card.id === id);
+                setPlayerTheater(prevRealm => {
+                    return {
+                        ...prevRealm,
+                        people: prevRealm.people.filter(card => card.id !== id)
+                    };
+                });
+                break;
+
+            case 'UNDERPASS':
+                cardToRemove = playerUnderpass.people.find(card => card.id === id);
+                setPlayerUnderpass(prevRealm => {
+                    return {
+                        ...prevRealm,
+                        people: prevRealm.people.filter(card => card.id !== id)
+                    };
+                });
+                break;
+
+            case 'GRID':
+                cardToRemove = playerGrid.people.find(card => card.id === id);
+                setPlayerGrid(prevRealm => {
+                    return {
+                        ...prevRealm,
+                        people: prevRealm.people.filter(card => card.id !== id)
+                    };
+                });
+                break;
+
+            default:
+                console.error("Invalid location");
+                return;
+        }
+        if (cardToRemove) {
+            setPlayerGraveyard(prev => [...prev, cardToRemove]);
+        }
+        playerGainAshes(1);
+    }
+
+    const handleRezPlayerCard = (id) => {
+        // check if rez cost can be paid
+
+        // pay bits cost, playerLoseBits
+
+        // pay soul cost
+        // sacrifice # of creatures in any realm equal to cost
+        // select creatures and then press confirm button
+
+        // pay ash cost, playerLoseAshes
+
+        // set rezzed to true on card entity
+    }
+
 
     const handleRealmSelect = (realmName) => {
         console.log('realm ', realmName)
         console.log('selectedCard ', selectedCard)
+        const {magi, phys, tech } = selectedCard.card;
+
         if (!selectedCard) return;
 
         switch (realmName) {
             case 'Solarium':
-                setPlayerSolarium(prevRealm => {
-                    return {
-                        ...prevRealm,
-                        people: [...prevRealm.people, selectedCard]
-                    };
-                });
+                if (magi) {
+                    setPlayerSolarium(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            people: [...prevRealm.people, selectedCard]
+                        };
+                    });
+                    playerLoseActions(1);
+                    setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
+                    setSelectedCard(null);
+                }
                 break;
             case 'Theater':
-                setPlayerTheater(prevRealm => {
-                    return {
-                        ...prevRealm,
-                        people: [...prevRealm.people, selectedCard]
-                    };
-                });
+                if (magi || phys) {
+                    setPlayerTheater(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            people: [...prevRealm.people, selectedCard]
+                        };
+                    });
+                    playerLoseActions(1);
+                    setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
+                    setSelectedCard(null);
+                }
+                break;
             case 'Underpass':
-                setPlayerUnderpass(prevRealm => {
-                    return {
-                        ...prevRealm,
-                        people: [...prevRealm.people, selectedCard]
-                    };
-                });
+                if (tech || phys) {
+                    setPlayerUnderpass(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            people: [...prevRealm.people, selectedCard]
+                        };
+                    });
+                    playerLoseActions(1);
+                    setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
+                    setSelectedCard(null);
+                }
+                break;
             case 'Grid':
-                setPlayerGrid(prevRealm => {
-                    return {
-                        ...prevRealm,
-                        people: [...prevRealm.people, selectedCard]
-                    };
-                });
+                if (tech) {
+                    setPlayerGrid(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            people: [...prevRealm.people, selectedCard]
+                        };
+                    });
+                    playerLoseActions(1);
+                    setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
+                    setSelectedCard(null);
+                }
                 break;
         }
-
-        // Remove card from hand
-        setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
-        // Reset selected card state
-        setSelectedCard(null);
     };
 
+    function enemyTurn() {
+        enemyGainActions(2);
+        enemyGainBits(2);
+        enemyAdvanceCards();
+        enemyDraw(1);
+        enemyAction();
+        enemyRezCards();
+        enemyPlanAttack();
+        setPriorityLeft(!priorityLeft);
+    }
 
+    function enemyRezCards() {
+        // for each creature in every realm Rez that card (for free) if it has steps >= that card's timer
+    }
+
+    function enemyPlanAttack() {
+        // for each realm commence an attack with each creature who is active one at a time
+    }
+
+    function enemyAdvanceCards() {
+        // Helper function to advance cards based on logic
+        const advanceCardList = (cardList) => {
+            return cardList.map(cardEntity => {
+                if ("steps" in cardEntity) {
+                    const newSteps = cardEntity.steps + 1;
+                    let updatedCard = { ...cardEntity, steps: newSteps };
+    
+                    // Check if the card should be activated
+                    if (cardEntity.card.timer && newSteps >= cardEntity.card.timer) {
+                        updatedCard.active = true;
+                    }
+    
+                    // Placeholder for handling places/things scoring
+                    if (cardEntity.card.promoCost && newSteps >= cardEntity.card.promoCost) {
+                        // scoreEnemyCard();
+                    }
+    
+                    return updatedCard;
+                }
+                return cardEntity;
+            });
+        };
+    
+        setEnemySolarium(prevRealm => {
+            return {
+                ...prevRealm,
+                people: advanceCardList(prevRealm.people),
+                places: advanceCardList(prevRealm.places),
+                things: advanceCardList(prevRealm.things)
+            };
+        });
+    
+        setEnemyTheater(prevRealm => {
+            return {
+                ...prevRealm,
+                people: advanceCardList(prevRealm.people),
+                places: advanceCardList(prevRealm.places),
+                things: advanceCardList(prevRealm.things)
+            };
+        });
+    
+        setEnemyUnderpass(prevRealm => {
+            return {
+                ...prevRealm,
+                people: advanceCardList(prevRealm.people),
+                places: advanceCardList(prevRealm.places),
+                things: advanceCardList(prevRealm.things)
+            };
+        });
+    
+        setEnemyGrid(prevRealm => {
+            return {
+                ...prevRealm,
+                people: advanceCardList(prevRealm.people),
+                places: advanceCardList(prevRealm.places),
+                things: advanceCardList(prevRealm.things)
+            };
+        });
+    }
+
+    function enemyAction() {
+        if (enemyHand.length > 0) {
+            enemyPlayCard();
+            enemyLoseActions(1);
+        } else {
+            enemyDraw(1);
+            enemyLoseActions(1);
+        }
+        if (enemyActions > 0) {
+            enemyAction();
+        }
+    }
+
+    function enemyDraw(num) {
+        let remainingCards = num;
+
+        if (enemyWounds > 0) {
+            const newWounds = enemyWounds - num;
+
+            remainingCards = Math.max(0, newWounds * -1);
+            setEnemyWounds(Math.max(0, newWounds));
+        }
+        if (remainingCards > 0) {
+            const newHandCards = enemyLibrary.slice(0, remainingCards);
+            const newLibrary = enemyLibrary.slice(remainingCards, enemyLibrary.length);
+
+            setEnemyHand(prevHand => [
+                ...prevHand,
+                ...newHandCards
+            ]);
+            setEnemyLibrary(newLibrary);
+        }
+    }
+
+    function enemyPlayCard() {
+        if (enemyHand.length === 0) return;
+    
+        const cardToPlay = enemyHand[0];
+        const {magi, phys, tech } = cardToPlay.card;
+    
+        let realmToPlayIn = null;
+    
+        // Determine which realm to play the card based on priority and attributes
+        const priorityList = priorityLeft ? ['Solarium', 'Theater', 'Underpass', 'Grid'] : ['Grid', 'Underpass', 'Theater', 'Solarium'];
+    
+        for (let realmName of priorityList) {
+            if ((realmName === 'Solarium' && magi) ||
+                (realmName === 'Theater' && (magi || phys)) ||
+                (realmName === 'Underpass' && (tech || phys)) ||
+                (realmName === 'Grid' && tech)) {
+                realmToPlayIn = realmName;
+                break;
+            }
+        }
+    
+        // Play the card in the determined realm and update states
+        if (realmToPlayIn) {
+            switch (realmToPlayIn) {
+                case 'Solarium':
+                    setEnemySolarium(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            people: [...prevRealm.people, cardToPlay]
+                        };
+                    });
+                    break;
+                case 'Theater':
+                    setEnemyTheater(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            people: [...prevRealm.people, cardToPlay]
+                        };
+                    });
+                    break;
+                case 'Underpass':
+                    setEnemyUnderpass(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            people: [...prevRealm.people, cardToPlay]
+                        };
+                    });
+                    break;
+                case 'Grid':
+                    setEnemyGrid(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            people: [...prevRealm.people, cardToPlay]
+                        };
+                    });
+                    break;
+            }
+    
+            // Remove card from enemy's hand
+            setEnemyHand(prevHand => prevHand.filter(card => card.id !== cardToPlay.id));
+        }
+    }
 
     function playerDraw(num) {
         let remainingCards = num;
@@ -289,12 +736,32 @@ export function BoardContainer() {
         setPlayerBits(playerBits - num);
     }
 
+    function enemyGainBits(num) {
+        let remainingBits = num;
+
+        if (enemyDebt > 0) {
+            const newDebt = enemyDebt - num;
+
+            remainingBits = Math.max(0, newDebt * -1);
+            setEnemyDebt(Math.max(0, newDebt));
+        }
+        setEnemyBits(prevBits => prevBits + remainingBits);
+    }
+
+    function enemyLoseBits(num) {
+        setEnemyBits(playerBits - num);
+    }
+
     function playerGainActions(num) {
         setPlayerActions(playerActions + num);
     }
 
     function playerLoseActions(num) {
         setPlayerActions(playerActions - num);
+    }
+
+    function enemyLoseActions(num) {
+        setEnemyActions(enemyActions - num);
     }
 
     function playerGainAshes(num) {

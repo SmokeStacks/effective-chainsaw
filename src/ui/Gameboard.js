@@ -26,7 +26,7 @@ class Gameboard extends Component {
     };
 
     handlePanRight = () => {
-        if (this.state.currentRealmIndex < this.props.realms.length - 2) {
+        if (this.state.currentRealmIndex < this.props.realmComponents.length - 2) {
             this.setState({ currentRealmIndex: this.state.currentRealmIndex + 1 });
         }
     };

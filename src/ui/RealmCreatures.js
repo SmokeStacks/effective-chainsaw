@@ -5,7 +5,7 @@ import RealmCardDisplay from "./RealmCardDisplay";
 function RealmCards({ cards, onCardSelect }) {
     var cardsEntities = [];
     for (var i = 0; i < cards.length; i++) {
-        cardsEntities.push(<RealmCardDisplay key={i} entity={cards[i]} onCardSelect={onCardSelect} />);
+        cardsEntities.push(<RealmCardDisplay isFaceDown={true} isPlayerCard={true} key={i} entity={cards[i]} onCardSelect={onCardSelect} />);
     }
     return <>{cardsEntities}</>;
 }
@@ -15,7 +15,7 @@ class RealmCreatures extends Component {
         const { cards, onCardSelect } = this.props;
 
         return (
-            <div className="creatures">
+            <div className="realm-creatures">
                 <RealmCards cards={cards} onCardSelect={onCardSelect} />
             </div>
         );

@@ -1,11 +1,15 @@
+
+
 :root {
-  --card-width: 200px;
-  --card-height: 300px;
+  --card-width: 175px;
+  --card-height: 262.5px;
+  --card-back-img: 'https://i.pinimg.com/236x/df/81/3b/df813b2ae22b5e321a0ea1bdb2562497.jpg'
 }
 
 .card-realm {
-  --card-width: 150px;
-  --card-height: 225px;
+  --card-width: 125px;
+  --card-height: 200px;
+  --card-ratio: 275px;
 }
 
 .game-board {
@@ -110,53 +114,97 @@
   margin: 10px;
 }
 
+.card.face-down-player::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-color: rgba(128, 128, 128, 0.4);
+  pointer-events: none;
+}
+
+.card.face-down-enemy {
+  background-image: url('https://i.pinimg.com/236x/df/81/3b/df813b2ae22b5e321a0ea1bdb2562497.jpg');
+}
+
 .card {
   background-color: white;
   box-shadow: 10px 5px 5px black;
   width: var(--card-width);
   height: var(--card-height);
   border: 3px solid black;
-  border-radius: 3%;
-  margin: 4px calc(var(--card-height) * 0.05);
+  border-radius: 5%;
+  margin: 2px calc(var(--card-height) * 0.01);
+  position: relative;
+}
+
+.card.face-down-player {
+  border: 8px solid gray;
 }
 
 .battle-card {
   border-bottom: 6px solid black;
-  height: calc(var(--card-height) * 0.5);
+  height: calc(var(--card-ratio) * 0.55);
 }
 
 .battle-card .top-bar {
-  height: 20%; /* adjust as needed */
+  height: 15%;
 }
 
 .battle-card .rez,
 .battle-card .promo {
-  margin-top: calc(var(--card-height) * 0.025);
+  font-size: calc(var(--card-ratio) * 0.06);
+  margin-top: calc(var(--card-ratio) * 0.020);
 }
 
 .battle-card .title-container {
-  padding-top: calc(var(--card-height) * 0.08);
+  padding-top: calc(var(--card-ratio) * 0.07);
+}
+
+.face-down-player .title {
+  color: white;
+}
+
+.face-down-player .top-bar {
+  background-color: black;
 }
 
 .battle-card .soul-ash-container {
-  margin-top: calc(var(--card-height) * 0.31);
+  margin-top: calc(var(--card-ratio) * 0.25);
 }
 
 .battle-card .mid {
-  height: 80%;
+  height: 68%;
 }
 
 .battle-card .attack-block {
   height: 85%;
 }
 
+.battle-card .blue-stat,
+.battle-card .red-stat,
+.battle-card .yellow-stat {
+  font-size: calc(var(--card-ratio) * 0.075);
+}
+
 .battle-card .stats {
-  padding-top: calc(var(--card-height) * 0.13);
+  padding-top: calc(var(--card-ratio) * 0.13);
 }
 
 .battle-card  .creature-hp,
 .battle-card  .place-hp {
   box-shadow: 2px 0px 2px 0px gray;
+}
+
+
+.battle-card .timer-container {
+  padding: calc(var(--card-width) * 0.005);
+}
+
+.battle-card .bottom {
+  height: 17%;
 }
 
 .top-bar {
@@ -174,10 +222,10 @@
   color: black;
   display: flex;
   align-items: center;
-  padding: 5px;
+  padding: 2px;
   font-size: calc(var(--card-height) * 0.11);
   background: white;
-  margin-top: calc(var(--card-height) * 0.05);
+  margin-top: calc(var(--card-height) * 0.01);
 }
 
 .rez {
@@ -185,7 +233,8 @@
 }
 
 .rez-icon {
-  height: calc(var(--card-height) * 0.12);
+  height: calc(var(--card-height) * 0.10);
+  margin: 2px;
 }
 
 .promo {
@@ -236,7 +285,7 @@
 }
 
 .soul-icon {
-  height: calc(var(--card-height) * 0.05);
+  height: calc(var(--card-height) * 0.06);
 }
 
 .cat-left,
@@ -293,6 +342,7 @@
 .red-stat,
 .yellow-stat {
   border-radius: 0 50% 50% 0;
+  font-size: calc(var(--card-height) * 0.085);
 }
 
 .blue-stat {
@@ -398,6 +448,7 @@
 }
 
 .bottom {
+  background: #e8e8e9;
   display: flex;
   flex-direction: column;
   height: 40%;
@@ -561,4 +612,9 @@
 .battlefield-creatures {
   display: flex;
   padding: 10px;
+}
+
+.realm-creatures {
+  display: flex;
+  justify-content: space-evenly;
 }

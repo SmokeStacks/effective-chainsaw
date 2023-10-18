@@ -8,6 +8,9 @@ import dnaIcon from '../images/repeat.png'
 const promoIcon = "https://static.thenounproject.com/png/1590801-200.png";
 const soulIcon = "https://www.svgrepo.com/download/192067/ghost.svg";
 
+const sunIcon = "https://cdn4.iconfinder.com/data/icons/biticon-weather-line/24/weather_sun_sunny_day-512.png";
+const moonIcon = "https://static-00.iconduck.com/assets.00/moon-icon-1868x2048-ifpp8fum.png";
+
 class SoulAndAsh extends Component {
     constructor(props) {
         super(props);
@@ -67,15 +70,13 @@ class RezCost extends Component {
         this.state = {}
     }
     render() {
-        const { rezCost } = this.props;
+        const { isFaceDown, rezCost } = this.props;
 
         return (
             <div className="rez">
                 {rezCost}
-                <img
-                    className="rez-icon"
-                    src="https://cdn4.iconfinder.com/data/icons/biticon-weather-line/24/weather_sun_sunny_day-512.png"
-                ></img>
+                {isFaceDown && <img className="rez-icon" src={moonIcon}></img>}
+                {!isFaceDown && <img className="rez-icon" src={sunIcon}></img>}
             </div>
         );
     }
@@ -130,7 +131,9 @@ class RealmCardDisplay extends Component {
 
         const {
             onCardSelect,
-            entity
+            entity,
+            isFaceDown,
+            isPlayerCard,
         } = this.props;
 
         const isCreatureOrRitual = category === "CREATURE" || category === "RITUAL";
@@ -143,9 +146,9 @@ class RealmCardDisplay extends Component {
 
         if (isCreatureOrRitual) {
             return (
-                <div className="card card-realm" onClick={() => onCardSelect(entity)}>
+                <div className={`card card-realm battle-card ${isFaceDown ? (isPlayerCard ? 'face-down-player' : 'face-down-enemy') : ''}`}onClick={() => onCardSelect(entity)}>
                     <div className="top-bar">
-                        {<RezCost rezCost={rezCost} />}
+                        {<RezCost isFaceDown={isFaceDown} rezCost={rezCost} />}
                         <Title ash={category} name={name} category={category} soul={soul} />
                         {promoCost && <PromoCost promoCost={promoCost} />}
                         {category == "CREATURE" && <SoulAndAsh ash={ash} soul={soul} />}
@@ -169,12 +172,13 @@ class RealmCardDisplay extends Component {
                         scrap={scrap}
                         text={text}
                         timer={timer}
+                        mode='SHORT'
                     />
                 </div>
             );
         } else if (isOtherCategory) {
             return (
-                <div className="card" onClick={() => onCardSelect(this.props)}>
+                <div className="card card-realm battle-card" onClick={() => onCardSelect(this.props)}>
                     <div className="top-bar">
                         {isMundane && <RezCost rezCost={rezCost} />}
                         <Title category={category} name={name} />
