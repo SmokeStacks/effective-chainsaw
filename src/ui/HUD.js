@@ -20,26 +20,26 @@ class HUD extends Component {
     }
 
     render() {
-        const { bits, ashes, fate, burden, wounds, debt, wishes, focus } = this.props;
+        const { bits, actions, ashes, fate, burden, wounds, debt, wishes, focus, surge } = this.props;
 
         return (
             <div className="hud-list">
                 <div className="huds">
-                    <div className="stat"><img className="stat-icon" src={fateIcon} /><div>{`Fate: ${ashes}`}</div></div>
+                    <div className="stat"><img className="stat-icon" src={fateIcon} /><div>{`Fate: ${fate}`}</div></div>
                     <div className="stat"><img className="dna-icon" src={dnaIcon} /><div>{`Ashes: ${ashes}`}</div></div>
                     <div className="stat"><img className="stat-icon" src={goldIcon} /><div>{`Bits: ${bits}`}</div></div>
 
 
                 </div>
                 <div className="huds">
-                    <div className="stat"><img className="stat-icon" src={burdenIcon} /><div>{`Burden: ${ashes}`}</div></div>
+                    <div className="stat"><img className="stat-icon" src={burdenIcon} /><div>{`Burden: ${burden}`}</div></div>
                     <div className="stat"><img className="big-icon-invert" src={woundIcon} /><div>{`Wounds: ${wounds}`}</div></div>
                     <div className="stat"><img className="big-icon-invert" src={debtIcon} /><div>{`Debt: ${debt}`}</div></div>
                 </div>
                 <div className="huds">
-                    <div className="stat"><img className="big-icon-invert" src={wishIcon} /><div>{`Wishes: ${ashes}`}</div></div>
-                    <div className="stat"><img className="big-icon-invert" src={actionIcon} /><div>{`Actions: ${ashes}`}</div></div>
-                    <div className="stat"><img className="stat-icon" src={eyeIcon} /><div>{`Surge: ${ashes}`}</div></div>
+                    <div className="stat"><img className="big-icon-invert" src={wishIcon} /><div>{`Wishes: ${wishes}`}</div></div>
+                    <div className="stat"><img className="big-icon-invert" src={actionIcon} /><div>{`Actions: ${actions}`}</div></div>
+                    <div className="stat"><img className="stat-icon" src={eyeIcon} /><div>{`Surge: ${surge}`}</div></div>
                 </div>
             </div>
         );

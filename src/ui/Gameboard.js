@@ -3,9 +3,12 @@ import React, { Component } from 'react';
 //import { Graveyard, Hand, Realm, Library, Focus, Card, CardEntity } from '../rules/cards';
 
 import PlayerHandDisplay from "./PlayerHandDisplay";
+import EnemyHandDisplay from "./PlayerHandDisplay";
+import TimeController from "./TimeController";
 import Actions from "./Actions";
 import HUD from './HUD';
 import FocusDisplay from './FocusDisplay';
+//import ConfirmButton from './ConfirmButton';
 import BattlefieldCreatures from './BattlefieldCreatures';
 
 class Gameboard extends Component {
@@ -32,29 +35,48 @@ class Gameboard extends Component {
     };
 
     render() {
-        const { 
-            playerOneHand, 
-            playerDraft, 
-            playerDraw, 
-            playerWounds, 
-            playerBits, 
-            playerDebt, 
-            playerGainBits, 
-            playerAshes, 
-            realmComponents, 
-            onCardSelect, 
-            onRealmSelect, 
-            playerSolarium, 
-            playerTheater, 
-            playerUnderpass, 
-            playerGrid, 
+        const {
+            playerOneHand,
+            playerDraft,
+            playerDraw,
+            playerBoost,
+            playerWounds,
+            playerBits,
+            playerDebt,
+            playerMine,
+            playerActions,
+            playerFate,
+            playerBurden,
+            playerAshes,
+            realmComponents,
+            onCardSelect,
+            onRealmSelect,
+            playerSolarium,
+            playerTheater,
+            playerUnderpass,
+            playerGrid,
+            enemySolarium,
+            enemyTheater,
+            enemyUnderpass,
+            enemyGrid,
             onRealmCardSelect,
-            enemyBattleCreatures,
-            playerBattleCreatures,
-            playerAttackMode,
+            enemyBattleSlots,
+            playerBattleSlots,
+            attackMode,
             onQuest,
-            onConfirmBattleSelection,
-            onCancelSelection
+            onSlotSelect,
+            onBattleCardSelect,
+            onConfirmDefenseSelection,
+            onPlayerBattle,
+            awaitingSacrifices,
+            onSacrificeConfirmation,
+            onRezPlayerCard,
+            enemyHand,
+            onPlayerTurn,
+            onEnemyTurn,
+            gameState,
+            battleRealm,
+            onRaid
         } = this.props;
 
         const displayedRealms = [
@@ -69,8 +91,16 @@ class Gameboard extends Component {
             Grid: playerGrid,
         };
 
+        const enemyRealmsState = {
+            Solarium: enemySolarium,
+            Theater: enemyTheater,
+            Underpass: enemyUnderpass,
+            Grid: enemyGrid,
+        };
+
         return (
             <div className="game-boardz">
+                <EnemyHandDisplay cards={enemyHand} />
                 <div className="board-top">
                     <button
                         className="nav-button pan-left-button"
@@ -79,14 +109,19 @@ class Gameboard extends Component {
                         <i className="fas fa-chevron-left"></i>
                     </button>
                     <div className="realms-container">
-                        {displayedRealms.map((RealmComponent, index) => (
-                            <RealmComponent
-                                key={index}
-                                onRealmSelect={() => onRealmSelect(RealmComponent.name)}
-                                realmState={playerRealmsState[RealmComponent.name]}
-                                onRealmCardSelect={onRealmCardSelect}
-                            />
-                        ))}
+                        {displayedRealms.map((RealmComponent, index) => {
+                            return (
+                                <RealmComponent
+                                    key={index}
+                                    onRealmSelect={() => onRealmSelect(RealmComponent.name)}
+                                    onRealmCardSelect={onRealmCardSelect}
+                                    onRezPlayerCard={onRezPlayerCard}
+                                    playerState={playerRealmsState[RealmComponent.name]}
+                                    enemyState={enemyRealmsState[RealmComponent.name]}
+                                    name={RealmComponent.name}
+                                />
+                            );
+                        })}
                     </div>
                     <button
                         className="nav-button pan-right-button"
@@ -96,23 +131,36 @@ class Gameboard extends Component {
                     </button>
                 </div>
                 <div className="board-bottom">
-                    <div className="battlefield">
-                        <BattlefieldCreatures cards={enemyBattleCreatures} onCardSelect={onCardSelect} />
-                        <BattlefieldCreatures cards={playerBattleCreatures} onCardSelect={onCardSelect} />
+                    <div className={`battlefield ${battleRealm ? battleRealm.toLowerCase() : ''}`}>
+                        <BattlefieldCreatures cards={enemyBattleSlots} />
+                        <BattlefieldCreatures cards={playerBattleSlots} onCardSelect={onBattleCardSelect} onSlotSelect={onSlotSelect} />
                     </div>
                     <div className="action-hud">
-                        <Actions 
-                        playerDraw={playerDraw} 
-                        playerDraft={playerDraft} 
-                        playerGainBits={playerGainBits} 
-                        playerAttackMode={playerAttackMode}
-                        onQuest={onQuest}
-                        onConfirmBattleSelection={onConfirmBattleSelection}
-                        onCancelSelection={onCancelSelection}
+                        <Actions
+                            playerDraw={playerDraw}
+                            playerDraft={playerDraft}
+                            playerBoost={playerBoost}
+                            playerMine={playerMine}
+                            attackMode={attackMode}
+                            onQuest={onQuest}
+                            onRaid={onRaid}
+                            onConfirmDefenseSelection={onConfirmDefenseSelection}
+                            onPlayerBattle={onPlayerBattle}
                         />
-                        <FocusDisplay />
-                        <HUD ashes={playerAshes} wounds={playerWounds} bits={playerBits} debt={playerDebt} />
+                        <FocusDisplay awaitingSacrifices={awaitingSacrifices} onSacrificeConfirmation={onSacrificeConfirmation} />
+                        <HUD
+                            ashes={playerAshes}
+                            wounds={playerWounds}
+                            bits={playerBits}
+                            debt={playerDebt}
+                            actions={playerActions}
+                            fate={playerFate}
+                            burden={playerBurden}
+                            surge={0}
+                            wishes={0}
+                        />
                     </div>
+                    <TimeController onPlayerTurn={onPlayerTurn} onEnemyTurn={onEnemyTurn} gameState={gameState} />
                     <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />
                 </div>
             </div>

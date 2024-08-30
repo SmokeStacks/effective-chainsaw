@@ -11,6 +11,8 @@ const soulIcon = "https://www.svgrepo.com/download/192067/ghost.svg";
 const sunIcon = "https://cdn4.iconfinder.com/data/icons/biticon-weather-line/24/weather_sun_sunny_day-512.png";
 const moonIcon = "https://static-00.iconduck.com/assets.00/moon-icon-1868x2048-ifpp8fum.png";
 
+const bloodIcon = "https://cdn-icons-png.flaticon.com/512/205/205916.png";
+
 class SoulAndAsh extends Component {
     constructor(props) {
         super(props);
@@ -70,13 +72,13 @@ class RezCost extends Component {
         this.state = {}
     }
     render() {
-        const { isFaceDown, rezCost } = this.props;
+        const { rezCost, onRezPlayerCard, entity } = this.props;
 
         return (
-            <div className="rez">
+            <div className="rez" onClick={() => onRezPlayerCard(entity)}>
                 {rezCost}
-                {isFaceDown && <img className="rez-icon" src={moonIcon}></img>}
-                {!isFaceDown && <img className="rez-icon" src={sunIcon}></img>}
+                {!entity.rezzed && <img className="rez-icon" src={moonIcon}></img>}
+                {entity.rezzed && <img className="rez-icon" src={sunIcon}></img>}
             </div>
         );
     }
@@ -134,6 +136,7 @@ class RealmCardDisplay extends Component {
             entity,
             isFaceDown,
             isPlayerCard,
+            onRezPlayerCard
         } = this.props;
 
         const isCreatureOrRitual = category === "CREATURE" || category === "RITUAL";
@@ -146,41 +149,48 @@ class RealmCardDisplay extends Component {
 
         if (isCreatureOrRitual) {
             return (
-                <div className={`card card-realm battle-card ${isFaceDown ? (isPlayerCard ? 'face-down-player' : 'face-down-enemy') : ''}`}onClick={() => onCardSelect(entity)}>
-                    <div className="top-bar">
-                        {<RezCost isFaceDown={isFaceDown} rezCost={rezCost} />}
-                        <Title ash={category} name={name} category={category} soul={soul} />
-                        {promoCost && <PromoCost promoCost={promoCost} />}
-                        {category == "CREATURE" && <SoulAndAsh ash={ash} soul={soul} />}
-                        {category == "RITUAL" && <SoulAndAsh ash={ash} oul={soul} />}
+                <div className={`${entity.active ? 'card-container' : 'card-container resting'}`}>
+                    <img
+                        className={`${entity.sacrificed ? 'blood-icon' : 'blood-icon hidden'}`}
+                        src={bloodIcon}
+                    />
+                    <div className={`card card-realm battle-card ${!entity.rezzed ? (isPlayerCard ? 'face-down-player' : 'face-down-enemy') : ''}`} onClick={() => onCardSelect(entity)}>
+                        <div className="top-bar">
+                            {<RezCost entity={entity} rezCost={rezCost} onRezPlayerCard={onRezPlayerCard} />}
+                            <Title ash={category} name={name} category={category} soul={soul} />
+                            {promoCost && <PromoCost promoCost={promoCost} />}
+                            {category == "CREATURE" && <SoulAndAsh ash={ash} soul={soul} />}
+                            {category == "RITUAL" && <SoulAndAsh ash={ash} oul={soul} />}
+                        </div>
+                        <MidSection
+                            runes={runes}
+                            category={category}
+                            magi={magi}
+                            phys={phys}
+                            tech={tech}
+                            WIS={WIS}
+                            STR={STR}
+                            DEX={DEX}
+                            HP={HP - entity.wounds}
+                            promoCost={promoCost}
+                        />
+                        <BottomSection
+                            category={category}
+                            HP={HP - entity.wounds}
+                            scrap={scrap}
+                            text={text}
+                            timer={timer}
+                            steps={entity.steps}
+                            mode='SHORT'
+                        />
                     </div>
-                    <MidSection
-                        runes={runes}
-                        category={category}
-                        magi={magi}
-                        phys={phys}
-                        tech={tech}
-                        WIS={WIS}
-                        STR={STR}
-                        DEX={DEX}
-                        HP={HP}
-                        promoCost={promoCost}
-                    />
-                    <BottomSection
-                        category={category}
-                        HP={HP}
-                        scrap={scrap}
-                        text={text}
-                        timer={timer}
-                        mode='SHORT'
-                    />
                 </div>
             );
         } else if (isOtherCategory) {
             return (
                 <div className="card card-realm battle-card" onClick={() => onCardSelect(this.props)}>
                     <div className="top-bar">
-                        {isMundane && <RezCost rezCost={rezCost} />}
+                        {isMundane && <RezCost entity={entity} rezCost={rezCost} onRezPlayerCard={onRezPlayerCard} />}
                         <Title category={category} name={name} />
                         {promoCost && <PromoCost promoCost={promoCost} />}
                     </div>

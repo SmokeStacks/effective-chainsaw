@@ -57,12 +57,17 @@ type Skill = {
   amount?: number;
 };
 
-export type Keyword = 'GUNSLINGER' | 'OVERRIDE';
+export type Keyword = 'POUNCE' | 'OVERRIDE' | 'DEVOUR' | 'STREAMING' | 'HASTE' | 'CHARGE' | 'STING' | 'HYPNO' | 'SPRINT' | 'JAW' 
+| 'JAWBREAKER' | 'AGGRESSIVE' | 'DEFENSIVE' | 'TASTY' | 'LOOP' | 'ASCENDED' | 'BARRICADE' | 'VENOM' | 'INSPIRE' | 'SLIMY' | 'HARVEST' 
+| 'STREAMING' | 'CONTAMINATED' | 'BONY' | 'STEALTH' | 'SCAVENGER' | 'PIRACY' | 'DEBTTOUCH' | 'GENESIS' | 'HUSK' | 'POSTMORTEM';
+
+export type Subtype = 'Verd' | 'Phish'| 'WULF' | 'Bug' | 'Operator';
 
 export type Card = {
   id: number;
   name: string;
   category: Category;
+  subTypes?: Subtype[];
   rezCost?: number;
   extraCost?: Cost;
   soul?: number;
@@ -105,6 +110,7 @@ export class CardEntity {
   active: boolean;
   exposed: boolean;
   scored: boolean;
+  realm: RealmName;
 
   constructor(id: string, card: Card) {
     this.id = id;

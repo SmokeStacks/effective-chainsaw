@@ -160,16 +160,17 @@ class BattleCardDisplay extends Component {
                     WIS={WIS}
                     STR={STR}
                     DEX={DEX}
-                    HP={HP}
+                    HP={HP-entity.wounds}
                     promoCost={promoCost}
                 />
                 <BottomSection
                         category={category}
-                        HP={HP}
+                        HP={HP-entity.wounds}
                         mode={'SHORT'}
                         scrap={scrap}
                         text={text}
                         timer={timer}
+                        steps={entity.steps}
                     />
             </div>
         );

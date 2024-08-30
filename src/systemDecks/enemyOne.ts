@@ -19,7 +19,7 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 27,
+        id: 272,
         name: 'Possesed Doll',
         category: 'CREATURE',
         rezCost: 1,
@@ -36,7 +36,7 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 4,
+        id: 43,
         name: 'Night Mare',
         category: 'CREATURE',
         rezCost: 4,
@@ -53,7 +53,7 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 27,
+        id: 274,
         name: 'Possesed Doll',
         category: 'CREATURE',
         rezCost: 1,
@@ -70,14 +70,14 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 3,
+        id: 35,
         name: 'Hell Hound',
         category: 'CREATURE',
         rezCost: 2,
         soul: 1,
-        magi: true,
+        magi: false,
         phys: true,
-        tech: true,
+        tech: false,
         WIS: 0,
         STR: 4,
         DEX: 0,
@@ -87,7 +87,7 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 1,
+        id: 16,
         name: 'Lizardfolk',
         category: 'CREATURE',
         rezCost: 2,
@@ -103,7 +103,7 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 2,
+        id: 27,
         name: 'Hydra',
         category: 'CREATURE',
         rezCost: 4,
@@ -119,7 +119,7 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 0,
+        id: 8,
         name: 'Lizardfolk',
         category: 'CREATURE',
         rezCost: 2,
@@ -135,12 +135,12 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 12,
+        id: 129,
         name: 'Malice',
         category: 'CREATURE',
         rezCost: 2,
         soul: 2,
-        keywords: ['GUNSLINGER'],
+        keywords: ['POUNCE'],
         magi: false,
         phys: true,
         tech: false,
@@ -153,7 +153,7 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 19,
+        id: 1911,
         name: 'Hell Hound',
         category: 'CREATURE',
         rezCost: 2,
@@ -170,7 +170,7 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 23,
+        id: 2312,
         name: 'Curious Acolyte',
         category: 'CREATURE',
         rezCost: 3,
@@ -186,7 +186,7 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 24,
+        id: 2413,
         name: 'Curious Acolyte',
         category: 'CREATURE',
         rezCost: 3,
@@ -202,7 +202,7 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 25,
+        id: 2514,
         name: 'Haunting Siren',
         category: 'CREATURE',
         rezCost: 1,
@@ -219,7 +219,7 @@ const cardList: Card[] = [
         flavor: '',
     },
     {
-        id: 26,
+        id: 15,
         name: 'Haunting Siren',
         category: 'CREATURE',
         rezCost: 1,

@@ -1,5 +1,3 @@
-
-
 :root {
   --card-width: 175px;
   --card-height: 262.5px;
@@ -89,7 +87,7 @@
 }
 
 .slot-container {
-  height: 30%;
+  height: 20%;
 }
 
 .slot-holder {
@@ -193,8 +191,8 @@
   padding-top: calc(var(--card-ratio) * 0.13);
 }
 
-.battle-card  .creature-hp,
-.battle-card  .place-hp {
+.battle-card .creature-hp,
+.battle-card .place-hp {
   box-shadow: 2px 0px 2px 0px gray;
 }
 
@@ -205,6 +203,23 @@
 
 .battle-card .bottom {
   height: 17%;
+}
+
+.card-container {
+  bottom: 110px;
+  position: relative;
+}
+
+.hidden {
+  visibility: hidden;
+}
+
+.blood-icon {
+  height: 110px;
+  position: relative;
+  top: 160px;
+  z-index: 2;
+  left: 18px;
 }
 
 .top-bar {
@@ -606,7 +621,26 @@
 }
 
 .battlefield {
+  border-radius: 5%;
+  margin: 5px;
   padding: 10px;
+}
+
+.battle-cards {
+  display: flex;
+  justify-content: space-evenly;
+  width: 100%;
+}
+
+.battle-slot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-right: 10px;
+  height: 200px;
+  width: 160px;
+  border: 2px solid black;
+  border-radius: 5%;
 }
 
 .battlefield-creatures {
@@ -617,4 +651,18 @@
 .realm-creatures {
   display: flex;
   justify-content: space-evenly;
+}
+
+.resting {
+  margin-top: 25px;
+  transform: rotate(20deg);
+}
+
+.time-controller {
+  display: flex;
+flex-direction: row;
+}
+
+.creatures-container {
+  height: 40%;
 }

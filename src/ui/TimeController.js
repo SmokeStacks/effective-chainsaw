@@ -8,37 +8,33 @@ const daggerIcon = 'https://media.istockphoto.com/id/1271256046/vector/dagger-ic
 
 
 
-class FocusDisplay extends Component {
+class TimeController extends Component {
     constructor(props) {
         super(props);
         this.state = {}
     }
 
     render() {
-        const { focus, awaitingSacrifices, onSacrificeConfirmation } = this.props;
+        const { onPlayerTurn, onEnemyTurn, gameState } = this.props;
 
-        if(awaitingSacrifices) {
             return (
-                <div>
+                <div className="time-controller">
                     <div className="focus">
-                        <Button className="action-button" onClick={onSacrificeConfirmation}>
-                            DEVOUR
+                        <Button className="action-button" onClick={onEnemyTurn}>
+                            Enemy Turn
                         </Button>
                         <img className="stat-icon" src={daggerIcon} />
                     </div>
+                    <div className="focus">
+                        <Button className="action-button" onClick={onPlayerTurn}>
+                            Player Turn
+                        </Button>
+                        <img className="stat-icon" src={daggerIcon} />
+                    </div>
+                    {gameState}
                 </div>
             );
-        }
-
-        return (
-            <div>
-                <div className="focus">
-                        <div className="stat">Focus:</div>
-                        <img className="stat-icon" src={questIcon}/>
-                    </div>
-                </div>
-        );
     }
 }
 
-export default FocusDisplay;
+export default TimeController;

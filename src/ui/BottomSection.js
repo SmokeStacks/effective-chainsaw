@@ -45,7 +45,7 @@ class BottomSection extends Component {
         this.state = {}
     }
     render() {
-        const { category, HP, timer, scrap, text, mode } = this.props;
+        const { category, HP, timer, scrap, text, mode, steps } = this.props;
 
         return (
             <div className="bottom">
@@ -55,7 +55,7 @@ class BottomSection extends Component {
                 {category == "SNIP" && <ScrapCost scrap={scrap} />}
                 {category == "CREATURE" && (
                     <div className="timer-container">
-                        <div className="timer">{timer}</div>
+                        <div className="timer">{steps ? timer-steps: timer}</div>
                         <img
                             className="timer-icon"
                             src={timerIcon}

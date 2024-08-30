@@ -2,21 +2,29 @@ import React, { Component } from 'react';
 
 import BattleCardDisplay from "./BattleCardDisplay";
 
-function BattleCards({ cards, onCardSelect }) {
-    var cardsEntities = [];
-    for (var i = 0; i < cards.length; i++) {
-        cardsEntities.push(<BattleCardDisplay key={i} entity={cards[i]} onCardSelect={onCardSelect} />);
-    }
-    return <>{cardsEntities}</>;
+function BattleCards({ cards, onCardSelect, onSlotSelect }) {
+    return (
+        <div className="battle-cards">
+            {cards.map((card, index) => (
+                <div 
+                    key={index} 
+                    className="battle-slot" 
+                    onClick={() => onSlotSelect(index)}
+                >
+                    {card && <BattleCardDisplay  key={index} entity={cards[index]} onCardSelect={onCardSelect} />}
+                </div>
+            ))}
+        </div>
+    );
 }
 
 class BattlefieldCreatures extends Component {
     render() {
-        const { cards, onCardSelect } = this.props;
+        const { cards, onCardSelect, onSlotSelect } = this.props;
 
         return (
             <div className="battlefield-creatures">
-                <BattleCards cards={cards} onCardSelect={onCardSelect} />
+                <BattleCards cards={cards} onCardSelect={onCardSelect} onSlotSelect={onSlotSelect}/>
             </div>
         );
     }

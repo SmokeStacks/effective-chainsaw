@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { Button } from 'react-bootstrap';
 
-import phishIcon from '../images/phishIcon.png'
+const mineIcon = "https://i.pinimg.com/564x/b2/85/4c/b2854c4650a40b8f571034b6824e51a7.jpg";
 
 const drawIcon = "https://cdn2.iconfinder.com/data/icons/hands-3/100/hold_card-512.png";
 const drafticon = "https://media.istockphoto.com/id/1455786040/vector/identification-icon-with-silhouette-of-a-person-vector.jpg?s=612x612&w=0&k=20&c=30EYofP2hmvTsxDTDf-g_oPOsfMjfRqdR5St34k3MVg=";
@@ -29,46 +29,84 @@ class Actions extends Component {
     };
 
     render() {
-        const { playerDraft, playerDraw, playerGainBits, playerAttackMode, onConfirmBattleSelection, onCancelSelection } = this.props;
+        const { playerDraft, playerDraw, playerMine, attackMode, onConfirmDefenseSelection, onPlayerBattle, playerBoost, onRaid, onQuest } = this.props;
 
         const renderQuestAction = () => {
-            if (playerAttackMode === 'QUEST') {
-                return (
-                    <div className="action">
-                        <Button className="action-button" onClick={onConfirmBattleSelection}>
-                            <img className="action-icon" src="path_to_confirm_icon.png" alt="Confirm" />
-                        </Button>
-                        <Button className="action-button" onClick={onCancelSelection}>
-                            <img className="action-icon" src="path_to_cancel_icon.png" alt="Cancel" />
-                        </Button>
-                    </div>
-                );
-            } else {
+            if (attackMode === 'PLAYER_QUEST') {
                 return (
                     <div className="action">
                         <img className="big-icon" src={questIcon} alt="Quest Icon" />
-                        <Button className="action-button blue-button" onClick={() => this.actionClick('QUEST')}>Quest</Button>
+                        <Button className="action-button" onClick={onPlayerBattle}>
+                            Confirm
+                        </Button>
                     </div>
                 );
             }
+            if (attackMode === 'ENEMY_magi') {
+                return (
+                    <div className="action">
+                        <img className="big-icon" src={questIcon} alt="Quest Icon" />
+                        <Button className="action-button" onClick={onConfirmDefenseSelection}>
+                            Confirm
+                        </Button>
+                    </div>
+                );
+            }
+            return (
+                <div className="action">
+                    <img className="big-icon" src={questIcon} alt="Quest Icon" />
+                    <Button className="action-button blue-button" onClick={onQuest}>Quest</Button>
+                </div>
+            );
+        };
+
+        const renderRaidAction = () => {
+            if (attackMode === 'PLAYER_RAID') {
+                return (
+                    <div className="action">
+                        <img className="action-icon" src={raidIcon} alt="Raid Icon" />
+                        <Button className="action-button" onClick={onPlayerBattle}>
+                            Confirm
+                        </Button>
+                    </div>
+                );
+            }
+            if (attackMode === 'ENEMY_phys') {
+                return (
+                    <div className="action">
+                        <img className="action-icon" src={raidIcon} alt="Raid Icon" />
+                        <Button className="action-button" onClick={onConfirmDefenseSelection}>
+                            Confirm
+                        </Button>
+                    </div>
+                );
+            }
+            return (
+                <div className="action">
+                    <img className="action-icon" src={raidIcon}></img>
+                    <Button className="action-button red-button" onClick={onRaid}>
+                        Raid
+                    </Button>
+                </div>
+            );
         };
 
         return (
 
             <div className="action-list">
                 <div className="actions">
-                    <div className="action"><img className="action-icon" src={drawIcon}></img><Button className="action-button" onClick={() => playerDraw(1)}>Draw</Button></div>
-                    <div className="action"><img className="action-icon" src={drafticon}></img><Button className="action-button" onClick={() => playerDraft(1)}>Draft</Button></div>
-                    <div className="action"><img className="action-icon" src={phishIcon}></img><Button className="action-button" onClick={() => playerGainBits(1)}>Phish</Button></div>
+                    <div className="action"><img className="action-icon" src={drawIcon}></img><Button className="action-button" onClick={() => playerDraw()}>Draw</Button></div>
+                    <div className="action"><img className="action-icon" src={drafticon}></img><Button className="action-button" onClick={() => playerDraft()}>Draft</Button></div>
+                    <div className="action"><img className="action-icon" src={mineIcon}></img><Button className="action-button" onClick={() => playerMine()}>Mine</Button></div>
                 </div>
                 <div className="actions">
-                    <div className="action"><img className="big-icon" src={timerIcon}></img><Button className="action-button" onClick={() => this.actionClick('BOOST')}>Boost</Button></div>
+                    <div className="action"><img className="big-icon" src={timerIcon}></img><Button className="action-button" onClick={() => playerBoost()}>Boost</Button></div>
                     <div className="action"><img className="action-icon" src={promoIcon}></img><Button className="action-button" onClick={() => this.actionClick('PROMOTE')}>Promote</Button></div>
                     <div className="action"><img className="big-icon" src={wishIcon}></img><Button className="action-button" onClick={() => this.actionClick('WISH')}>Wish</Button></div>
                 </div>
                 <div className="actions">
                     {renderQuestAction()}
-                    <div className="action"><img className="action-icon" src={raidIcon}></img><Button className="action-button red-button" onClick={() => this.actionClick('RAID')}>Raid</Button></div>
+                    {renderRaidAction()}
                     <div className="action"><img className="action-icon" src={hackIcon}></img><Button className="action-button yellow-button" onClick={() => this.actionClick('HACK')}>Hack</Button></div>
                 </div>
             </div>

@@ -158,7 +158,7 @@ const cards: Card[] = [
         name: 'A Gun',
         category: 'CREATURE',
         rezCost: 4,
-        keywords: ['GUNSLINGER'],
+        keywords: ['POUNCE'],
         magi: false,
         phys: true,
         tech: false,
