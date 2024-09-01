@@ -564,6 +564,113 @@ export function BoardContainer() {
     //     setSelectedCard(null);
     // };
 
+    const handleRaidDamage = (location, id, num, side) => {
+        let cardToWound;
+
+        switch (location) {
+            case 'THEATER':
+                if (side == 'PLAYER') {
+                    cardToWound = playerTheater.places.find(cardEntity => cardEntity.id === id);
+                } else {
+                    cardToWound = enemyTheater.places.find(cardEntity => cardEntity.id === id);
+                }
+                if (cardToWound) {
+                    const newWounds = cardToWound.wounds + num;
+
+                    if (newWounds >= cardToWound.card.HP) {
+                        handleDestroyedPlace(location, id, side, cardToWound.card.runes ? cardToWound.card.runes : 0);
+                    }
+                    else {
+                        if (side == ' PLAYER') {
+                            setPlayerTheater(prevRealm => {
+                                return {
+                                    ...prevRealm,
+                                    places: prevRealm.places.map(card => {
+                                        if (card.id === id) {
+                                            return {
+                                                ...card,
+                                                wounds: newWounds
+                                            };
+                                        }
+                                        return card;
+                                    })
+                                };
+                            });
+                        } else {
+                            setEnemyTheater(prevRealm => {
+                                return {
+                                    ...prevRealm,
+                                    places: prevRealm.places.map(card => {
+                                        if (card.id === id) {
+                                            return {
+                                                ...card,
+                                                wounds: newWounds
+                                            };
+                                        }
+                                        return card;
+                                    })
+                                };
+                            });
+                        }
+
+                    }
+                }
+                break;
+            case 'UNDERPASS':
+                if (side == 'PLAYER') {
+                    cardToWound = playerUnderpass.places.find(cardEntity => cardEntity.id === id);
+                } else {
+                    cardToWound = enemyUnderpass.places.find(cardEntity => cardEntity.id === id);
+                }
+                if (cardToWound) {
+                    const newWounds = cardToWound.wounds + num;
+
+                    if (newWounds >= cardToWound.card.HP) {
+                        handleDestroyedPlace(location, id, side, cardToWound.card.runes ? cardToWound.card.runes : 0);
+                    }
+                    else {
+                        if (side == ' PLAYER') {
+                            setPlayerUnderpass(prevRealm => {
+                                return {
+                                    ...prevRealm,
+                                    places: prevRealm.places.map(card => {
+                                        if (card.id === id) {
+                                            return {
+                                                ...card,
+                                                wounds: newWounds
+                                            };
+                                        }
+                                        return card;
+                                    })
+                                };
+                            });
+                        } else {
+                            setEnemyUnderpass(prevRealm => {
+                                return {
+                                    ...prevRealm,
+                                    places: prevRealm.places.map(card => {
+                                        if (card.id === id) {
+                                            return {
+                                                ...card,
+                                                wounds: newWounds
+                                            };
+                                        }
+                                        return card;
+                                    })
+                                };
+                            });
+                        }
+
+                    }
+                }
+                break;
+            default:
+                console.error("Invalid location");
+                return;
+        }
+    }
+
+
 
     const handleDamage = (location, id, num, side) => {
         let cardToWound;
@@ -926,6 +1033,60 @@ export function BoardContainer() {
 
     }
 
+    const handleDestroyedPlace = (location, id, side, runes = 0) => {
+        switch (location) {
+            case 'THEATER':
+                if (side == 'PLAYER') {
+                    setPlayerTheater(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            places: prevRealm.places.filter(card => card.id !== id)
+                        };
+                    });
+                } else {
+                    setEnemyTheater(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            places: prevRealm.places.filter(card => card.id !== id)
+                        };
+                    });
+                }
+
+                break;
+
+            case 'UNDERPASS':
+                if (side == 'PLAYER') {
+                    setPlayerUnderpass(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            places: prevRealm.places.filter(card => card.id !== id)
+                        };
+                    });
+                    break;
+                } else {
+                    setEnemyUnderpass(prevRealm => {
+                        return {
+                            ...prevRealm,
+                            places: prevRealm.places.filter(card => card.id !== id)
+                        };
+                    });
+                    break;
+                }
+
+            default:
+                console.error("Invalid location");
+                return;
+        }
+        if (side == 'PLAYER') {
+            setPlayerGraveyard(prev => [...prev, cardToRemove]);
+            enemyGainFate(runes)
+        } else {
+            setEnemyGraveyard(prev => [...prev, cardToRemove]);
+            playerGainFate(runes)
+        }
+
+    }
+
     const handleRezPlayerCard = (entity) => {
         const soulsAvailable = calculateSoulsAvailable(entity.id);
         if (entity.rezzed) {
@@ -1155,7 +1316,7 @@ export function BoardContainer() {
 
 
 
-    function commitAttack(attacker, defender = null, side) {
+    function commitAttack(attacker, defender = null, side, target = null) {
         setAttackMode('NONE')
         let attackerDamage, defenderDamage;
 
@@ -1184,8 +1345,15 @@ export function BoardContainer() {
         }
 
         if (defender) {
-            handleDamage('BATTLE', defender.id, attackerDamage, side); // Assumes the realm is passed or globally available
+            handleDamage('BATTLE', defender.id, attackerDamage, side);
             handleDamage('BATTLE', attacker.id, defenderDamage, side);
+        } else if (target) {
+            if(attackMode === 'attackerDamage' || attackMode === 'PLAYER_RAID') {
+                handleRaidDamage(battleRealm, target, attackerDamage, side);
+            }
+            // if(attackMode === 'attackerHack' || attackMode === 'PLAYER_HACK') {
+            //     handleHackDamage(battleRealm, target, attackerDamage, side);
+            // }
         } else {
             // Handle unblocked damage
             switch (attackMode) {
