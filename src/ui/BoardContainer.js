@@ -519,14 +519,14 @@ export function BoardContainer() {
     };
 
 
-    const handleEnemyBattle = () => {
+    const handleEnemyBattle = () => { //todo
         for (let i = 0; i < 6; i++) {
             const attacker = enemyBattleSlots[i];
             const defenderSlot = playerBattleSlots[i];
             const defender = defenderSlot !== undefined ? playerBattleSlots[defenderSlot] : null;
 
             if (attacker) {
-                commitAttack(attacker, defender, 'ENEMY', enemyTargetSelection);
+                commitAttack(attacker, defender, 'ENEMY', enemyTargetSelection, enemyTargetType);
             }
         }
 
@@ -534,17 +534,82 @@ export function BoardContainer() {
     };
 
     const handlePlayerBattle = () => {
+        let unblockedHacking = false;
+
         for (let i = 0; i < 6; i++) {
             const attacker = playerBattleSlots[i];
             const defenderSlot = enemyBattleSlots[i];
             const defender = defenderSlot !== undefined ? enemyBattleSlots[defenderSlot] : null;
 
             if (attacker) {
-                commitAttack(attacker, defender, 'PLAYER', playerTargetSelection);
+                const attackResult = commitAttack(attacker, defender, 'PLAYER', playerTargetSelection, playerTargetType);
+                if (attackResult.unblockedHacking) {
+                    unblockedHacking = true;
+                }
             }
         }
+
+        if (unblockedHacking) {
+            handleAccessPhase('PLAYER');
+        }
+
         handleEndOfBattle();
     };
+
+    function commitAttack(attacker, defender = null, side, target = null, targetType = null) { // todo: targetSelection
+
+        let attackerDamage = attacker.card.power;
+        let defenderDamage = defender ? defender.card.power : 0;
+        let unblockedHacking = false;
+
+
+        if (defender) {
+            handleDamage('BATTLE', defender.id, attackerDamage, side);
+            handleDamage('BATTLE', attacker.id, defenderDamage, side);
+        } else if (targetType !== 'none') {
+            if (attackMode === 'ENEMY_phys' || attackMode === 'PLAYER_RAID') {
+                handlePlaceDamage(battleRealm, target ? target.id : null, attackerDamage, side);
+            }
+            if (attackMode === 'ENEMY_tech' || attackMode === 'PLAYER_HACK') {
+                if (attackerDamage > 0) {
+                    unblockedHacking = true;
+                    if (attackMode === 'PLAYER_HACK') {
+                        setPlayerSurge(prevSurge => prevSurge + attackerDamage);
+                    } else {
+                        setEnemySurge(prevSurge => prevSurge + attackerDamage);
+                    }
+
+                }
+            }
+        } else {
+            // Handle unblocked damage
+            switch (attackMode) {
+                case 'ENEMY_phys':
+                    if (['UNDERPASS', 'GRID'].includes(battleRealm)) {
+                        playerGainWounds(attackerDamage);
+                    } else if (['THEATER', 'SOLARIUM'].includes(battleRealm)) {
+                        playerGainBurden(attackerDamage);
+                    }
+                    break;
+                case 'PLAYER_RAID':
+                    if (['UNDERPASS', 'GRID'].includes(battleRealm)) {
+                        enemyGainWounds(attackerDamage);
+                    } else if (['THEATER', 'SOLARIUM'].includes(battleRealm)) {
+                        enemyGainBurden(attackerDamage);
+                    }
+                    break;
+                case 'ENEMY_magi':
+                    enemyGainFate(attackerDamage);
+                    break;
+                case 'PLAYER_QUEST':
+                    playerGainFate(attackerDamage);
+                    break;
+            }
+        }
+        setAttackMode('none');
+        return { unblockedHacking };
+    }
+
 
     const handleEndOfBattle = () => {
         playerBattleSlots.forEach(cardEntity => {
@@ -747,8 +812,9 @@ export function BoardContainer() {
         }
     }
 
-    const handleTrashPrompt = (location, id, side, scrap) => { // todo: segment repeated hack attempts
+    const handleTrashPrompt = (card, location, id, side) => { // todo: segment repeated hack attempts
         let cardPrompt = {
+            card,
             location,
             id,
             side
@@ -757,1258 +823,1251 @@ export function BoardContainer() {
         setPromptMode('SCRAP')
     }
 
-    const handleHackDamage = (location, id, num, side) => {
-        let cardToHack;
+    // const handleHackDamage = (location, id, num, side, targetType) => {
+    //     let cardToHack;
 
-        switch (location) {
-            case 'UNDERPASS':
-                if (targetType == 'SERVER') {
-                    if (side == 'PLAYER') {
-                        cardToHack = playerUnderpass.things.find(cardEntity => cardEntity.id === id);
-                    } else {
-                        cardToHack = enemyUnderpass.places.find(cardEntity => cardEntity.id === id);
-                    }
-                } else { // HeadSpace
-                    if (side == 'PLAYER' && enemyHand.length > 0) {
-                        let chosenIndex = Math.floor(Math.random() * enemyHand.length);
-                        cardToHack = enemyHand[chosenIndex];
-                    } if (side == 'ENEMY' && playerHand.length > 0) {
-                        let chosenIndex = Math.floor(Math.random() * playerHand.length);
-                        cardToHack = playerHand[chosenIndex];
-                    }
-                }
-                if (cardToHack && targetType == 'SERVER') {
-                    if (cardToHack.card.category === 'SYM') {
-                        handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
-                    } else {
-                        handleTrashPrompt(location, id, side);
-                    }
-                }
-                if (cardToHack && targetType == 'HEADSPACE') {
-                    if (cardToHack.card.category === 'SYM' || cardToHack.card.category === 'LANDMARK') {
-                        handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
-                    } else if (cardToHack.card.category === 'SNIP') {
-                        handleTrashPrompt(location, id, side);
-                    } else {
-                        handleExposedCard('HEADSPACE', id, side)
-                    }
-                }
-                break;
-            case 'GRID':
-                if (targetType == 'SERVER') {
-                    if (side == 'PLAYER') {
-                        cardToHack = playerGrid.things.find(cardEntity => cardEntity.id === id);
-                    } else {
-                        cardToHack = enemyGrid.places.find(cardEntity => cardEntity.id === id);
-                    }
-                } else { // Pandora
-                    if (side == 'PLAYER') {
-                        cardToHack = enemyLibrary[0];
-                    } if (side == 'ENEMY') {
-                        cardToHack = playerHand[0];
-                    }
-                }
-                if (cardToHack && targetType == 'SERVER') {
-                    if (cardToHack.card.category === 'SYM') {
-                        handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
-                    } else {
-                        handleTrashPrompt(location, id, side, cardToHack.card.scrap);
-                    }
-                }
-                if (cardToHack && targetType == 'PANDORA') {
-                    if (cardToHack.card.category === 'SYM' || cardToHack.card.category === 'LANDMARK') {
-                        handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
-                    } else if (cardToHack.card.category === 'SNIP') {
-                        handleTrashPrompt(location, id, side, cardToHack.card.scrap);
-                    } else {
-                        handleExposedCard('PANDORA', id, side)
-                    }
-                }
-                break;
-            default:
-                console.error("Invalid location");
-                return;
+    //     switch (location) {
+    //         case 'UNDERPASS':
+    //             if (targetType == 'SERVER') {
+    //                 if (side == 'PLAYER') {
+    //                     cardToHack = playerUnderpass.things.find(cardEntity => cardEntity.id === id);
+    //                 } else {
+    //                     cardToHack = enemyUnderpass.places.find(cardEntity => cardEntity.id === id);
+    //                 }
+    //             } else { // HeadSpace
+    //                 if (side == 'PLAYER' && enemyHand.length > 0) {
+    //                     let chosenIndex = Math.floor(Math.random() * enemyHand.length);
+    //                     cardToHack = enemyHand[chosenIndex];
+    //                 } if (side == 'ENEMY' && playerHand.length > 0) {
+    //                     let chosenIndex = Math.floor(Math.random() * playerHand.length);
+    //                     cardToHack = playerHand[chosenIndex];
+    //                 }
+    //             }
+    //             if (cardToHack && targetType == 'SERVER') {
+    //                 if (cardToHack.card.category === 'SYM') {
+    //                     handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
+    //                 } else {
+    //                     handleTrashPrompt(cardToHack.card, location, id, side);
+    //                 }
+    //             }
+    //             if (cardToHack && targetType == 'HEADSPACE') {
+    //                 if (cardToHack.card.category === 'SYM' || cardToHack.card.category === 'LANDMARK') {
+    //                     handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
+    //                 } else if (cardToHack.card.category === 'SNIP') {
+    //                     handleTrashPrompt(cardToHack.card, location, id, side);
+    //                 } else {
+    //                     handleExposedCard('HEADSPACE', id, side)
+    //                 }
+    //             }
+    //             break;
+    //         case 'GRID':
+    //             if (targetType == 'SERVER') {
+    //                 if (side == 'PLAYER') {
+    //                     cardToHack = playerGrid.things.find(cardEntity => cardEntity.id === id);
+    //                 } else {
+    //                     cardToHack = enemyGrid.places.find(cardEntity => cardEntity.id === id);
+    //                 }
+    //             } else { // Pandora
+    //                 if (side == 'PLAYER') {
+    //                     cardToHack = enemyLibrary[0];
+    //                 } if (side == 'ENEMY') {
+    //                     cardToHack = playerHand[0];
+    //                 }
+    //             }
+    //             if (cardToHack && targetType == 'SERVER') {
+    //                 if (cardToHack.card.category === 'SYM') {
+    //                     handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
+    //                 } else {
+    //                     handleTrashPrompt(cardToHack.card, location, id, side, cardToHack.card.scrap);
+    //                 }
+    //             }
+    //             if (cardToHack && targetType == 'PANDORA') {
+    //                 if (cardToHack.card.category === 'SYM' || cardToHack.card.category === 'LANDMARK') {
+    //                     handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
+    //                 } else if (cardToHack.card.category === 'SNIP') {
+    //                     handleTrashPrompt(cardToHack.card, location, id, side, cardToHack.card.scrap);
+    //                 } else {
+    //                     handleExposedCard('PANDORA', id, side)
+    //                 }
+    //             }
+    //             break;
+    //         default:
+    //             console.error("Invalid location");
+    //             return;
+    //     }
+    // }
+
+    function handleAccessPhase(side) {
+        let numAccesses = 1; // Base access count
+        if (playerTargetSelection === 'PANDORA') {
+            numAccesses = playerPandoraAccess;
+        } else if (playerTargetSelection === 'HEADSPACE') {
+            numAccesses = playerHeadSpaceAccess;
         }
-    }
 
-
-
-    const handleDamage = (location, id, num, side) => {
-        let cardToWound;
-
-        switch (location) {
-            case 'BATTLE':
-                if (side == 'PLAYER') {
-                    cardToWound = playerBattleSlots.find(cardEntity => cardEntity && cardEntity.id === id);
-                } else {
-                    cardToWound = enemyBattleSlots.find(cardEntity => cardEntity && cardEntity.id === id);
+        const accessCards = [];
+        if (playerTargetSelection === 'PANDORA') {
+            accessCards.push(...enemyLibrary.slice(0, numAccesses));
+        } else if (playerTargetSelection === 'HEADSPACE') {
+            for (let i = 0; i < numAccesses; i++) {
+                if (enemyHand.length > 0) {
+                    let chosenIndex = Math.floor(Math.random() * enemyHand.length);
+                    accessCards.push(enemyHand[chosenIndex]);
                 }
+            }
+        } else if (playerTargetSelection === 'SERVER') {
+            if(battleRealm === 'UNDERPASS') {
+                if (side == 'PLAYER') {
+                    accessCards.push(playerGrid.things.find(cardEntity => cardEntity.id === id));
+                } else {
+                    accessCards.push(enemyGrid.places.find(cardEntity => cardEntity.id === id));
+                }
+            } else if(battleRealm === 'UNDERPASS') {
+                if (side == 'PLAYER') {
+                    accessCards.push(playerGrid.things.find(cardEntity => cardEntity.id === id));
+                } else {
+                    accessCards.push(enemyGrid.places.find(cardEntity => cardEntity.id === id));
+                }
+            }
 
-                if (cardToWound) {
-                    const newWounds = cardToWound.wounds + num;
 
-                    if (newWounds >= cardToWound.card.HP) {
-                        handleDeadCard(location, id, side);
+            // Process each access sequentially
+            processAccessQueue(accessCards);
+        }
+
+        function processAccessQueue(accessCards) {
+            if (accessCards.length === 0) {
+                console.log("No cards to access.");
+                return;
+            }
+
+            // Access cards one at a time
+            let index = 0;
+
+            const accessNextCard = () => {
+                if (index < accessCards.length) {
+                    const card = accessCards[index];
+                    presentAccessedCard(card, () => {
+                        // Callback after player interaction is complete
+                        index++;
+                        accessNextCard(); // Proceed to the next card
+                    });
+                } else {
+                    // All accesses are complete
+                    console.log("Access phase complete.");
+                }
+            };
+
+            accessNextCard(); // Start accessing
+        }
+
+
+
+        const handleDamage = (location, id, num, side) => {
+            let cardToWound;
+
+            switch (location) {
+                case 'BATTLE':
+                    if (side == 'PLAYER') {
+                        cardToWound = playerBattleSlots.find(cardEntity => cardEntity && cardEntity.id === id);
+                    } else {
+                        cardToWound = enemyBattleSlots.find(cardEntity => cardEntity && cardEntity.id === id);
                     }
-                    else {
-                        if (side == 'PLAYER') {
-                            setPlayerBattleSlots(prev => {
-                                return prev.map(card => {
-                                    if (card && card.id === id) {
-                                        return {
-                                            ...card,
-                                            wounds: newWounds
-                                        };
-                                    }
-                                    return card;
+
+                    if (cardToWound) {
+                        const newWounds = cardToWound.wounds + num;
+
+                        if (newWounds >= cardToWound.card.HP) {
+                            handleDeadCard(location, id, side);
+                        }
+                        else {
+                            if (side == 'PLAYER') {
+                                setPlayerBattleSlots(prev => {
+                                    return prev.map(card => {
+                                        if (card && card.id === id) {
+                                            return {
+                                                ...card,
+                                                wounds: newWounds
+                                            };
+                                        }
+                                        return card;
+                                    });
                                 });
-                            });
-                        } else {
-                            setEnemyBattleSlots(prev => {
-                                return prev.map(card => {
-                                    if (card && card.id === id) {
-                                        return {
-                                            ...card,
-                                            wounds: newWounds
-                                        };
-                                    }
-                                    return card;
+                            } else {
+                                setEnemyBattleSlots(prev => {
+                                    return prev.map(card => {
+                                        if (card && card.id === id) {
+                                            return {
+                                                ...card,
+                                                wounds: newWounds
+                                            };
+                                        }
+                                        return card;
+                                    });
                                 });
-                            });
+                            }
                         }
                     }
-                }
-                break;
-            case 'SOLARIUM':
-                if (side == 'PLAYER') {
-                    cardToWound = playerSolarium.people.find(cardEntity => cardEntity.id === id);
-                } else {
-                    cardToWound = enemySolarium.people.find(cardEntity => cardEntity.id === id);
-                }
-
-                if (cardToWound) {
-                    const newWounds = cardToWound.wounds + num;
-
-                    if (newWounds >= cardToWound.card.HP) {
-                        handleDeadCard(location, id, side);
-                    }
-                    else {
-                        if (side == ' PLAYER') {
-                            setPlayerSolarium(prevRealm => {
-                                return {
-                                    ...prevRealm,
-                                    people: prevRealm.people.map(card => {
-                                        if (card.id === id) {
-                                            return {
-                                                ...card,
-                                                wounds: newWounds
-                                            };
-                                        }
-                                        return card;
-                                    })
-                                };
-                            });
-                        } else {
-                            setEnemySolarium(prevRealm => {
-                                return {
-                                    ...prevRealm,
-                                    people: prevRealm.people.map(card => {
-                                        if (card.id === id) {
-                                            return {
-                                                ...card,
-                                                wounds: newWounds
-                                            };
-                                        }
-                                        return card;
-                                    })
-                                };
-                            });
-                        }
-
-                    }
-                }
-                break;
-            case 'THEATER':
-                if (side == 'PLAYER') {
-                    cardToWound = playerTheater.people.find(cardEntity => cardEntity.id === id);
-                } else {
-                    cardToWound = enemyTheater.people.find(cardEntity => cardEntity.id === id);
-                }
-                if (cardToWound) {
-                    const newWounds = cardToWound.wounds + num;
-
-                    if (newWounds >= cardToWound.card.HP) {
-                        handleDeadCard(location, id, side);
-                    }
-                    else {
-                        if (side == ' PLAYER') {
-                            setPlayerTheater(prevRealm => {
-                                return {
-                                    ...prevRealm,
-                                    people: prevRealm.people.map(card => {
-                                        if (card.id === id) {
-                                            return {
-                                                ...card,
-                                                wounds: newWounds
-                                            };
-                                        }
-                                        return card;
-                                    })
-                                };
-                            });
-                        } else {
-                            setEnemyTheater(prevRealm => {
-                                return {
-                                    ...prevRealm,
-                                    people: prevRealm.people.map(card => {
-                                        if (card.id === id) {
-                                            return {
-                                                ...card,
-                                                wounds: newWounds
-                                            };
-                                        }
-                                        return card;
-                                    })
-                                };
-                            });
-                        }
-
-                    }
-                }
-                break;
-            case 'UNDERPASS':
-                if (side == 'PLAYER') {
-                    cardToWound = playerUnderpass.people.find(cardEntity => cardEntity.id === id);
-                } else {
-                    cardToWound = enemyUnderpass.people.find(cardEntity => cardEntity.id === id);
-                }
-                if (cardToWound) {
-                    const newWounds = cardToWound.wounds + num;
-
-                    if (newWounds >= cardToWound.card.HP) {
-                        handleDeadCard(location, id, side);
-                    }
-                    else {
-                        if (side == ' PLAYER') {
-                            setPlayerUnderpass(prevRealm => {
-                                return {
-                                    ...prevRealm,
-                                    people: prevRealm.people.map(card => {
-                                        if (card.id === id) {
-                                            return {
-                                                ...card,
-                                                wounds: newWounds
-                                            };
-                                        }
-                                        return card;
-                                    })
-                                };
-                            });
-                        } else {
-                            setEnemyUnderpass(prevRealm => {
-                                return {
-                                    ...prevRealm,
-                                    people: prevRealm.people.map(card => {
-                                        if (card.id === id) {
-                                            return {
-                                                ...card,
-                                                wounds: newWounds
-                                            };
-                                        }
-                                        return card;
-                                    })
-                                };
-                            });
-                        }
-
-                    }
-                }
-                break;
-            case 'GRID':
-                if (side == 'PLAYER') {
-                    cardToWound = playerGrid.people.find(cardEntity => cardEntity.id === id);
-                } else {
-                    cardToWound = enemyGrid.people.find(cardEntity => cardEntity.id === id);
-                }
-
-                if (cardToWound) {
-                    const newWounds = cardToWound.wounds + num;
-
-                    if (newWounds >= cardToWound.card.HP) {
-                        handleDeadCard(location, id, side);
-                    }
-                    else {
-                        if (side == ' PLAYER') {
-                            setPlayerGrid(prevRealm => {
-                                return {
-                                    ...prevRealm,
-                                    people: prevRealm.people.map(card => {
-                                        if (card.id === id) {
-                                            return {
-                                                ...card,
-                                                wounds: newWounds
-                                            };
-                                        }
-                                        return card;
-                                    })
-                                };
-                            });
-                        } else {
-                            setEnemyGrid(prevRealm => {
-                                return {
-                                    ...prevRealm,
-                                    people: prevRealm.people.map(card => {
-                                        if (card.id === id) {
-                                            return {
-                                                ...card,
-                                                wounds: newWounds
-                                            };
-                                        }
-                                        return card;
-                                    })
-                                };
-                            });
-                        }
-
-                    }
-                }
-                break;
-
-            default:
-                console.error("Invalid location");
-                return;
-        }
-    }
-
-
-    const handleDeadCard = (location, id, side) => {
-        let cardToRemove;
-        switch (location) {
-            case 'BATTLE':
-                if (side == 'PLAYER') {
-                    cardToRemove = playerBattleSlots.find(card => card && card.id === id);
-                    setPlayerBattleSlots(prev => prev.filter(card => card && card.id !== id));
-                } else {
-                    cardToRemove = enemyBattleSlots.find(card => card && card.id === id);
-                    setEnemyBattleSlots(prev => prev.filter(card => card && card.id !== id));
-                }
-
-                break;
-
-            case 'SOLARIUM':
-                if (side == 'PLAYER') {
-                    cardToRemove = playerSolarium.people.find(card => card.id === id);
-                    setPlayerSolarium(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: prevRealm.people.filter(card => card.id !== id)
-                        };
-                    });
-                } else {
-                    cardToRemove = enemySolarium.people.find(card => card.id === id);
-                    setEnemySolarium(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: prevRealm.people.filter(card => card.id !== id)
-                        };
-                    });
-                }
-                break;
-
-            case 'THEATER':
-                if (side == 'PLAYER') {
-                    cardToRemove = playerTheater.people.find(card => card.id === id);
-                    setPlayerTheater(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: prevRealm.people.filter(card => card.id !== id)
-                        };
-                    });
-                } else {
-                    cardToRemove = enemyTheater.people.find(card => card.id === id);
-                    setEnemyTheater(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: prevRealm.people.filter(card => card.id !== id)
-                        };
-                    });
-                }
-
-                break;
-
-            case 'UNDERPASS':
-                if (side == 'PLAYER') {
-                    cardToRemove = playerUnderpass.people.find(card => card.id === id);
-                    setPlayerUnderpass(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: prevRealm.people.filter(card => card.id !== id)
-                        };
-                    });
                     break;
-                } else {
-                    cardToRemove = enemyUnderpass.people.find(card => card.id === id);
-                    setEnemyUnderpass(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: prevRealm.people.filter(card => card.id !== id)
-                        };
-                    });
+                case 'SOLARIUM':
+                    if (side == 'PLAYER') {
+                        cardToWound = playerSolarium.people.find(cardEntity => cardEntity.id === id);
+                    } else {
+                        cardToWound = enemySolarium.people.find(cardEntity => cardEntity.id === id);
+                    }
+
+                    if (cardToWound) {
+                        const newWounds = cardToWound.wounds + num;
+
+                        if (newWounds >= cardToWound.card.HP) {
+                            handleDeadCard(location, id, side);
+                        }
+                        else {
+                            if (side == ' PLAYER') {
+                                setPlayerSolarium(prevRealm => {
+                                    return {
+                                        ...prevRealm,
+                                        people: prevRealm.people.map(card => {
+                                            if (card.id === id) {
+                                                return {
+                                                    ...card,
+                                                    wounds: newWounds
+                                                };
+                                            }
+                                            return card;
+                                        })
+                                    };
+                                });
+                            } else {
+                                setEnemySolarium(prevRealm => {
+                                    return {
+                                        ...prevRealm,
+                                        people: prevRealm.people.map(card => {
+                                            if (card.id === id) {
+                                                return {
+                                                    ...card,
+                                                    wounds: newWounds
+                                                };
+                                            }
+                                            return card;
+                                        })
+                                    };
+                                });
+                            }
+
+                        }
+                    }
                     break;
-                }
+                case 'THEATER':
+                    if (side == 'PLAYER') {
+                        cardToWound = playerTheater.people.find(cardEntity => cardEntity.id === id);
+                    } else {
+                        cardToWound = enemyTheater.people.find(cardEntity => cardEntity.id === id);
+                    }
+                    if (cardToWound) {
+                        const newWounds = cardToWound.wounds + num;
 
+                        if (newWounds >= cardToWound.card.HP) {
+                            handleDeadCard(location, id, side);
+                        }
+                        else {
+                            if (side == ' PLAYER') {
+                                setPlayerTheater(prevRealm => {
+                                    return {
+                                        ...prevRealm,
+                                        people: prevRealm.people.map(card => {
+                                            if (card.id === id) {
+                                                return {
+                                                    ...card,
+                                                    wounds: newWounds
+                                                };
+                                            }
+                                            return card;
+                                        })
+                                    };
+                                });
+                            } else {
+                                setEnemyTheater(prevRealm => {
+                                    return {
+                                        ...prevRealm,
+                                        people: prevRealm.people.map(card => {
+                                            if (card.id === id) {
+                                                return {
+                                                    ...card,
+                                                    wounds: newWounds
+                                                };
+                                            }
+                                            return card;
+                                        })
+                                    };
+                                });
+                            }
 
-            case 'GRID':
-                if (side == 'PLAYER') {
-                    cardToRemove = playerGrid.people.find(card => card.id === id);
-                    setPlayerGrid(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: prevRealm.people.filter(card => card.id !== id)
-                        };
-                    });
-                } else {
-                    cardToRemove = enemyGrid.people.find(card => card.id === id);
-                    setEnemyGrid(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: prevRealm.people.filter(card => card.id !== id)
-                        };
-                    });
-                }
-                break;
+                        }
+                    }
+                    break;
+                case 'UNDERPASS':
+                    if (side == 'PLAYER') {
+                        cardToWound = playerUnderpass.people.find(cardEntity => cardEntity.id === id);
+                    } else {
+                        cardToWound = enemyUnderpass.people.find(cardEntity => cardEntity.id === id);
+                    }
+                    if (cardToWound) {
+                        const newWounds = cardToWound.wounds + num;
 
-            default:
-                console.error("Invalid location");
-                return;
+                        if (newWounds >= cardToWound.card.HP) {
+                            handleDeadCard(location, id, side);
+                        }
+                        else {
+                            if (side == ' PLAYER') {
+                                setPlayerUnderpass(prevRealm => {
+                                    return {
+                                        ...prevRealm,
+                                        people: prevRealm.people.map(card => {
+                                            if (card.id === id) {
+                                                return {
+                                                    ...card,
+                                                    wounds: newWounds
+                                                };
+                                            }
+                                            return card;
+                                        })
+                                    };
+                                });
+                            } else {
+                                setEnemyUnderpass(prevRealm => {
+                                    return {
+                                        ...prevRealm,
+                                        people: prevRealm.people.map(card => {
+                                            if (card.id === id) {
+                                                return {
+                                                    ...card,
+                                                    wounds: newWounds
+                                                };
+                                            }
+                                            return card;
+                                        })
+                                    };
+                                });
+                            }
+
+                        }
+                    }
+                    break;
+                case 'GRID':
+                    if (side == 'PLAYER') {
+                        cardToWound = playerGrid.people.find(cardEntity => cardEntity.id === id);
+                    } else {
+                        cardToWound = enemyGrid.people.find(cardEntity => cardEntity.id === id);
+                    }
+
+                    if (cardToWound) {
+                        const newWounds = cardToWound.wounds + num;
+
+                        if (newWounds >= cardToWound.card.HP) {
+                            handleDeadCard(location, id, side);
+                        }
+                        else {
+                            if (side == ' PLAYER') {
+                                setPlayerGrid(prevRealm => {
+                                    return {
+                                        ...prevRealm,
+                                        people: prevRealm.people.map(card => {
+                                            if (card.id === id) {
+                                                return {
+                                                    ...card,
+                                                    wounds: newWounds
+                                                };
+                                            }
+                                            return card;
+                                        })
+                                    };
+                                });
+                            } else {
+                                setEnemyGrid(prevRealm => {
+                                    return {
+                                        ...prevRealm,
+                                        people: prevRealm.people.map(card => {
+                                            if (card.id === id) {
+                                                return {
+                                                    ...card,
+                                                    wounds: newWounds
+                                                };
+                                            }
+                                            return card;
+                                        })
+                                    };
+                                });
+                            }
+
+                        }
+                    }
+                    break;
+
+                default:
+                    console.error("Invalid location");
+                    return;
+            }
         }
-        if (cardToRemove) {
+
+
+        const handleDeadCard = (location, id, side) => {
+            let cardToRemove;
+            switch (location) {
+                case 'BATTLE':
+                    if (side == 'PLAYER') {
+                        cardToRemove = playerBattleSlots.find(card => card && card.id === id);
+                        setPlayerBattleSlots(prev => prev.filter(card => card && card.id !== id));
+                    } else {
+                        cardToRemove = enemyBattleSlots.find(card => card && card.id === id);
+                        setEnemyBattleSlots(prev => prev.filter(card => card && card.id !== id));
+                    }
+
+                    break;
+
+                case 'SOLARIUM':
+                    if (side == 'PLAYER') {
+                        cardToRemove = playerSolarium.people.find(card => card.id === id);
+                        setPlayerSolarium(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.filter(card => card.id !== id)
+                            };
+                        });
+                    } else {
+                        cardToRemove = enemySolarium.people.find(card => card.id === id);
+                        setEnemySolarium(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.filter(card => card.id !== id)
+                            };
+                        });
+                    }
+                    break;
+
+                case 'THEATER':
+                    if (side == 'PLAYER') {
+                        cardToRemove = playerTheater.people.find(card => card.id === id);
+                        setPlayerTheater(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.filter(card => card.id !== id)
+                            };
+                        });
+                    } else {
+                        cardToRemove = enemyTheater.people.find(card => card.id === id);
+                        setEnemyTheater(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.filter(card => card.id !== id)
+                            };
+                        });
+                    }
+
+                    break;
+
+                case 'UNDERPASS':
+                    if (side == 'PLAYER') {
+                        cardToRemove = playerUnderpass.people.find(card => card.id === id);
+                        setPlayerUnderpass(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.filter(card => card.id !== id)
+                            };
+                        });
+                        break;
+                    } else {
+                        cardToRemove = enemyUnderpass.people.find(card => card.id === id);
+                        setEnemyUnderpass(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.filter(card => card.id !== id)
+                            };
+                        });
+                        break;
+                    }
+
+
+                case 'GRID':
+                    if (side == 'PLAYER') {
+                        cardToRemove = playerGrid.people.find(card => card.id === id);
+                        setPlayerGrid(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.filter(card => card.id !== id)
+                            };
+                        });
+                    } else {
+                        cardToRemove = enemyGrid.people.find(card => card.id === id);
+                        setEnemyGrid(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: prevRealm.people.filter(card => card.id !== id)
+                            };
+                        });
+                    }
+                    break;
+
+                default:
+                    console.error("Invalid location");
+                    return;
+            }
+            if (cardToRemove) {
+                if (side == 'PLAYER') {
+                    setPlayerGraveyard(prev => [...prev, cardToRemove]);
+                    playerGainAshes(1);
+                } else {
+                    setEnemyGraveyard(prev => [...prev, cardToRemove]);
+                    enemyGainAshes(1);
+                }
+            }
+
+        }
+
+        const handleDestroyedPlace = (location, id, side, runes = 0) => {
+
+            switch (location) {
+                case 'THEATER':
+                    if (side == 'PLAYER') {
+                        setPlayerTheater(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                places: prevRealm.places.filter(card => card.id !== id)
+                            };
+                        });
+                    } else {
+                        setEnemyTheater(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                places: prevRealm.places.filter(card => card.id !== id)
+                            };
+                        });
+                    }
+
+                    break;
+
+                case 'UNDERPASS':
+                    if (side == 'PLAYER') {
+                        setPlayerUnderpass(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                places: prevRealm.places.filter(card => card.id !== id)
+                            };
+                        });
+                        break;
+                    } else {
+                        setEnemyUnderpass(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                places: prevRealm.places.filter(card => card.id !== id)
+                            };
+                        });
+                        break;
+                    }
+
+                default:
+                    console.error("Invalid location");
+                    return;
+            }
+            if (targetType === 'LANDMARK') {
+                if (side == 'PLAYER') {
+                    enemyGainFate(runes)
+                } else {
+                    playerGainFate(runes)
+                }
+            }
             if (side == 'PLAYER') {
                 setPlayerGraveyard(prev => [...prev, cardToRemove]);
-                playerGainAshes(1);
             } else {
                 setEnemyGraveyard(prev => [...prev, cardToRemove]);
-                enemyGainAshes(1);
             }
         }
 
-    }
-
-    const handleDestroyedPlace = (location, id, side, runes = 0) => {
-
-        switch (location) {
-            case 'THEATER':
-                if (side == 'PLAYER') {
-                    setPlayerTheater(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            places: prevRealm.places.filter(card => card.id !== id)
-                        };
-                    });
-                } else {
-                    setEnemyTheater(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            places: prevRealm.places.filter(card => card.id !== id)
-                        };
-                    });
-                }
-
-                break;
-
-            case 'UNDERPASS':
-                if (side == 'PLAYER') {
-                    setPlayerUnderpass(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            places: prevRealm.places.filter(card => card.id !== id)
-                        };
-                    });
-                    break;
-                } else {
-                    setEnemyUnderpass(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            places: prevRealm.places.filter(card => card.id !== id)
-                        };
-                    });
-                    break;
-                }
-
-            default:
-                console.error("Invalid location");
+        const handleRezPlayerCard = (entity) => {
+            const soulsAvailable = calculateSoulsAvailable(entity.id);
+            if (entity.rezzed) {
                 return;
-        }
-        if(targetType === 'LANDMARK') {
-            if (side == 'PLAYER') {
-                enemyGainFate(runes)
+            }
+            if (playerBits < entity.card.rezCost || playerAshes < entity.card.ash || soulsAvailable < entity.card.soul) {
+                console.log('no resources')
+                //console.error("Not enough resources to rez the card");
+                return;
+            }
+
+            // const confirmation = window.confirm(`This will cost ${card.rezCost.bits} bits, ${card.rezCost.ashes} ashes, and ${card.rezCost.soul} soul. Do you want to proceed?`);
+            // if (!confirmation) return;
+            setRezCard(entity);
+            setAwaitingSacrifices(true);
+            if (entity.card.soul > 0) {
+                // todo
             } else {
-                playerGainFate(runes)
+                setAwaitingSacrifices(false);
             }
         }
-        if (side == 'PLAYER') {
-            setPlayerGraveyard(prev => [...prev, cardToRemove]);
-        } else {
-            setEnemyGraveyard(prev => [...prev, cardToRemove]);
-        }
-    }
 
-    const handleRezPlayerCard = (entity) => {
-        const soulsAvailable = calculateSoulsAvailable(entity.id);
-        if (entity.rezzed) {
-            return;
-        }
-        if (playerBits < entity.card.rezCost || playerAshes < entity.card.ash || soulsAvailable < entity.card.soul) {
-            console.log('no resources')
-            //console.error("Not enough resources to rez the card");
-            return;
-        }
+        const calculateSoulsAvailable = (id) => {
+            const playerRealmsState = {
+                Solarium: playerSolarium,
+                Theater: playerTheater,
+                Underpass: playerUnderpass,
+                Grid: playerGrid,
+            };
 
-        // const confirmation = window.confirm(`This will cost ${card.rezCost.bits} bits, ${card.rezCost.ashes} ashes, and ${card.rezCost.soul} soul. Do you want to proceed?`);
-        // if (!confirmation) return;
-        setRezCard(entity);
-        setAwaitingSacrifices(true);
-        if (entity.card.soul > 0) {
-            // todo
-        } else {
-            setAwaitingSacrifices(false);
-        }
-    }
-
-    const calculateSoulsAvailable = (id) => {
-        const playerRealmsState = {
-            Solarium: playerSolarium,
-            Theater: playerTheater,
-            Underpass: playerUnderpass,
-            Grid: playerGrid,
+            return Object.values(playerRealmsState).reduce((sum, realm) => {
+                if (realm.people) {
+                    // Filter out the card being rezzed, then count the remaining cards
+                    return sum + realm.people.filter(card => card.id !== id).length;
+                }
+                return sum;
+            }, 0);
         };
 
-        return Object.values(playerRealmsState).reduce((sum, realm) => {
-            if (realm.people) {
-                // Filter out the card being rezzed, then count the remaining cards
-                return sum + realm.people.filter(card => card.id !== id).length;
+
+
+
+        const handleRealmSelect = (realmName) => {
+            if (!selectedCard) return;
+            const { magi, phys, tech } = selectedCard.card;
+
+            if (!selectedCard) return;
+            if (battleSelectedCard) {
+                returnToOriginalRealm(battleSelectedCard, 'PLAYER');
+                setBattleSelectedCard(null);
             }
-            return sum;
-        }, 0);
-    };
 
-
-
-
-    const handleRealmSelect = (realmName) => {
-        if (!selectedCard) return;
-        const { magi, phys, tech } = selectedCard.card;
-
-        if (!selectedCard) return;
-        if (battleSelectedCard) {
-            returnToOriginalRealm(battleSelectedCard, 'PLAYER');
-            setBattleSelectedCard(null);
-        }
-
-        switch (realmName) {
-            case 'Solarium':
-                if (magi) {
-                    const updatedCard = { ...selectedCard, realm: 'SOLARIUM' };
-                    setPlayerSolarium(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCard] // Add the updated card to the realm
-                        };
-                    });
-                    playerLoseActions(1);
-
-                    // Remove the original card from the player's hand
-                    setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
-
-                    setSelectedCard(null);
-                }
-                break;
-            case 'Theater':
-                if (magi || phys) {
-                    const updatedCard = { ...selectedCard, realm: 'THEATER' };
-                    setPlayerTheater(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCard]
-                        };
-                    });
-                    playerLoseActions(1);
-                    setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
-                    setSelectedCard(null);
-                }
-                break;
-            case 'Underpass':
-                if (tech || phys) {
-                    const updatedCard = { ...selectedCard, realm: 'UNDERPASS' };
-                    setPlayerUnderpass(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCard]
-                        };
-                    });
-                    playerLoseActions(1);
-                    setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
-                    setSelectedCard(null);
-                }
-                break;
-            case 'Grid':
-                if (tech) {
-                    const updatedCard = { ...selectedCard, realm: 'GRID' };
-                    setPlayerGrid(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCard]
-                        };
-                    });
-                    playerLoseActions(1);
-                    setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
-                    setSelectedCard(null);
-                }
-                break;
-        }
-    };
-
-    function enemyTurn() {
-        setEnemyTurnPhase('gainActionsAndBits');
-    }
-
-    function handleEnemyTurn() {
-        enemyTurn();
-    }
-
-    function handlePlayerTurn() {
-        playerTurn();
-    }
-
-    function playerTurn() {
-        playerGainActions(3);
-        playerAdvanceCards();
-        playerDraw(1);
-    }
-
-    function enemyRezCards() {
-        const rezActiveCards = (cardList) => {
-            return cardList.map(cardEntity => {
-                if (cardEntity.card.timer && cardEntity.steps >= cardEntity.card.timer) {
-                    return {
-                        ...cardEntity,
-                        rezzed: true
-                    };
-                }
-                return cardEntity;
-            });
-        };
-
-        setEnemySolarium(prevRealm => {
-            return {
-                ...prevRealm,
-                people: rezActiveCards(prevRealm.people)
-            };
-        });
-
-        setEnemyTheater(prevRealm => {
-            return {
-                ...prevRealm,
-                people: rezActiveCards(prevRealm.people)
-            };
-        });
-
-        setEnemyUnderpass(prevRealm => {
-            return {
-                ...prevRealm,
-                people: rezActiveCards(prevRealm.people)
-            };
-        });
-
-        setEnemyGrid(prevRealm => {
-            return {
-                ...prevRealm,
-                people: rezActiveCards(prevRealm.people)
-            };
-        });
-    }
-
-    const getMatchingCreaturesForAspect = (realmCreatures, aspect, stat) => {
-        return realmCreatures.filter(creature => {
-            if (!creature.active) return false;
-
-            if (creature.card[aspect]) {
-                if (creature.card.magi && creature.card.phys ||
-                    creature.card.magi && creature.card.tech ||
-                    creature.card.phys && creature.card.tech) {
-                    const maxStat = Math.max(creature.card.WIS, creature.card.STR, creature.card.DEX);
-                    return creature.card[stat] === maxStat;
-                }
-                return true;
-            }
-            return false;
-        });
-    }
-    const enemyPlanAttack = () => {
-        const realms = [enemySolarium, enemyTheater, enemyUnderpass, enemyGrid];
-        const attackOrder = [
-            { aspect: 'magi', stat: 'WIS' },
-            { aspect: 'phys', stat: 'STR' },
-            { aspect: 'tech', stat: 'DEX' }
-        ];
-        const newSlots = Array(6).fill(null);
-
-        for (const realm of realms) {
-            for (const attack of attackOrder) {
-                const matchingCreatures = getMatchingCreaturesForAspect(realm.people, attack.aspect, attack.stat);
-
-                if (matchingCreatures.length > 0) {
-
-                    setBattleRealm(realm.name);
-                    for (let i = 0; i < newSlots.length; i++) {
-                        if (!newSlots[i] && matchingCreatures.length > 0) {
-                            const creature = matchingCreatures[0];
-
-                            removeFromRealm(creature, creature.realm, 'ENEMY');
-                            newSlots[i] = creature;
-                            matchingCreatures.splice(0, 1);
-                        }
-                    }
-                    setEnemyBattleSlots(newSlots);
-
-                    setAttackMode(`ENEMY_${attack.aspect}`);
-                    setGameState('WAITING_FOR_PLAYER_DEFENSE');
-                    return;  // Exit after planning one attack
-                }
-            }
-        }
-        setGameState('ENEMY_ATTACK_COMPLETE');
-    };
-
-
-
-    function commitAttack(attacker, defender = null, side, target = null) { // todo: targetSelection
-        setAttackMode('NONE')
-        let attackerDamage, defenderDamage;
-
-        switch (attackMode) {
-            case 'ENEMY_phys':
-                attackerDamage = attacker.card.STR;
-                defenderDamage = defender ? defender.card.STR : 0;
-                break;
-            case 'PLAYER_RAID':
-                attackerDamage = attacker.card.STR;
-                defenderDamage = defender ? defender.card.STR : 0;
-                break;
-            case 'ENEMY_magi':
-                attackerDamage = attacker.card.WIS;
-                defenderDamage = defender ? defender.card.WIS : 0;
-                break;
-            case 'PLAYER_QUEST':
-                attackerDamage = attacker.card.WIS;
-                defenderDamage = defender ? defender.card.WIS : 0;
-                break;
-            case 'HACK':
-                attackerDamage = attacker.card.DEX;
-                defenderDamage = defender ? defender.card.DEX : 0;
-                // TODO: handle later
-                break;
-        }
-
-        if (defender) {
-            handleDamage('BATTLE', defender.id, attackerDamage, side);
-            handleDamage('BATTLE', attacker.id, defenderDamage, side);
-        } else if (targetType !== 'none') {
-            if (attackMode === 'ENEMY_phys' || attackMode === 'PLAYER_RAID') {
-                handlePlaceDamage(battleRealm, target ? target.id : null, attackerDamage, side);
-            }
-            if (attackMode === 'ENEMY_tech' || attackMode === 'PLAYER_HACK') {
-                handleHackDamage(battleRealm, target ? target.id : null, attackerDamage, side);
-            }
-        } else {
-            // Handle unblocked damage
-            switch (attackMode) {
-                case 'ENEMY_phys':
-                    if (['UNDERPASS', 'GRID'].includes(battleRealm)) {
-                        playerGainWounds(attackerDamage);
-                    } else if (['THEATER', 'SOLARIUM'].includes(battleRealm)) {
-                        playerGainBurden(attackerDamage);
-                    }
-                    break;
-                case 'PLAYER_RAID':
-                    if (['UNDERPASS', 'GRID'].includes(battleRealm)) {
-                        enemyGainWounds(attackerDamage);
-
-                    } else if (['THEATER', 'SOLARIUM'].includes(battleRealm)) {
-                        enemyGainBurden(attackerDamage);
-                    }
-                    break;
-                case 'ENEMY_magi':
-                    enemyGainFate(attackerDamage);
-                    break;
-                case 'PLAYER_QUEST':
-                    playerGainFate(attackerDamage);
-                    break;
-            }
-        }
-
-        // Return surviving creatures to their hosting realm
-        // This may be done automatically based on how you've set up the game state
-    }
-
-    function playerAdvanceCards() {
-        const advanceCardList = (cardList) => {
-            return cardList.map(cardEntity => {
-                if ("steps" in cardEntity) {
-                    const newSteps = cardEntity.steps + 1;
-                    let updatedCard = { ...cardEntity, steps: newSteps };
-
-                    if (cardEntity.card.timer && newSteps >= cardEntity.card.timer) {
-                        updatedCard.active = true;
-                    }
-                    return updatedCard;
-                }
-                return cardEntity;
-            });
-        };
-
-        setPlayerSolarium(prevRealm => {
-            return {
-                ...prevRealm,
-                people: advanceCardList(prevRealm.people)
-            };
-        });
-
-        setPlayerTheater(prevRealm => {
-            return {
-                ...prevRealm,
-                people: advanceCardList(prevRealm.people)
-            };
-        });
-
-        setPlayerUnderpass(prevRealm => {
-            return {
-                ...prevRealm,
-                people: advanceCardList(prevRealm.people)
-            };
-        });
-
-        setPlayerGrid(prevRealm => {
-            return {
-                ...prevRealm,
-                people: advanceCardList(prevRealm.people)
-            };
-        });
-    }
-
-    function enemyAdvanceCards() {
-        const advanceCardList = (cardList) => {
-            return cardList.map(cardEntity => {
-                if ("steps" in cardEntity) {
-                    const newSteps = cardEntity.steps + 1;
-                    let updatedCard = { ...cardEntity, steps: newSteps };
-
-                    // Check if the card should be activated
-                    if (cardEntity.card.timer && newSteps >= cardEntity.card.timer) {
-                        updatedCard.active = true;
-                    }
-
-                    // Placeholder for handling places/things scoring
-                    if (cardEntity.card.promoCost && newSteps >= cardEntity.card.promoCost) {
-                        // scoreEnemyCard();
-                    }
-
-                    return updatedCard;
-                }
-                return cardEntity;
-            });
-        };
-
-        setEnemySolarium(prevRealm => {
-            return {
-                ...prevRealm,
-                people: advanceCardList(prevRealm.people),
-                places: advanceCardList(prevRealm.places),
-                things: advanceCardList(prevRealm.things)
-            };
-        });
-
-        setEnemyTheater(prevRealm => {
-            return {
-                ...prevRealm,
-                people: advanceCardList(prevRealm.people),
-                places: advanceCardList(prevRealm.places),
-                things: advanceCardList(prevRealm.things)
-            };
-        });
-
-        setEnemyUnderpass(prevRealm => {
-            return {
-                ...prevRealm,
-                people: advanceCardList(prevRealm.people),
-                places: advanceCardList(prevRealm.places),
-                things: advanceCardList(prevRealm.things)
-            };
-        });
-
-        setEnemyGrid(prevRealm => {
-            return {
-                ...prevRealm,
-                people: advanceCardList(prevRealm.people),
-                places: advanceCardList(prevRealm.places),
-                things: advanceCardList(prevRealm.things)
-            };
-        });
-    }
-
-    function generateRandomInteger(max) {
-        return Math.floor(Math.random() * max) + 1;
-    }
-
-    function enemyAction() {
-        if (enemyActions > 0) {
-            if (enemyHand.length > 0) {
-                enemyPlayCard();
-                enemyLoseActions(1);
-            } else {
-                enemyDraw(1);
-                enemyLoseActions(1);
-            }
-        }
-    }
-
-
-    function enemyDraw(num) {
-        let remainingCards = num;
-
-        if (enemyWounds > 0) {
-            const newWounds = enemyWounds - num;
-
-            remainingCards = Math.max(0, newWounds * -1);
-            setEnemyWounds(Math.max(0, newWounds));
-        }
-        if (remainingCards > 0) {
-            const newHandCards = enemyLibrary.slice(0, remainingCards);
-            const newLibrary = enemyLibrary.slice(remainingCards, enemyLibrary.length);
-
-            setEnemyHand(prevHand => [
-                ...prevHand,
-                ...newHandCards
-            ]);
-            setEnemyLibrary(newLibrary);
-        }
-    }
-
-    function enemyPlayCard() {
-        if (enemyHand.length === 0) return;
-
-        const cardToPlay = enemyHand[0];
-        const { magi, phys, tech } = cardToPlay.card;
-
-        let realmToPlayIn = null;
-
-        // Determine which realm to play the card based on priority and attributes
-        const priorityList = priorityLeft ? ['Solarium', 'Theater', 'Underpass', 'Grid'] : ['Grid', 'Underpass', 'Theater', 'Solarium'];
-
-        for (let realmName of priorityList) {
-            if ((realmName === 'Solarium' && magi) ||
-                (realmName === 'Theater' && (magi || phys)) ||
-                (realmName === 'Underpass' && (tech || phys)) ||
-                (realmName === 'Grid' && tech)) {
-                realmToPlayIn = realmName;
-                break;
-            }
-        }
-
-        // Play the card in the determined realm and update states
-        if (realmToPlayIn) {
-            switch (realmToPlayIn) {
+            switch (realmName) {
                 case 'Solarium':
-                    setEnemySolarium(prevRealm => {
-                        const updatedCardToPlay = { ...cardToPlay, realm: realmToPlayIn };
-                        return {
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCardToPlay]
-                        };
-                    });
+                    if (magi) {
+                        const updatedCard = { ...selectedCard, realm: 'SOLARIUM' };
+                        setPlayerSolarium(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: [...prevRealm.people, updatedCard] // Add the updated card to the realm
+                            };
+                        });
+                        playerLoseActions(1);
+
+                        // Remove the original card from the player's hand
+                        setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
+
+                        setSelectedCard(null);
+                    }
                     break;
                 case 'Theater':
-                    setEnemyTheater(prevRealm => {
-                        const updatedCardToPlay = { ...cardToPlay, realm: realmToPlayIn };
-                        return {
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCardToPlay]
-                        };
-                    });
+                    if (magi || phys) {
+                        const updatedCard = { ...selectedCard, realm: 'THEATER' };
+                        setPlayerTheater(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: [...prevRealm.people, updatedCard]
+                            };
+                        });
+                        playerLoseActions(1);
+                        setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
+                        setSelectedCard(null);
+                    }
                     break;
                 case 'Underpass':
-                    setEnemyUnderpass(prevRealm => {
-                        const updatedCardToPlay = { ...cardToPlay, realm: realmToPlayIn };
-                        return {
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCardToPlay]
-                        };
-                    });
+                    if (tech || phys) {
+                        const updatedCard = { ...selectedCard, realm: 'UNDERPASS' };
+                        setPlayerUnderpass(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: [...prevRealm.people, updatedCard]
+                            };
+                        });
+                        playerLoseActions(1);
+                        setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
+                        setSelectedCard(null);
+                    }
                     break;
                 case 'Grid':
-                    setEnemyGrid(prevRealm => {
-                        const updatedCardToPlay = { ...cardToPlay, realm: realmToPlayIn };
-                        return {
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCardToPlay]
-                        };
-                    });
+                    if (tech) {
+                        const updatedCard = { ...selectedCard, realm: 'GRID' };
+                        setPlayerGrid(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                people: [...prevRealm.people, updatedCard]
+                            };
+                        });
+                        playerLoseActions(1);
+                        setPlayerHand(prevHand => prevHand.filter(card => card.id !== selectedCard.id));
+                        setSelectedCard(null);
+                    }
                     break;
             }
+        };
 
-            // Remove card from enemy's hand
-            setEnemyHand(prevHand => prevHand.filter(card => card.id !== cardToPlay.id));
+        function enemyTurn() {
+            setEnemyTurnPhase('gainActionsAndBits');
         }
-    }
 
-    function handleBoostButton() {
-        playerLoseActions(1);
-        playerLoseBits(1);
-        setAttackMode('BOOST')
-    }
-
-    function handleDrawButton() {
-        playerDraw(1);
-        playerLoseActions(1);
-    }
-
-    function handleDraftButton() {
-        playerDraft(1);
-        playerLoseActions(1);
-    }
-
-    function playerDraw(num) {
-        let remainingCards = num;
-
-        if (playerWounds > 0) {
-            const newWounds = playerWounds - num;
-
-            remainingCards = Math.max(0, newWounds * -1);
-            setPlayerWounds(Math.max(0, newWounds));
+        function handleEnemyTurn() {
+            enemyTurn();
         }
-        if (remainingCards > 0) {
-            const newHandCards = playerLibrary.slice(0, remainingCards);
-            const newLibrary = playerLibrary.slice(remainingCards, playerLibrary.length);
 
-            setPlayerHand(prevHand => [
-                ...prevHand,
-                ...newHandCards
-            ]);
-            setPlayerLibrary(newLibrary);
+        function handlePlayerTurn() {
+            playerTurn();
         }
-    }
 
-    function playerGainBurden(num) {
-        setPlayerBurden(prevBurden => prevBurden + num);
-    }
-
-    function playerLoseBurden(num) {
-        setPlayerBurden(playerBurden - num);
-    }
-
-    function playerGainFate(num) {
-        let remainingPoints = num;
-
-        if (playerBurden > 0) {
-            const newBurden = playerBurden - num;
-
-            remainingPoints = Math.max(0, newBurden * -1);
-            setPlayerBurden(Math.max(0, newBurden));
+        function playerTurn() {
+            playerGainActions(3);
+            playerAdvanceCards();
+            playerDraw(1);
         }
-        if (remainingPoints > 0) {
-            setPlayerFate(prevFate => prevFate + remainingPoints);
+
+        function enemyRezCards() {
+            const rezActiveCards = (cardList) => {
+                return cardList.map(cardEntity => {
+                    if (cardEntity.card.timer && cardEntity.steps >= cardEntity.card.timer) {
+                        return {
+                            ...cardEntity,
+                            rezzed: true
+                        };
+                    }
+                    return cardEntity;
+                });
+            };
+
+            setEnemySolarium(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: rezActiveCards(prevRealm.people)
+                };
+            });
+
+            setEnemyTheater(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: rezActiveCards(prevRealm.people)
+                };
+            });
+
+            setEnemyUnderpass(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: rezActiveCards(prevRealm.people)
+                };
+            });
+
+            setEnemyGrid(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: rezActiveCards(prevRealm.people)
+                };
+            });
         }
-    }
 
-    function playerLoseFate(num) {
-        setPlayerFate(playerFate - num);
-    }
+        const getMatchingCreaturesForAspect = (realmCreatures, aspect, stat) => {
+            return realmCreatures.filter(creature => {
+                if (!creature.active) return false;
 
-    function enemyGainFate(num) {
-        let remainingPoints = num;
-
-        if (playerBurden > 0) {
-            const newBurden = playerBurden - num;
-
-            remainingPoints = Math.max(0, newBurden * -1);
-            setEnemyBurden(Math.max(0, newBurden));
+                if (creature.card[aspect]) {
+                    if (creature.card.magi && creature.card.phys ||
+                        creature.card.magi && creature.card.tech ||
+                        creature.card.phys && creature.card.tech) {
+                        const maxStat = Math.max(creature.card.power, creature.card.power, creature.card.power);
+                        return creature.card[stat] === maxStat;
+                    }
+                    return true;
+                }
+                return false;
+            });
         }
-        if (remainingPoints > 0) {
-            setEnemyFate(prevFate => prevFate + remainingPoints);
+        const enemyPlanAttack = () => {
+            const realms = [enemySolarium, enemyTheater, enemyUnderpass, enemyGrid];
+            const attackOrder = [
+                { aspect: 'magi', stat: 'power' },
+                { aspect: 'phys', stat: 'power' },
+                { aspect: 'tech', stat: 'power' }
+            ];
+            const newSlots = Array(6).fill(null);
+
+            for (const realm of realms) {
+                for (const attack of attackOrder) {
+                    const matchingCreatures = getMatchingCreaturesForAspect(realm.people, attack.aspect, attack.stat);
+
+                    if (matchingCreatures.length > 0) {
+
+                        setBattleRealm(realm.name);
+                        for (let i = 0; i < newSlots.length; i++) {
+                            if (!newSlots[i] && matchingCreatures.length > 0) {
+                                const creature = matchingCreatures[0];
+
+                                removeFromRealm(creature, creature.realm, 'ENEMY');
+                                newSlots[i] = creature;
+                                matchingCreatures.splice(0, 1);
+                            }
+                        }
+                        setEnemyBattleSlots(newSlots);
+
+                        setAttackMode(`ENEMY_${attack.aspect}`);
+                        setGameState('WAITING_FOR_PLAYER_DEFENSE');
+                        return;  // Exit after planning one attack
+                    }
+                }
+            }
+            setGameState('ENEMY_ATTACK_COMPLETE');
+        };
+
+        function playerAdvanceCards() {
+            const advanceCardList = (cardList) => {
+                return cardList.map(cardEntity => {
+                    if ("steps" in cardEntity) {
+                        const newSteps = cardEntity.steps + 1;
+                        let updatedCard = { ...cardEntity, steps: newSteps };
+
+                        if (cardEntity.card.timer && newSteps >= cardEntity.card.timer) {
+                            updatedCard.active = true;
+                        }
+                        return updatedCard;
+                    }
+                    return cardEntity;
+                });
+            };
+
+            setPlayerSolarium(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: advanceCardList(prevRealm.people)
+                };
+            });
+
+            setPlayerTheater(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: advanceCardList(prevRealm.people)
+                };
+            });
+
+            setPlayerUnderpass(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: advanceCardList(prevRealm.people)
+                };
+            });
+
+            setPlayerGrid(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: advanceCardList(prevRealm.people)
+                };
+            });
         }
-    }
 
-    function enemyLoseFate(num) {
-        setEnemyFate(enemyFate - num);
-    }
+        function enemyAdvanceCards() {
+            const advanceCardList = (cardList) => {
+                return cardList.map(cardEntity => {
+                    if ("steps" in cardEntity) {
+                        const newSteps = cardEntity.steps + 1;
+                        let updatedCard = { ...cardEntity, steps: newSteps };
 
-    function playerGainWounds(num) {
-        setPlayerWounds(prevWounds => prevWounds + num);
-    }
+                        // Check if the card should be activated
+                        if (cardEntity.card.timer && newSteps >= cardEntity.card.timer) {
+                            updatedCard.active = true;
+                        }
 
-    function playerLoseWounds(num) {
-        setPlayerWounds(playerWounds - num);
-    }
+                        // Placeholder for handling places/things scoring
+                        if (cardEntity.card.promoCost && newSteps >= cardEntity.card.promoCost) {
+                            // scoreEnemyCard();
+                        }
 
-    function enemyGainBurden(num) {
-        setEnemyBurden(prevBurden => prevBurden + num);
-    }
+                        return updatedCard;
+                    }
+                    return cardEntity;
+                });
+            };
 
-    function enemyLoseBurden(num) {
-        setEnemyBurden(enemyBurden - num);
-    }
+            setEnemySolarium(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: advanceCardList(prevRealm.people),
+                    places: advanceCardList(prevRealm.places),
+                    things: advanceCardList(prevRealm.things)
+                };
+            });
 
-    function enemyGainWounds(num) {
-        setEnemyWounds(prevWounds => prevWounds + num);
-    }
+            setEnemyTheater(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: advanceCardList(prevRealm.people),
+                    places: advanceCardList(prevRealm.places),
+                    things: advanceCardList(prevRealm.things)
+                };
+            });
 
-    function enemyLoseWounds(num) {
-        setEnemyWounds(enemyWounds - num);
-    }
+            setEnemyUnderpass(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: advanceCardList(prevRealm.people),
+                    places: advanceCardList(prevRealm.places),
+                    things: advanceCardList(prevRealm.things)
+                };
+            });
 
-    function playerDraft(num) {
-        let remainingCards = num;
-
-        if (playerWounds > 0) {
-            const newWounds = playerWounds - num;
-
-            remainingCards = Math.max(0, newWounds * -1);
-            setPlayerWounds(Math.max(0, newWounds));
+            setEnemyGrid(prevRealm => {
+                return {
+                    ...prevRealm,
+                    people: advanceCardList(prevRealm.people),
+                    places: advanceCardList(prevRealm.places),
+                    things: advanceCardList(prevRealm.things)
+                };
+            });
         }
-        if (remainingCards > 0) {
-            const newHandCards = draft.slice(0, remainingCards);
-            const newDraft = draft.slice(remainingCards, draft.length);
 
-            setPlayerHand(prevHand => [
-                ...prevHand,
-                ...newHandCards
-            ]);
-            setDraft(newDraft);
+        function generateRandomInteger(max) {
+            return Math.floor(Math.random() * max) + 1;
         }
-    }
 
-    function handlePlayerMine() {
-        playerGainBits(1);
-        playerLoseActions(1);
-    }
-
-    function playerGainBits(num) {
-        let remainingBits = num;
-
-        if (playerDebt > 0) {
-            const newDebt = playerDebt - num;
-
-            remainingBits = Math.max(0, newDebt * -1);
-            setPlayerDebt(Math.max(0, newDebt));
+        function enemyAction() {
+            if (enemyActions > 0) {
+                if (enemyHand.length > 0) {
+                    enemyPlayCard();
+                    enemyLoseActions(1);
+                } else {
+                    enemyDraw(1);
+                    enemyLoseActions(1);
+                }
+            }
         }
-        setPlayerBits(prevBits => prevBits + remainingBits);
-    }
 
-    function playerLoseBits(num) {
-        setPlayerBits(playerBits - num);
-    }
 
-    function enemyGainBits(num) {
-        let remainingBits = num;
+        function enemyDraw(num) {
+            let remainingCards = num;
 
-        if (enemyDebt > 0) {
-            const newDebt = enemyDebt - num;
+            if (enemyWounds > 0) {
+                const newWounds = enemyWounds - num;
 
-            remainingBits = Math.max(0, newDebt * -1);
-            setEnemyDebt(Math.max(0, newDebt));
+                remainingCards = Math.max(0, newWounds * -1);
+                setEnemyWounds(Math.max(0, newWounds));
+            }
+            if (remainingCards > 0) {
+                const newHandCards = enemyLibrary.slice(0, remainingCards);
+                const newLibrary = enemyLibrary.slice(remainingCards, enemyLibrary.length);
+
+                setEnemyHand(prevHand => [
+                    ...prevHand,
+                    ...newHandCards
+                ]);
+                setEnemyLibrary(newLibrary);
+            }
         }
-        setEnemyBits(prevBits => prevBits + remainingBits);
+
+        function enemyPlayCard() {
+            if (enemyHand.length === 0) return;
+
+            const cardToPlay = enemyHand[0];
+            const { magi, phys, tech } = cardToPlay.card;
+
+            let realmToPlayIn = null;
+
+            // Determine which realm to play the card based on priority and attributes
+            const priorityList = priorityLeft ? ['Solarium', 'Theater', 'Underpass', 'Grid'] : ['Grid', 'Underpass', 'Theater', 'Solarium'];
+
+            for (let realmName of priorityList) {
+                if ((realmName === 'Solarium' && magi) ||
+                    (realmName === 'Theater' && (magi || phys)) ||
+                    (realmName === 'Underpass' && (tech || phys)) ||
+                    (realmName === 'Grid' && tech)) {
+                    realmToPlayIn = realmName;
+                    break;
+                }
+            }
+
+            // Play the card in the determined realm and update states
+            if (realmToPlayIn) {
+                switch (realmToPlayIn) {
+                    case 'Solarium':
+                        setEnemySolarium(prevRealm => {
+                            const updatedCardToPlay = { ...cardToPlay, realm: realmToPlayIn };
+                            return {
+                                ...prevRealm,
+                                people: [...prevRealm.people, updatedCardToPlay]
+                            };
+                        });
+                        break;
+                    case 'Theater':
+                        setEnemyTheater(prevRealm => {
+                            const updatedCardToPlay = { ...cardToPlay, realm: realmToPlayIn };
+                            return {
+                                ...prevRealm,
+                                people: [...prevRealm.people, updatedCardToPlay]
+                            };
+                        });
+                        break;
+                    case 'Underpass':
+                        setEnemyUnderpass(prevRealm => {
+                            const updatedCardToPlay = { ...cardToPlay, realm: realmToPlayIn };
+                            return {
+                                ...prevRealm,
+                                people: [...prevRealm.people, updatedCardToPlay]
+                            };
+                        });
+                        break;
+                    case 'Grid':
+                        setEnemyGrid(prevRealm => {
+                            const updatedCardToPlay = { ...cardToPlay, realm: realmToPlayIn };
+                            return {
+                                ...prevRealm,
+                                people: [...prevRealm.people, updatedCardToPlay]
+                            };
+                        });
+                        break;
+                }
+
+                // Remove card from enemy's hand
+                setEnemyHand(prevHand => prevHand.filter(card => card.id !== cardToPlay.id));
+            }
+        }
+
+        function handleBoostButton() {
+            playerLoseActions(1);
+            playerLoseBits(1);
+            setAttackMode('BOOST')
+        }
+
+        function handleDrawButton() {
+            playerDraw(1);
+            playerLoseActions(1);
+        }
+
+        function handleDraftButton() {
+            playerDraft(1);
+            playerLoseActions(1);
+        }
+
+        function playerDraw(num) {
+            let remainingCards = num;
+
+            if (playerWounds > 0) {
+                const newWounds = playerWounds - num;
+
+                remainingCards = Math.max(0, newWounds * -1);
+                setPlayerWounds(Math.max(0, newWounds));
+            }
+            if (remainingCards > 0) {
+                const newHandCards = playerLibrary.slice(0, remainingCards);
+                const newLibrary = playerLibrary.slice(remainingCards, playerLibrary.length);
+
+                setPlayerHand(prevHand => [
+                    ...prevHand,
+                    ...newHandCards
+                ]);
+                setPlayerLibrary(newLibrary);
+            }
+        }
+
+        function playerGainBurden(num) {
+            setPlayerBurden(prevBurden => prevBurden + num);
+        }
+
+        function playerLoseBurden(num) {
+            setPlayerBurden(playerBurden - num);
+        }
+
+        function playerGainFate(num) {
+            let remainingPoints = num;
+
+            if (playerBurden > 0) {
+                const newBurden = playerBurden - num;
+
+                remainingPoints = Math.max(0, newBurden * -1);
+                setPlayerBurden(Math.max(0, newBurden));
+            }
+            if (remainingPoints > 0) {
+                setPlayerFate(prevFate => prevFate + remainingPoints);
+            }
+        }
+
+        function playerLoseFate(num) {
+            setPlayerFate(playerFate - num);
+        }
+
+        function enemyGainFate(num) {
+            let remainingPoints = num;
+
+            if (playerBurden > 0) {
+                const newBurden = playerBurden - num;
+
+                remainingPoints = Math.max(0, newBurden * -1);
+                setEnemyBurden(Math.max(0, newBurden));
+            }
+            if (remainingPoints > 0) {
+                setEnemyFate(prevFate => prevFate + remainingPoints);
+            }
+        }
+
+        function enemyLoseFate(num) {
+            setEnemyFate(enemyFate - num);
+        }
+
+        function playerGainWounds(num) {
+            setPlayerWounds(prevWounds => prevWounds + num);
+        }
+
+        function playerLoseWounds(num) {
+            setPlayerWounds(playerWounds - num);
+        }
+
+        function enemyGainBurden(num) {
+            setEnemyBurden(prevBurden => prevBurden + num);
+        }
+
+        function enemyLoseBurden(num) {
+            setEnemyBurden(enemyBurden - num);
+        }
+
+        function enemyGainWounds(num) {
+            setEnemyWounds(prevWounds => prevWounds + num);
+        }
+
+        function enemyLoseWounds(num) {
+            setEnemyWounds(enemyWounds - num);
+        }
+
+        function playerDraft(num) {
+            let remainingCards = num;
+
+            if (playerWounds > 0) {
+                const newWounds = playerWounds - num;
+
+                remainingCards = Math.max(0, newWounds * -1);
+                setPlayerWounds(Math.max(0, newWounds));
+            }
+            if (remainingCards > 0) {
+                const newHandCards = draft.slice(0, remainingCards);
+                const newDraft = draft.slice(remainingCards, draft.length);
+
+                setPlayerHand(prevHand => [
+                    ...prevHand,
+                    ...newHandCards
+                ]);
+                setDraft(newDraft);
+            }
+        }
+
+        function handlePlayerMine() {
+            playerGainBits(1);
+            playerLoseActions(1);
+        }
+
+        function playerGainBits(num) {
+            let remainingBits = num;
+
+            if (playerDebt > 0) {
+                const newDebt = playerDebt - num;
+
+                remainingBits = Math.max(0, newDebt * -1);
+                setPlayerDebt(Math.max(0, newDebt));
+            }
+            setPlayerBits(prevBits => prevBits + remainingBits);
+        }
+
+        function playerLoseBits(num) {
+            setPlayerBits(playerBits - num);
+        }
+
+        function enemyGainBits(num) {
+            let remainingBits = num;
+
+            if (enemyDebt > 0) {
+                const newDebt = enemyDebt - num;
+
+                remainingBits = Math.max(0, newDebt * -1);
+                setEnemyDebt(Math.max(0, newDebt));
+            }
+            setEnemyBits(prevBits => prevBits + remainingBits);
+        }
+
+        function enemyLoseBits(num) {
+            setEnemyBits(enemyBits - num);
+        }
+
+        function enemyGainActions(num) {
+            setEnemyActions(prevActions => prevActions + num);
+        }
+
+        function enemyLoseActions(num) {
+            setEnemyActions(prevActions => Math.max(0, prevActions - num));
+        }
+
+        function enemyGainAshes(num) {
+            setEnemyAshes(prevAshes => prevAshes + num);
+        }
+
+        function enemyLoseAshes(num) {
+            setEnemyAshes(enemyAshes - num);
+        }
+
+        function playerGainActions(num) {
+            setPlayerActions(prevActions => prevActions + num);
+        }
+
+        function playerLoseActions(num) {
+            setPlayerActions(prevActions => prevActions - num);
+        }
+
+        function enemyLoseActions(num) {
+            setEnemyActions(enemyActions - num);
+        }
+
+        function playerGainAshes(num) {
+            setPlayerAshes(prevAshes => prevAshes + num);
+        }
+
+        function playerLoseAshes(num) {
+            setPlayerAshes(playerAshes - num);
+        }
+
+        return (
+            <div className="game-container">
+                <Gameboard
+                    realmComponents={realmComponents}
+                    onRealmSelect={handleRealmSelect}
+                    playerOneLibrary={playerLibrary}
+                    playerOneHand={playerHand}
+                    playerBoost={handleBoostButton}
+                    playerDraw={handleDrawButton}
+                    playerDraft={handleDraftButton}
+                    playerActions={playerActions}
+                    playerFate={playerFate}
+                    playerWounds={playerWounds}
+                    playerBits={playerBits}
+                    playerDebt={playerDebt}
+                    playerBurden={playerBurden}
+                    playerMine={handlePlayerMine}
+                    playerAshes={playerAshes}
+                    playerSolarium={playerSolarium}
+                    playerTheater={playerTheater}
+                    playerUnderpass={playerUnderpass}
+                    playerGrid={playerGrid}
+                    onCardSelect={handleCardSelect}
+                    onRealmCardSelect={handleRealmCardSelect}
+                    onQuest={handleQuest}
+                    onRaid={handleRaid}
+                    playerBattleSlots={playerBattleSlots}
+                    enemyBattleSlots={enemyBattleSlots}
+                    onSlotSelect={handleEmptySlotSelect}
+                    onBattleCardSelect={handleBattleCardSelect}
+                    onConfirmDefenseSelection={handleConfirmDefenseSelection}
+                    onPlayerBattle={handlePlayerBattle}
+                    attackMode={attackMode}
+                    onRezPlayerCard={handleRezPlayerCard}
+                    onSacrificeConfirmation={handleSacrificeConfirmation}
+                    awaitingSacrifices={awaitingSacrifices}
+                    enemyHand={enemyHand}
+                    onEnemyTurn={handleEnemyTurn}
+                    onPlayerTurn={handlePlayerTurn}
+                    gameState={gameState}
+                    enemyActions={enemyActions}
+                    enemySolarium={enemySolarium}
+                    enemyTheater={enemyTheater}
+                    enemyUnderpass={enemyUnderpass}
+                    enemyGrid={enemyGrid}
+                    battleRealm={battleRealm}
+                />
+            </div>
+        );
     }
 
-    function enemyLoseBits(num) {
-        setEnemyBits(enemyBits - num);
-    }
-
-    function enemyGainActions(num) {
-        setEnemyActions(prevActions => prevActions + num);
-    }
-
-    function enemyLoseActions(num) {
-        setEnemyActions(prevActions => Math.max(0, prevActions - num));
-    }
-
-    function enemyGainAshes(num) {
-        setEnemyAshes(prevAshes => prevAshes + num);
-    }
-
-    function enemyLoseAshes(num) {
-        setEnemyAshes(enemyAshes - num);
-    }
-
-    function playerGainActions(num) {
-        setPlayerActions(prevActions => prevActions + num);
-    }
-
-    function playerLoseActions(num) {
-        setPlayerActions(prevActions => prevActions - num);
-    }
-
-    function enemyLoseActions(num) {
-        setEnemyActions(enemyActions - num);
-    }
-
-    function playerGainAshes(num) {
-        setPlayerAshes(prevAshes => prevAshes + num);
-    }
-
-    function playerLoseAshes(num) {
-        setPlayerAshes(playerAshes - num);
-    }
-
-    return (
-        <div className="game-container">
-            <Gameboard
-                realmComponents={realmComponents}
-                onRealmSelect={handleRealmSelect}
-                playerOneLibrary={playerLibrary}
-                playerOneHand={playerHand}
-                playerBoost={handleBoostButton}
-                playerDraw={handleDrawButton}
-                playerDraft={handleDraftButton}
-                playerActions={playerActions}
-                playerFate={playerFate}
-                playerWounds={playerWounds}
-                playerBits={playerBits}
-                playerDebt={playerDebt}
-                playerBurden={playerBurden}
-                playerMine={handlePlayerMine}
-                playerAshes={playerAshes}
-                playerSolarium={playerSolarium}
-                playerTheater={playerTheater}
-                playerUnderpass={playerUnderpass}
-                playerGrid={playerGrid}
-                onCardSelect={handleCardSelect}
-                onRealmCardSelect={handleRealmCardSelect}
-                onQuest={handleQuest}
-                onRaid={handleRaid}
-                playerBattleSlots={playerBattleSlots}
-                enemyBattleSlots={enemyBattleSlots}
-                onSlotSelect={handleEmptySlotSelect}
-                onBattleCardSelect={handleBattleCardSelect}
-                onConfirmDefenseSelection={handleConfirmDefenseSelection}
-                onPlayerBattle={handlePlayerBattle}
-                attackMode={attackMode}
-                onRezPlayerCard={handleRezPlayerCard}
-                onSacrificeConfirmation={handleSacrificeConfirmation}
-                awaitingSacrifices={awaitingSacrifices}
-                enemyHand={enemyHand}
-                onEnemyTurn={handleEnemyTurn}
-                onPlayerTurn={handlePlayerTurn}
-                gameState={gameState}
-                enemyActions={enemyActions}
-                enemySolarium={enemySolarium}
-                enemyTheater={enemyTheater}
-                enemyUnderpass={enemyUnderpass}
-                enemyGrid={enemyGrid}
-                battleRealm={battleRealm}
-            />
-        </div>
-    );
-}
-
-export default BoardContainer;
+    export default BoardContainer;
