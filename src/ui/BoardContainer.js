@@ -138,6 +138,10 @@ export function BoardContainer() {
     const [promptCard, setPromptCard] = useState(null);
     const [promptMode, setPromptMode] = useState('none');
 
+    const [trashPromptVisible, setTrashPromptVisible] = useState(false);
+    const [currentPromptCard, setCurrentPromptCard] = useState(null);
+    const [decisionCallback, setDecisionCallback] = useState(null)
+
     const [enemyTurnPhase, setEnemyTurnPhase] = useState(null);
     const [gameState, setGameState] = useState('BEGIN');
     const [battleRealm, setBattleRealm] = useState('NONE');
@@ -262,6 +266,9 @@ export function BoardContainer() {
             });
         } else if (attackMode === 'BOOST') {
             handleBoostCard(cardEntity);
+        } else if (attackMode === 'PLAYER_RAID' || attackMode === 'PLAYER_HACK') { //todo
+            setPlayerTargetSelection(cardEntity);
+            setTargetType(cardEntity.card.category);
         } else if (attackMode !== 'NONE') {
             setSelectedCard(cardEntity);
         }
@@ -542,7 +549,7 @@ export function BoardContainer() {
             const defender = defenderSlot !== undefined ? enemyBattleSlots[defenderSlot] : null;
 
             if (attacker) {
-                const attackResult = commitAttack(attacker, defender, 'PLAYER', playerTargetSelection, playerTargetType);
+                const attackResult = commitAttack(attacker, defender, 'PLAYER', playerTargetSelection, targetType);
                 if (attackResult.unblockedHacking) {
                     unblockedHacking = true;
                 }
@@ -744,157 +751,17 @@ export function BoardContainer() {
         }
     }
 
-    const handleStolenCard = (location, id, side, runes = 0) => {
-        switch (location) {
-            case 'UNDERPASS':
-                if (side == 'PLAYER') {
-                    setPlayerUnderpass(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            things: prevRealm.things.filter(card => card.id !== id)
-                        };
-                    });
-                    break;
-                } else {
-                    setEnemyUnderpass(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            things: prevRealm.things.filter(card => card.id !== id)
-                        };
-                    });
-                    break;
-                }
-            case 'GRID':
-                if (side == 'PLAYER') {
-                    setPlayerUnderpass(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            things: prevRealm.things.filter(card => card.id !== id)
-                        };
-                    });
-                    break;
-                } else {
-                    setEnemyUnderpass(prevRealm => {
-                        return {
-                            ...prevRealm,
-                            things: prevRealm.things.filter(card => card.id !== id)
-                        };
-                    });
-                    break;
-                }
-            case 'HEADSPACE':
-                if (side == 'PLAYER') {
-                    setPlayerHand(prevHand => prevHand.filter(card => card.id !== id));
-                    break;
-                } else {
-                    setEnemyHand(prevHand => prevHand.filter(card => card.id !== id));
-                    break;
-                }
-            case 'PANDORA':
-                if (side == 'PLAYER') {
-                    setPlayerLibrary(prevLibrary => prevLibrary.filter(card => card.id !== id));
-                    break;
-                } else {
-                    setEnemyLibrary(prevLibrary => prevLibrary.filter(card => card.id !== id));
-                    break;
-                }
+ 
 
-            default:
-                console.error("Invalid location");
-                return;
-        }
-        if (side == 'PLAYER') {
-            setPlayerGraveyard(prev => [...prev, cardToRemove]);
-            enemyGainFate(runes)
-        } else {
-            setEnemyGraveyard(prev => [...prev, cardToRemove]);
-            playerGainFate(runes)
-        }
-    }
-
-    const handleTrashPrompt = (card, location, id, side) => { // todo: segment repeated hack attempts
-        let cardPrompt = {
-            card,
-            location,
-            id,
-            side
-        };
-        setPromptCard(cardPrompt)
-        setPromptMode('SCRAP')
-    }
-
-    // const handleHackDamage = (location, id, num, side, targetType) => {
-    //     let cardToHack;
-
-    //     switch (location) {
-    //         case 'UNDERPASS':
-    //             if (targetType == 'SERVER') {
-    //                 if (side == 'PLAYER') {
-    //                     cardToHack = playerUnderpass.things.find(cardEntity => cardEntity.id === id);
-    //                 } else {
-    //                     cardToHack = enemyUnderpass.places.find(cardEntity => cardEntity.id === id);
-    //                 }
-    //             } else { // HeadSpace
-    //                 if (side == 'PLAYER' && enemyHand.length > 0) {
-    //                     let chosenIndex = Math.floor(Math.random() * enemyHand.length);
-    //                     cardToHack = enemyHand[chosenIndex];
-    //                 } if (side == 'ENEMY' && playerHand.length > 0) {
-    //                     let chosenIndex = Math.floor(Math.random() * playerHand.length);
-    //                     cardToHack = playerHand[chosenIndex];
-    //                 }
-    //             }
-    //             if (cardToHack && targetType == 'SERVER') {
-    //                 if (cardToHack.card.category === 'SYM') {
-    //                     handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
-    //                 } else {
-    //                     handleTrashPrompt(cardToHack.card, location, id, side);
-    //                 }
-    //             }
-    //             if (cardToHack && targetType == 'HEADSPACE') {
-    //                 if (cardToHack.card.category === 'SYM' || cardToHack.card.category === 'LANDMARK') {
-    //                     handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
-    //                 } else if (cardToHack.card.category === 'SNIP') {
-    //                     handleTrashPrompt(cardToHack.card, location, id, side);
-    //                 } else {
-    //                     handleExposedCard('HEADSPACE', id, side)
-    //                 }
-    //             }
-    //             break;
-    //         case 'GRID':
-    //             if (targetType == 'SERVER') {
-    //                 if (side == 'PLAYER') {
-    //                     cardToHack = playerGrid.things.find(cardEntity => cardEntity.id === id);
-    //                 } else {
-    //                     cardToHack = enemyGrid.places.find(cardEntity => cardEntity.id === id);
-    //                 }
-    //             } else { // Pandora
-    //                 if (side == 'PLAYER') {
-    //                     cardToHack = enemyLibrary[0];
-    //                 } if (side == 'ENEMY') {
-    //                     cardToHack = playerHand[0];
-    //                 }
-    //             }
-    //             if (cardToHack && targetType == 'SERVER') {
-    //                 if (cardToHack.card.category === 'SYM') {
-    //                     handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
-    //                 } else {
-    //                     handleTrashPrompt(cardToHack.card, location, id, side, cardToHack.card.scrap);
-    //                 }
-    //             }
-    //             if (cardToHack && targetType == 'PANDORA') {
-    //                 if (cardToHack.card.category === 'SYM' || cardToHack.card.category === 'LANDMARK') {
-    //                     handleStolenCard(location, id, side, cardToHack.card.runes ? cardToHack.card.runes : 0);
-    //                 } else if (cardToHack.card.category === 'SNIP') {
-    //                     handleTrashPrompt(cardToHack.card, location, id, side, cardToHack.card.scrap);
-    //                 } else {
-    //                     handleExposedCard('PANDORA', id, side)
-    //                 }
-    //             }
-    //             break;
-    //         default:
-    //             console.error("Invalid location");
-    //             return;
-    //     }
+    // const handleTrashPrompt = (card, location, id, side) => { // todo: segment repeated hack attempts
+    //     let cardPrompt = {
+    //         card,
+    //         location,
+    //         id,
+    //         side
+    //     };
+    //     setPromptCard(cardPrompt)
+    //     setPromptMode('SCRAP')
     // }
 
     function handleAccessPhase(side) {
@@ -918,47 +785,205 @@ export function BoardContainer() {
         } else if (playerTargetSelection === 'SERVER') {
             if(battleRealm === 'UNDERPASS') {
                 if (side == 'PLAYER') {
-                    accessCards.push(playerGrid.things.find(cardEntity => cardEntity.id === id));
+                    accessCards.push(playerUnderpass.things.find(cardEntity => cardEntity.id === id));
                 } else {
-                    accessCards.push(enemyGrid.places.find(cardEntity => cardEntity.id === id));
+                    accessCards.push(enemyUnderpass.places.find(cardEntity => cardEntity.id === id));
                 }
-            } else if(battleRealm === 'UNDERPASS') {
+            } else if(battleRealm === 'GRID') {
                 if (side == 'PLAYER') {
                     accessCards.push(playerGrid.things.find(cardEntity => cardEntity.id === id));
                 } else {
                     accessCards.push(enemyGrid.places.find(cardEntity => cardEntity.id === id));
                 }
             }
-
-
-            // Process each access sequentially
-            processAccessQueue(accessCards);
+            processAccessQueue(accessCards, playerTargetSelection, side);
         }
-
-        function processAccessQueue(accessCards) {
+    }
+        function processAccessQueue(accessCards, playerTargetSelection, side) { 
             if (accessCards.length === 0) {
                 console.log("No cards to access.");
                 return;
             }
-
-            // Access cards one at a time
             let index = 0;
 
             const accessNextCard = () => {
                 if (index < accessCards.length) {
                     const card = accessCards[index];
-                    presentAccessedCard(card, () => {
-                        // Callback after player interaction is complete
+                    presentAccessedCard(card, playerTargetSelection, side, () => {
                         index++;
                         accessNextCard(); // Proceed to the next card
                     });
                 } else {
-                    // All accesses are complete
                     console.log("Access phase complete.");
                 }
             };
 
-            accessNextCard(); // Start accessing
+            accessNextCard();
+        }
+        
+        function presentAccessedCard(card, playerTargetSelection, side, callback) { // todo
+            displayCardToPlayer(card);
+        
+            // Handle card-specific interactions
+            if (card.card.category === 'SYM' || card.card.category === 'LANDMARK') {
+                handleStolenCard(card, playerTargetSelection, side, () => {
+                    callback(); // Proceed after handling stolen card
+                });
+            } else if (card.card.category === 'SNIP') {
+                promptPlayerToTrashCard(card, playerTargetSelection, side, () => {
+                    callback(); // Proceed after player decision
+                });
+            } else {
+                handleExposedCard(card, playerTargetSelection, side, () => {
+                    callback(); // Proceed after exposing card
+                });
+            }
+        }
+
+        
+        function displayCardToPlayer(card) {
+            console.log(`You have accessed: ${card.card.name}`);
+        }
+
+        const handleStolenCard = (card, location, side, callback) => {
+            console.log(`You have stolen: ${card.card.name}`);
+            switch (location) {
+                case 'UNDERPASS':
+                    if (side == 'PLAYER') {
+                        setPlayerUnderpass(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                things: prevRealm.things.filter(card => card.id !== id)
+                            };
+                        });
+                        break;
+                    } else {
+                        setEnemyUnderpass(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                things: prevRealm.things.filter(card => card.id !== id)
+                            };
+                        });
+                        break;
+                    }
+                case 'GRID':
+                    if (side == 'PLAYER') {
+                        setPlayerUnderpass(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                things: prevRealm.things.filter(card => card.id !== id)
+                            };
+                        });
+                        break;
+                    } else {
+                        setEnemyUnderpass(prevRealm => {
+                            return {
+                                ...prevRealm,
+                                things: prevRealm.things.filter(card => card.id !== id)
+                            };
+                        });
+                        break;
+                    }
+                case 'HEADSPACE':
+                    if (side == 'PLAYER') {
+                        setPlayerHand(prevHand => prevHand.filter(card => card.id !== id));
+                        break;
+                    } else {
+                        setEnemyHand(prevHand => prevHand.filter(card => card.id !== id));
+                        break;
+                    }
+                case 'PANDORA':
+                    if (side == 'PLAYER') {
+                        setPlayerLibrary(prevLibrary => prevLibrary.filter(card => card.id !== id));
+                        break;
+                    } else {
+                        setEnemyLibrary(prevLibrary => prevLibrary.filter(card => card.id !== id));
+                        break;
+                    }
+    
+                default:
+                    console.error("Invalid location");
+                    return;
+            }
+            if (side == 'PLAYER') {
+                setPlayerGraveyard(prev => [...prev, cardToRemove]);
+                enemyGainFate(runes)
+            } else {
+                setEnemyGraveyard(prev => [...prev, cardToRemove]);
+                playerGainFate(runes)
+            }
+            callback();
+        }
+        
+        // function promptPlayerToTrashCard(card, location, side, callback) { //todo
+        //     // Code to prompt the player to pay the trash cost
+        //     console.log(`You may pay ${card.card.trashCost} to trash ${card.card.name}.`);
+
+        //     const playerChoosesToTrash = true; // player select
+        
+        //     if (playerChoosesToTrash) {
+        //         // Deduct cost from player resources
+        //         // Remove card from enemy's zone
+        //         console.log(`${card.card.name} has been trashed.`);
+        //     } else {
+        //         console.log(`You chose not to trash ${card.card.name}.`);
+        //     }
+        //     callback();
+        // }
+
+        function promptPlayerToTrashCard(card, location, side, callback) {
+            // Display the card and prompt to the player
+            displayTrashPrompt(card, (playerChoosesToTrash) => {
+                if (playerChoosesToTrash) { // todo
+                    // Deduct cost from player resources
+                    // Implement your resource deduction logic here
+                    // removeCardFromZone(card, location, side); // Implement this function accordingly
+                    console.log(`${card.card.name} has been trashed.`);
+                } else {
+                    console.log(`You chose not to trash ${card.card.name}.`);
+                }
+                // Proceed to the next action
+                callback();
+            });
+        }
+
+        function displayTrashPrompt(card, decisionCallback) {
+            showModal({
+                title: `Delete ${card.card.name}?`,
+                message: `You may pay ${card.card.scrap} to trash this card.`,
+                onConfirm: () => {
+                    decisionCallback(true);
+                },
+                onCancel: () => {
+                    decisionCallback(false);
+                }
+            });
+        }
+
+        function displayTrashPrompt(card, callback) {
+            setCurrentCard(card);
+            setDecisionCallback(() => callback);
+            setTrashPromptVisible(true);
+        }
+        
+        function handleTrashDecision(decision) {
+            setTrashPromptVisible(false);
+            if (decisionCallback) {
+                decisionCallback(decision);
+            }
+        }
+        
+        function handleExposedCard(card, callback) { //todo
+            // Code to apply the "exposed" status
+            if (!card.isExposed) {
+                card.isExposed = true;
+                console.log(`${card.card.name} is now exposed.`);
+            } else {
+                // If already exposed, discard the card
+                console.log(`${card.card.name} was already exposed and is now discarded.`);
+                // Remove card from enemy's zone
+            }
+            callback();
         }
 
 
@@ -2065,6 +2090,9 @@ export function BoardContainer() {
                     enemyUnderpass={enemyUnderpass}
                     enemyGrid={enemyGrid}
                     battleRealm={battleRealm}
+                    trashPromptVisible={trashPromptVisible}
+                    currentPromptCard={currentPromptCard}
+                    handleTrashDecision={handleTrashDecision}
                 />
             </div>
         );

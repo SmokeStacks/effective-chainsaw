@@ -76,7 +76,10 @@ class Gameboard extends Component {
             onEnemyTurn,
             gameState,
             battleRealm,
-            onRaid
+            onRaid,
+            trashPromptVisible,
+            currentPromptCard,
+            handleTrashDecision
         } = this.props;
 
         const displayedRealms = [
@@ -159,6 +162,14 @@ class Gameboard extends Component {
                             surge={0}
                             wishes={0}
                         />
+                        {trashPromptVisible && (
+                            <div>
+                                <h2>Trash {currentPromptCard.card.name}?</h2>
+                                <p>You may pay {currentPromptCard.card.scrap} to trash this card.</p>
+                                <button onClick={() => handleTrashDecision(true)}>Yes</button>
+                                <button onClick={() => handleTrashDecision(false)}>No</button>
+                            </div>
+                        )}
                     </div>
                     <TimeController onPlayerTurn={onPlayerTurn} onEnemyTurn={onEnemyTurn} gameState={gameState} />
                     <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />

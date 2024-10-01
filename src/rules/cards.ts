@@ -90,9 +90,7 @@ export type Card = {
   magi: Boolean;
   phys: Boolean;
   tech: Boolean
-  WIS?: number;
-  STR?: number;
-  DEX?: number;
+  power?: number;
   HP?: number;
   timer?: number;
   scrap?: number;
