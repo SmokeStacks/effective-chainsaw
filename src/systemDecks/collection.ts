@@ -4,7 +4,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'tHex',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Verd'],
         keywords: ['OVERRIDE', 'DEVOUR'],
         rezCost: 4,
@@ -24,7 +24,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'TerraByte',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Verd'],
         keywords: ['HASTE', 'CHARGE'],
         rezCost: 3,
@@ -44,7 +44,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'PingWin',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Verd'],
         keywords: ['STING', 'HYPNO', 'HYPNO'],
         rezCost: 2,
@@ -64,7 +64,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'FinchMark',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Verd'],
         keywords: ['SPRINT', 'SPRINT', 'JAWBREAKER', 'AGGRESSIVE'],
         rezCost: 1,
@@ -84,7 +84,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'Crane',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Verd'],
         keywords: ['BARRICADE', 'BARRICADE', 'JAW', 'DEFENSIVE'],
         rezCost: 4,
@@ -104,7 +104,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'TurnKey',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Verd'],
         keywords: [ 'JAWBREAKER', 'TASTY', 'BONY', 'AGGRESSIVE'],
         rezCost: 2,
@@ -124,7 +124,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'PIDGen',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Verd'],
         keywords: [ 'LOOP'],
         rezCost: 1,
@@ -144,7 +144,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'FenIX',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Verd'],
         keywords: [ 'ASCENDED','CHARGE', 'CHARGE'],
         rezCost: 0,
@@ -164,7 +164,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'Web Crawler',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Bug'],
         keywords: [ 'BARRICADE','BARRICADE', 'JAW', 'DEFENSIVE'],
         rezCost: 3,
@@ -184,7 +184,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'Black Window',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Bug'],
         keywords: [ 'VENOM'],
         rezCost: 3,
@@ -204,7 +204,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'SKARab',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Bug'],
         keywords: [ 'ASCENDED', 'LOOP', 'CONSTRUCT'],
         rezCost: 1,
@@ -224,7 +224,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'deathHED',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Bug'],
         keywords: [ 'BONY', 'BONY', 'STEALTH'],
         rezCost: 1,
@@ -244,7 +244,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'dMonarach',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Bug'],
         keywords: [ 'INSPIRE'],
         rezCost: 1,
@@ -264,7 +264,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'HoneyTrap',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Bug'],
         keywords: [ 'SLIMY', 'CONSTRUCT', 'BARRICADE'],
         rezCost: 4,
@@ -284,7 +284,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'DragonFi',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Bug'],
         keywords: [ 'STING', 'STING', 'STING'],
         rezCost: 1,
@@ -304,7 +304,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'ANTLyre',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Bug'],
         keywords: [ 'DEFENSIVE', 'DEVOUR', 'SCAVENGER'],
         rezCost: 3,
@@ -324,7 +324,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'StreamRay',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Phish'],
         keywords: [ 'STREAMING', 'STING', 'STING'],
         rezCost: 3,
@@ -344,7 +344,7 @@ const cardList: Card[] = [
     {
         id: 4,
         name: 'FOO Goo',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Phish'],
         keywords: [ 'DEFENSIVE', 'JAW', 'SLIMY', 'SLIMY', 'CONTAMINATED'],
         rezCost: 2,
@@ -364,7 +364,7 @@ const cardList: Card[] = [
     { //todo
         id: 27,
         name: 'Lone Shark',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Phish'],
         keywords: [ 'DEBTTOUCH', 'PIRACY'],
         rezCost: 1,
@@ -383,7 +383,7 @@ const cardList: Card[] = [
     {
         id: 27,
         name: 'GELo Phish',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Phish'],
         keywords: [ 'GENESIS', 'GENESIS', 'GENESIS'],
         rezCost: 1,
@@ -402,7 +402,7 @@ const cardList: Card[] = [
     {
         id: 27,
         name: 'HyDro',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Phish'],
         keywords: [ 'HUSK', 'HUSK'],
         rezCost: 2,
@@ -422,7 +422,7 @@ const cardList: Card[] = [
     {
         id: 27,
         name: 'BLOB Phish',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Phish'],
         keywords: [ 'POSTMORTEM'],
         rezCost: 2,
@@ -442,7 +442,7 @@ const cardList: Card[] = [
     {
         id: 27,
         name: 'bluTooth',
-        category: 'CREATURE',
+        category: 'ENTITY',
         subTypes: ['Phish'],
         keywords: [ 'STREAMING', 'OVERRIDE'],
         rezCost: 2,
@@ -462,7 +462,7 @@ const cardList: Card[] = [
     {
         id: 27,
         name: 'Possesed Doll',
-        category: 'CREATURE',
+        category: 'ENTITY',
         rezCost: 1,
         soul: 1,
         magi: true,
@@ -479,7 +479,7 @@ const cardList: Card[] = [
     {
         id: 3,
         name: 'Hell Hound',
-        category: 'CREATURE',
+        category: 'ENTITY',
         rezCost: 2,
         soul: 1,
         magi: true,
@@ -496,7 +496,7 @@ const cardList: Card[] = [
     {
         id: 1,
         name: 'Lizardfolk',
-        category: 'CREATURE',
+        category: 'ENTITY',
         rezCost: 2,
         magi: false,
         phys: true,
@@ -512,7 +512,7 @@ const cardList: Card[] = [
     {
         id: 2,
         name: 'Hydra',
-        category: 'CREATURE',
+        category: 'ENTITY',
         rezCost: 4,
         magi: false,
         phys: true,
@@ -528,7 +528,7 @@ const cardList: Card[] = [
     {
         id: 0,
         name: 'Lizardfolk',
-        category: 'CREATURE',
+        category: 'ENTITY',
         rezCost: 2,
         magi: false,
         phys: true,
@@ -544,7 +544,7 @@ const cardList: Card[] = [
     {
         id: 12,
         name: 'Malice',
-        category: 'CREATURE',
+        category: 'ENTITY',
         rezCost: 2,
         soul: 2,
         keywords: ['POUNCE'],
@@ -562,7 +562,7 @@ const cardList: Card[] = [
     {
         id: 19,
         name: 'Hell Hound',
-        category: 'CREATURE',
+        category: 'ENTITY',
         rezCost: 2,
         soul: 1,
         magi: false,
@@ -579,7 +579,7 @@ const cardList: Card[] = [
     {
         id: 23,
         name: 'Curious Acolyte',
-        category: 'CREATURE',
+        category: 'ENTITY',
         rezCost: 3,
         magi: true,
         phys: false,
@@ -595,7 +595,7 @@ const cardList: Card[] = [
     {
         id: 24,
         name: 'Curious Acolyte',
-        category: 'CREATURE',
+        category: 'ENTITY',
         rezCost: 3,
         magi: true,
         phys: false,
@@ -611,7 +611,7 @@ const cardList: Card[] = [
     {
         id: 25,
         name: 'Haunting Siren',
-        category: 'CREATURE',
+        category: 'ENTITY',
         rezCost: 1,
         ash: 4,
         magi: true,
@@ -628,7 +628,7 @@ const cardList: Card[] = [
     {
         id: 26,
         name: 'Haunting Siren',
-        category: 'CREATURE',
+        category: 'ENTITY',
         rezCost: 1,
         ash: 4,
         magi: true,

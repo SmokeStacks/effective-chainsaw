@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 
-import BattleCardDisplay from "./BattleCardDisplay";
+import Card from "./renders/Card";
 
 function BattleCards({ cards, onCardSelect, onSlotSelect }) {
     return (
@@ -11,7 +11,7 @@ function BattleCards({ cards, onCardSelect, onSlotSelect }) {
                     className="battle-slot" 
                     onClick={() => onSlotSelect(index)}
                 >
-                    {card && <BattleCardDisplay  key={index} entity={cards[index]} onCardSelect={onCardSelect} />}
+                    {card && <Card key={index} entity={cards[index]} onCardSelect={onCardSelect} inHand={false}/>}
                 </div>
             ))}
         </div>

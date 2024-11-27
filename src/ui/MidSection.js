@@ -56,7 +56,7 @@ class MidSection extends Component {
 
         return (
             <div className="mid">
-                {category === "CREATURE" && (
+                {category === "ENTITY" && (
                     <Stats
                         magi={magi}
                         phys={phys}

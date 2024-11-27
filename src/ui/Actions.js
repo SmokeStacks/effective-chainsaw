@@ -23,13 +23,10 @@ class Actions extends Component {
 
     actionClick = (type) => {
         console.log('click ', type)
-        if (type === 'QUEST') {
-            this.props.onQuest();
-        }
     };
 
     render() {
-        const { playerDraft, playerDraw, playerMine, attackMode, onConfirmDefenseSelection, onPlayerBattle, playerBoost, onRaid, onQuest } = this.props;
+        const { playerDraft, playerDraw, playerMine, attackMode, onConfirmDefenseSelection, onPlayerBattle, playerBoost, onRaid, onQuest, onHack } = this.props;
 
         const renderQuestAction = () => {
             if (attackMode === 'PLAYER_QUEST') {
@@ -91,6 +88,37 @@ class Actions extends Component {
             );
         };
 
+        const renderHackAction = () => {
+            if (attackMode === 'PLAYER_HACK') {
+                return (
+                    <div className="action">
+                        <img className="action-icon" src={hackIcon} alt="Hack Icon" />
+                        <Button className="action-button" onClick={onPlayerBattle}>
+                            Confirm
+                        </Button>
+                    </div>
+                );
+            }
+            if (attackMode === 'ENEMY_tech') {
+                return (
+                    <div className="action">
+                        <img className="action-icon" src={hackIcon} alt="Hack Icon" />
+                        <Button className="action-button" onClick={onConfirmDefenseSelection}>
+                            Confirm
+                        </Button>
+                    </div>
+                );
+            }
+            return (
+                <div className="action">
+                    <img className="action-icon" src={hackIcon}></img>
+                    <Button className="action-button yellow-button" onClick={onHack}>
+                        Hack
+                    </Button>
+                </div>
+            );
+        };
+
         return (
 
             <div className="action-list">
@@ -107,7 +135,7 @@ class Actions extends Component {
                 <div className="actions">
                     {renderQuestAction()}
                     {renderRaidAction()}
-                    <div className="action"><img className="action-icon" src={hackIcon}></img><Button className="action-button yellow-button" onClick={() => this.actionClick('HACK')}>Hack</Button></div>
+                    {renderHackAction()}
                 </div>
             </div>
         );

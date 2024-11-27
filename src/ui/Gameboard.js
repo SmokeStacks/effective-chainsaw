@@ -10,6 +10,7 @@ import HUD from './HUD';
 import FocusDisplay from './FocusDisplay';
 //import ConfirmButton from './ConfirmButton';
 import BattlefieldCreatures from './BattlefieldCreatures';
+import Modal from './Modal';
 
 class Gameboard extends Component {
     constructor(props) {
@@ -51,6 +52,7 @@ class Gameboard extends Component {
             realmComponents,
             onCardSelect,
             onRealmSelect,
+            onServerSelect,
             playerSolarium,
             playerTheater,
             playerUnderpass,
@@ -79,7 +81,9 @@ class Gameboard extends Component {
             onRaid,
             trashPromptVisible,
             currentPromptCard,
-            handleTrashDecision
+            handleTrashDecision,
+            modalVisible,
+            modalProps,
         } = this.props;
 
         const displayedRealms = [
@@ -117,6 +121,7 @@ class Gameboard extends Component {
                                 <RealmComponent
                                     key={index}
                                     onRealmSelect={() => onRealmSelect(RealmComponent.name)}
+                                    onServerSelect={onServerSelect}
                                     onRealmCardSelect={onRealmCardSelect}
                                     onRezPlayerCard={onRezPlayerCard}
                                     playerState={playerRealmsState[RealmComponent.name]}
@@ -162,16 +167,15 @@ class Gameboard extends Component {
                             surge={0}
                             wishes={0}
                         />
-                        {trashPromptVisible && (
-                            <div>
-                                <h2>Trash {currentPromptCard.card.name}?</h2>
-                                <p>You may pay {currentPromptCard.card.scrap} to trash this card.</p>
-                                <button onClick={() => handleTrashDecision(true)}>Yes</button>
-                                <button onClick={() => handleTrashDecision(false)}>No</button>
-                            </div>
-                        )}
                     </div>
-                    <TimeController onPlayerTurn={onPlayerTurn} onEnemyTurn={onEnemyTurn} gameState={gameState} />
+                    {modalVisible && (
+                        <Modal
+                            title={modalProps.title}
+                            message={modalProps.message}
+                            onConfirm={modalProps.onConfirm}
+                            onCancel={modalProps.onCancel}
+                        />
+                    )}
                     <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />
                 </div>
             </div>

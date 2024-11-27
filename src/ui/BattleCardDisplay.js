@@ -81,17 +81,17 @@ class RezCost extends Component {
     }
 }
 
-class PromoCost extends Component {
+class Plot extends Component {
     constructor(props) {
         super(props);
         this.state = {}
     }
     render() {
-        const { promoCost } = this.props;
+        const { plot } = this.props;
 
         return (
             <div className="promo">
-                {promoCost}
+                {plot}
                 <img className="promo-icon" src={promoIcon}></img>
             </div>
         );
@@ -108,7 +108,7 @@ class BattleCardDisplay extends Component {
     render() {
         const {
             category,
-            promoCost,
+            plot,
             name,
             rezCost,
             soul,
@@ -134,7 +134,7 @@ class BattleCardDisplay extends Component {
             mode
         } = this.props;
 
-        const isCreatureOrRitual = category === "CREATURE" || category === "RITUAL";
+        const isCreatureOrRitual = category === "ENTITY" || category === "RITUAL";
         const isOtherCategory =
             category === "SNIP" ||
             category === "SYM" ||
@@ -143,12 +143,12 @@ class BattleCardDisplay extends Component {
         const isMundane = category !== "LANDMARK" && category !== "SYM";
 
         return (
-            <div className="card card-realm battle-card" onClick={() => onCardSelect(entity)}>
+            <div className="card card-realm battle-card" onClick={() => onCardSelect(entity, inHand)}>
                 <div className="top-bar">
                     {<RezCost rezCost={rezCost} />}
                     <Title ash={category} name={name} category={category} soul={soul} />
-                    {promoCost && <PromoCost promoCost={promoCost} />}
-                    {category == "CREATURE" && <SoulAndAsh ash={ash} soul={soul} />}
+                    {plot && <Plot plot={plot} />}
+                    {category == "ENTITY" && <SoulAndAsh ash={ash} soul={soul} />}
                     {category == "RITUAL" && <SoulAndAsh ash={ash} oul={soul} />}
                 </div>
                 <MidSection
@@ -161,7 +161,7 @@ class BattleCardDisplay extends Component {
                     STR={STR}
                     DEX={DEX}
                     HP={HP-entity.wounds}
-                    promoCost={promoCost}
+                    plot={plot}
                 />
                 <BottomSection
                         category={category}
@@ -170,7 +170,7 @@ class BattleCardDisplay extends Component {
                         scrap={scrap}
                         text={text}
                         timer={timer}
-                        steps={entity.steps}
+                        steps={entity.steps} // todo
                     />
             </div>
         );

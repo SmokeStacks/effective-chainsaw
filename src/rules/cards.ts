@@ -1,11 +1,4 @@
-export type CostType = 'INK' | 'ASH';
-
-type Cost = {
-  type: CostType;
-  amount: number;
-};
-
-export type Permanents = 'CREATURE' | 'LOCATION' | 'LANDMARK' | 'SNIP' | 'SYM';
+export type Permanents = 'ENTITY' | 'LOCATION' | 'LANDMARK' | 'SNIP' | 'SYM';
 
 export type Category = Permanents | 'RITUAL';
 
@@ -61,32 +54,24 @@ export type Keyword = 'POUNCE' | 'OVERRIDE' | 'DEVOUR' | 'STREAMING' | 'HASTE' |
 | 'JAWBREAKER' | 'AGGRESSIVE' | 'DEFENSIVE' | 'TASTY' | 'LOOP' | 'ASCENDED' | 'BARRICADE' | 'VENOM' | 'INSPIRE' | 'SLIMY' | 'HARVEST' 
 | 'STREAMING' | 'CONTAMINATED' | 'BONY' | 'STEALTH' | 'SCAVENGER' | 'PIRACY' | 'DEBTTOUCH' | 'GENESIS' | 'HUSK' | 'POSTMORTEM';
 
-export type Subtype = 'Verd' | 'Phish'| 'WULF' | 'Bug' | 'Operator';
+export type Subtype = 'JAWbreaker' | 'JAW';
 
 export type Card = {
+  faction: string,
   id: number;
   name: string;
   category: Category;
   subTypes?: Subtype[];
   rezCost?: number;
-  extraCost?: Cost;
   soul?: number;
   ash?: number;
-  fate?: number;
-  burden?: number;
-  wounds?: number;
   runes?: number;
-  promoCost?: number;
-  memory?: number;
-  boosts?: number;
-  effect1?: Effect;
-  effect2?: Effect;
-  effect3?: Effect;
-  skill?: Skill;
-  keywords?: Keyword[];
-  upkeep?: Effect;
-  cleanup1?: Effect;
-  cleanup2?: Effect;
+  plot?: number;
+  development?: number;
+  schemeThreshold?: number;
+  keywords?: String;
+  description?: string;
+  scheming?: boolean;
   magi: Boolean;
   phys: Boolean;
   tech: Boolean
@@ -94,9 +79,11 @@ export type Card = {
   HP?: number;
   timer?: number;
   scrap?: number;
-  text?: string;
-  flavor?: string;
-  art?: string;
+  abilities?: object[];
+  soulless?: boolean;
+  locality?: boolean;
+  aggressive?: boolean;
+  defensive?: boolean;
 };
 
 export class CardEntity {
@@ -104,8 +91,8 @@ export class CardEntity {
   card: Card;
   wounds: number;
   steps: number;
-  rezzed: boolean;
-  active: boolean;
+  online: boolean;
+  readied: boolean;
   exposed: boolean;
   scored: boolean;
   realm: RealmName;
@@ -115,8 +102,8 @@ export class CardEntity {
     this.card = card;
     this.wounds = 0;
     this.steps = 0;
-    this.rezzed = false;
-    this.active = false;
+    this.online = false;
+    this.readied = false;
     this.exposed = false;
     this.scored = false;
   }

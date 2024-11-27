@@ -112,7 +112,7 @@
   margin: 10px;
 }
 
-.card.face-down-player::before {
+.card-container.face-down-player::before {
   content: "";
   position: absolute;
   top: 0;
@@ -127,7 +127,7 @@
   background-image: url('https://i.pinimg.com/236x/df/81/3b/df813b2ae22b5e321a0ea1bdb2562497.jpg');
 }
 
-.card {
+/* .card {
   background-color: white;
   box-shadow: 10px 5px 5px black;
   width: var(--card-width);
@@ -136,10 +136,10 @@
   border-radius: 5%;
   margin: 2px calc(var(--card-height) * 0.01);
   position: relative;
-}
+} */
 
-.card.face-down-player {
-  border: 8px solid gray;
+.card-container.face-down-player {
+  border: 4px solid gray;
 }
 
 .battle-card {
@@ -151,11 +151,11 @@
   height: 15%;
 }
 
-.battle-card .rez,
+/* .battle-card .rez,
 .battle-card .promo {
   font-size: calc(var(--card-ratio) * 0.06);
   margin-top: calc(var(--card-ratio) * 0.020);
-}
+} */
 
 .battle-card .title-container {
   padding-top: calc(var(--card-ratio) * 0.07);
@@ -205,7 +205,7 @@
   height: 17%;
 }
 
-.card-container {
+.card-container-2 {
   bottom: 110px;
   position: relative;
 }
@@ -231,7 +231,7 @@
   background-color: #ccc;
 }
 
-.rez,
+/* .rez,
 .promo {
   box-shadow: 2px 0px 2px 2px gray;
   color: black;
@@ -250,7 +250,7 @@
 .rez-icon {
   height: calc(var(--card-height) * 0.10);
   margin: 2px;
-}
+} */
 
 .promo {
   border-radius: 3% 0 0 50%;
@@ -260,7 +260,7 @@
   height: calc(var(--card-height) * 0.11);
 }
 
-.title-container {
+/* .title-container {
   display: flex;
   flex-direction: column;
   margin: calc(var(--card-height) * 0.01);
@@ -272,9 +272,9 @@
   text-align: center;
   font-size: calc(var(--card-height) * 0.07);
   color: black;
-}
+} */
 
-.soul-ash-container {
+/* .soul-ash-container {
   align-items: center;
   position: absolute;
   margin-top: calc(var(--card-height) * 0.32);
@@ -322,7 +322,7 @@
   height: 50%;
   background-image: url(https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png);
   background-size: cover;
-}
+} */
 
 .text {
   font-size: 16px;
@@ -453,9 +453,9 @@
   margin: 0 5px;
 }
 
-.timer-icon {
+/* .timer-icon {
   height: calc(var(--card-height) * 0.08);
-}
+} */
 
 .place-hp,
 .scrap-cost {
@@ -471,7 +471,7 @@
   justify-content: flex-start;
 }
 
-.timer-container {
+/* .timer-container {
   box-shadow: 2px 0px 2px 2px gray;
   border-radius: 0 50% 0 3%;
   display: flex;
@@ -487,7 +487,7 @@
   height: 25px;
   text-align: center;
   line-height: 30px;
-}
+} */
 
 .player-hand {
   display: flex;
@@ -548,7 +548,7 @@
 }
 
 .yellow-button {
-  border-color: #bef30e;
+  border-color: #def50f;
 }
 
 .action-hud {

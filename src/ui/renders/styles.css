@@ -1,0 +1,385 @@
+/* Fonts */
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+
+@font-face {
+  font-family: "MyCustomFont";
+  src: url("/src/assets/fonts/slkscrb.ttf") format("truetype");
+}
+
+/* Reset margins and paddings */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Screen */
+.screen {
+  height: 100vh;
+  width: 100%;
+  background: black;
+  display: flex;
+}
+
+/* Left Side */
+.left-side {
+  width: 80%;
+  display: flex;
+  flex-direction: column;
+  overflow: visible; /* Allow overflow */
+}
+
+.realms {
+  flex: 2;
+  background-color: #333; /* Placeholder background */
+}
+
+.hand {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start; /* Align items to the top */
+  background-color: #222; /* Placeholder background */
+  overflow: visible; /* Allow overflow */
+}
+
+/* Card */
+.card-container {
+  background: #23d620;
+  color: white;
+  font-family: "Press Start 2P", sans-serif;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  margin: 5px;
+  max-width: 180px; /* Increased size */
+  flex: 1;
+  position: relative; /* For positioning overlay content */
+  overflow: visible; /* Change from hidden to visible */
+  border: 3px solid #23d620; /* Added #23d620 border */
+}
+
+.green-border.timer {
+  background: #23d620; /* Added #23d620 background */
+}
+
+.green-border {
+  borde-color: #23d620;
+}
+
+.orange-border.timer {
+  background: #f75f07; /* Added #23d620 background */
+}
+
+.orange-border {
+  border-color: #f75f07;
+}
+
+.purple-border.timer {
+  background: #af28d1; /* Added #23d620 background */
+}
+
+.purple-border {
+  border-color: #af28d1;
+}
+
+.gray-border.timer {
+  background: #707070; /* Added #23d620 background */
+}
+
+.gray-border {
+  border-color: #707070;
+}
+
+.art-container {
+  position: relative; /* For positioning overlay content */
+  width: 100%;
+}
+
+.art {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.overlay-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-shadow: inset 0px 0px 22px 19px black;
+  display: flex;
+  justify-content: end;
+  align-items: start;
+}
+
+.top-container,
+.spirit,
+.bottom-container {
+  position: absolute;
+  width: 100%;
+  left: 0;
+  color: white;
+  text-shadow: 1px 1px 2px black;
+}
+
+.top-container {
+  display: flex;
+  justify-content: space-between;
+  flex-direction: column;
+}
+
+.title-container {
+  display: flex;
+  justify-content: space-between;
+}
+
+.name {
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  height: 28px;
+}
+
+.name-rune {
+  text-align: right;
+}
+
+.name.green-border {
+  text-shadow: 1px 1px #23d620;
+}
+
+.name.purple-border {
+  text-shadow: 1px 1px #af28d1;
+}
+
+.name.orange-border {
+  text-shadow: 1px 1px #f75f07;
+}
+
+.name.gray-border {
+  text-shadow: 1px 1px #707070;
+}
+
+.type {
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  width: fit-content;
+}
+
+.rune-type {
+  margin-left: auto;
+}
+
+.rune-name {
+  text-align: right;
+}
+
+.rez {
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  width: 50px;
+  height: 28px;
+}
+
+.eye-icon {
+  margin-right: 5px;
+  height: 20px;
+}
+
+.stats-icon {
+  margin: 2px;
+  height: 15px;
+}
+
+.spirit {
+  align-items: center;
+  top: 25px; /* Adjust as needed */
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  position: relative;
+  top: 8%;
+  left: 17%;
+  margin-top: 2px;
+  width: 49.5px;
+  height: 28px;
+}
+
+.types {
+  display: flex;
+  justify-content: start;
+  padding: 0 5px;
+  background: rgba(0, 0, 0, 0.35);
+  width: auto;
+  position: relative;
+  top: 29%;
+  flex-direction: column;
+  right: 82%;
+}
+
+.type-icon {
+  margin: 1px 0;
+  width: 20px;
+}
+
+.heart-icon {
+  height: 20px;
+  margin-left: 2px;
+  margin-top: 4px;
+}
+
+.bottom-container {
+  bottom: 0; /* Adjusted to move power and health higher */
+}
+
+.star-icon {
+  padding-bottom: 3px;
+  height: 23px;
+}
+
+.runes-container {
+  display: flex;
+  font-size: 14px;
+  justify-content: end;
+  align-items: center;
+}
+
+.abilities,
+.description {
+  font-size: 9.5px;
+  text-align: center;
+  margin: 3px 0;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2px 3px; /* Semi-transparent background */
+}
+
+.description {
+  margin-top: 10px;
+}
+
+.body {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 5px;
+}
+
+.location-body {
+  display: flex;
+  justify-content: end;
+  height: 15px;
+  margin: 2px 0 10px;
+  padding: 2px 5px;
+}
+
+.snip-body {
+  margin-bottom: 10px;
+}
+
+.power,
+.health {
+  font-size: 14px; /* Increased size for visibility */
+}
+
+.timer {
+  font-size: 14px;
+  position: absolute;
+  bottom: -15px; /* Adjusted to move timer lower */
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-content {
+  display: flex;
+  align-items: center;
+}
+
+.timer-icon {
+  margin-bottom: 3px;
+}
+
+.plot-icon {
+  margin-right: 3px;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  margin-left: 2px;
+}
+
+/* Status Menu */
+.status-menu {
+  width: 20%;
+  display: flex;
+  flex-direction: column;
+  font-family: "Press Start 2P", sans-serif;
+  font-size: 14px;
+  color: green;
+}
+
+.status-menu p,
+.status-menu div {
+  text-align: left; /* Ensure text is left-aligned */
+}
+
+.box {
+  border: 4px solid #007acc;
+  margin: 5px;
+  background: #007acc;
+  color: black;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.health-container {
+  flex: 1;
+}
+
+.wounds-container,
+.burden-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.gif {
+  width: 100%;
+  height: auto;
+}
+
+.p {
+  margin-top: 5px;
+}
+
+.status-container {
+  flex: 1;
+  display: flex;
+  justify-content: space-around;
+}
+
+.status-container div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Left-align items */
+}
+
+.context-container {
+  flex: 1;
+}
+
+/* Paragraphs */
+p {
+  margin-top: 5px;
+}

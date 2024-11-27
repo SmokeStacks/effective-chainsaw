@@ -77,24 +77,24 @@ class RezCost extends Component {
         return (
             <div className="rez" onClick={() => onRezPlayerCard(entity)}>
                 {rezCost}
-                {!entity.rezzed && <img className="rez-icon" src={moonIcon}></img>}
-                {entity.rezzed && <img className="rez-icon" src={sunIcon}></img>}
+                {!entity.online && <img className="rez-icon" src={moonIcon}></img>}
+                {entity.online && <img className="rez-icon" src={sunIcon}></img>}
             </div>
         );
     }
 }
 
-class PromoCost extends Component {
+class Plot extends Component {
     constructor(props) {
         super(props);
         this.state = {}
     }
     render() {
-        const { promoCost } = this.props;
+        const { plot } = this.props;
 
         return (
             <div className="promo">
-                {promoCost}
+                {plot}
                 <img className="promo-icon" src={promoIcon}></img>
             </div>
         );
@@ -111,7 +111,7 @@ class RealmCardDisplay extends Component {
     render() {
         const {
             category,
-            promoCost,
+            plot,
             name,
             rezCost,
             soul,
@@ -134,12 +134,12 @@ class RealmCardDisplay extends Component {
         const {
             onCardSelect,
             entity,
-            isFaceDown,
+            isFaceUp, // todo
             isPlayerCard,
             onRezPlayerCard
         } = this.props;
 
-        const isCreatureOrRitual = category === "CREATURE" || category === "RITUAL";
+        const isCreatureOrRitual = category === "ENTITY" || category === "RITUAL";
         const isOtherCategory =
             category === "SNIP" ||
             category === "SYM" ||
@@ -149,17 +149,17 @@ class RealmCardDisplay extends Component {
 
         if (isCreatureOrRitual) {
             return (
-                <div className={`${entity.active ? 'card-container' : 'card-container resting'}`}>
+                <div className={`${entity.readied ? 'card-container-2' : 'card-container-2 resting'}`}>
                     <img
                         className={`${entity.sacrificed ? 'blood-icon' : 'blood-icon hidden'}`}
                         src={bloodIcon}
                     />
-                    <div className={`card card-realm battle-card ${!entity.rezzed ? (isPlayerCard ? 'face-down-player' : 'face-down-enemy') : ''}`} onClick={() => onCardSelect(entity)}>
+                    <div className={`card card-realm battle-card ${!entity.online ? (isPlayerCard ? 'face-down-player' : 'face-down-enemy') : ''}`} onClick={() => onCardSelect(entity, inHand)}>
                         <div className="top-bar">
                             {<RezCost entity={entity} rezCost={rezCost} onRezPlayerCard={onRezPlayerCard} />}
                             <Title ash={category} name={name} category={category} soul={soul} />
-                            {promoCost && <PromoCost promoCost={promoCost} />}
-                            {category == "CREATURE" && <SoulAndAsh ash={ash} soul={soul} />}
+                            {plot && <Plot plot={plot} />}
+                            {category == "ENTITY" && <SoulAndAsh ash={ash} soul={soul} />}
                             {category == "RITUAL" && <SoulAndAsh ash={ash} oul={soul} />}
                         </div>
                         <MidSection
@@ -172,7 +172,7 @@ class RealmCardDisplay extends Component {
                             STR={STR}
                             DEX={DEX}
                             HP={HP - entity.wounds}
-                            promoCost={promoCost}
+                            plot={plot}
                         />
                         <BottomSection
                             category={category}
@@ -192,7 +192,7 @@ class RealmCardDisplay extends Component {
                     <div className="top-bar">
                         {isMundane && <RezCost entity={entity} rezCost={rezCost} onRezPlayerCard={onRezPlayerCard} />}
                         <Title category={category} name={name} />
-                        {promoCost && <PromoCost promoCost={promoCost} />}
+                        {plot && <Plot plot={plot} />}
                     </div>
                     <BottomSection
                         category={category}
@@ -211,7 +211,7 @@ class RealmCardDisplay extends Component {
                         STR={STR}
                         DEX={DEX}
                         HP={HP}
-                        promoCost={promoCost}
+                        plot={plot}
                     />
                 </div>
             );

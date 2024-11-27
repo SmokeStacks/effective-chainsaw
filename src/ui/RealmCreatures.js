@@ -1,11 +1,11 @@
 import React, { Component } from 'react';
 
-import RealmCardDisplay from "./RealmCardDisplay";
+import CardDisplay from "./CardDisplay";
 
 function RealmCards({ cards, onCardSelect, onRezPlayerCard, isPlayerCard }) {
     var cardsEntities = [];
     for (var i = 0; i < cards.length; i++) {
-        cardsEntities.push(<RealmCardDisplay isFaceDown={true} isPlayerCard={isPlayerCard} key={i} entity={cards[i]} onCardSelect={onCardSelect} onRezPlayerCard={onRezPlayerCard}/>);
+        cardsEntities.push(<CardDisplay isFaceUp={cards[i].online} isPlayerCard={isPlayerCard} key={i} entity={cards[i]} onCardSelect={onCardSelect} onRezPlayerCard={onRezPlayerCard} inHand={false} />);
     }
     return <>{cardsEntities}</>;
 }

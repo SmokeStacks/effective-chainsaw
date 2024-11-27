@@ -53,7 +53,7 @@ class BottomSection extends Component {
                 {category == "LANDMARK" && <PlaceHP HP={HP} />}
                 {category == "LOCATION" && <PlaceHP HP={HP} />}
                 {category == "SNIP" && <ScrapCost scrap={scrap} />}
-                {category == "CREATURE" && (
+                {category == "ENTITY" && (
                     <div className="timer-container">
                         <div className="timer">{steps ? timer-steps: timer}</div>
                         <img
