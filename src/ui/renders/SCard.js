@@ -1,4 +1,4 @@
-import "./styles.css";
+//import "./styles.css";
 import React, { Component } from "react";
 import FeatherIcon from "feather-icons-react";
 
@@ -27,8 +27,8 @@ class SCard extends Component {
     }
   }
 
-  renderTop(type, name, rezCost, faction, onRezPlayerCard, entity) {
-    if (type === "SYM") {
+  renderTop(category, name, rezCost, faction, onRezPlayerCard, entity) {
+    if (category === "SYM") {
       return (
         <div className="top-container">
           <div className="title-container">
@@ -37,11 +37,11 @@ class SCard extends Component {
             </div>
             <div className={`name name-rune ${faction}`}>{name}</div>
           </div>
-          <div className="type rune-type">{type.toLowerCase()}</div>
+          <div className="type rune-type">{category.toLowerCase()}</div>
         </div>
       );
     }
-    if (type === "SNIP") {
+    if (category === "SNIP") {
       return (
         <div className="top-container">
           <div className="title-container">
@@ -51,7 +51,7 @@ class SCard extends Component {
               {rezCost}
             </div>
           </div>
-          <div className="type">{type.toLowerCase()}</div>
+          <div className="type">{category.toLowerCase()}</div>
         </div>
       );
     } else {
@@ -61,7 +61,7 @@ class SCard extends Component {
 
   render() {
     const {
-      type,
+      category,
       faction,
       name,
       rezCost,
@@ -92,7 +92,7 @@ class SCard extends Component {
         <div className="art-container">
           <img className="art" src={imgSrc} alt={name} />
           <div className="overlay-content">
-            {this.renderTop(type, name, rezCost, faction, onRezPlayerCard, entity)}
+            {this.renderTop(category, name, rezCost, faction, onRezPlayerCard, entity)}
             {this.renderTypes(magi, phys, tech)}
             <div className="bottom-container">
               {runes ? (
@@ -107,7 +107,7 @@ class SCard extends Component {
               ) : null}
               <div
                 className={
-                  type === "SNIP" ? "location-body snip-body" : "location-body"
+                  category === "SNIP" ? "location-body snip-body" : "location-body"
                 }
               >
                 {scrap ? (

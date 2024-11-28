@@ -1,4 +1,4 @@
-import "./styles.css";
+//import "./styles.css";
 import React, { Component } from "react";
 import FeatherIcon from "feather-icons-react";
 
@@ -27,9 +27,9 @@ class LCard extends Component {
     }
   }
 
-  renderTop(type, name, rezCost, faction) {
+  renderTop(category, name, rezCost, faction) {
     const types = [];
-    if (type === "LANDMARK") {
+    if (category === "LANDMARK") {
       return (
         <div className="top-container">
           <div className="title-container">
@@ -38,11 +38,11 @@ class LCard extends Component {
             </div>
             <div className={`name name-rune ${faction}`}>{name}</div>
           </div>
-          <div className="type rune-type">{type.toLowerCase()}</div>
+          <div className="type rune-type">{category.toLowerCase()}</div>
         </div>
       );
     }
-    if (type === "LOCATION") {
+    if (category === "LOCATION") {
       return (
         <div className="top-container">
           <div className="title-container">
@@ -52,7 +52,7 @@ class LCard extends Component {
               {rezCost}
             </div>
           </div>
-          <div className="type">{type.toLowerCase()}</div>
+          <div className="type">{category.toLowerCase()}</div>
         </div>
       );
     } else {
@@ -62,7 +62,7 @@ class LCard extends Component {
 
   render() {
     const {
-      type,
+      category,
       faction,
       name,
       rezCost,
@@ -92,7 +92,7 @@ class LCard extends Component {
         <div className="art-container">
           <img className="art" src={imgSrc} alt={name} />
           <div className="overlay-content">
-            {this.renderTop(type, name, rezCost, faction)}
+            {this.renderTop(category, name, rezCost, faction)}
             {this.renderTypes(magi, phys, tech)}
             <div className="bottom-container">
               {runes ? (

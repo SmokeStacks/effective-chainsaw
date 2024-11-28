@@ -48,7 +48,7 @@
   background: #23d620;
   color: white;
   font-family: "Press Start 2P", sans-serif;
-  font-size: 12px;
+  font-size: 9px;
   display: flex;
   flex-direction: column;
   margin: 5px;
@@ -163,7 +163,7 @@
 }
 
 .type {
-  font-size: 10px;
+  font-size: 9px;
   background: rgba(0, 0, 0, 0.35);
   padding: 4px;
   width: fit-content;
@@ -180,7 +180,7 @@
 .rez {
   display: flex;
   align-items: center;
-  font-size: 10px;
+  font-size: 9px;
   background: rgba(0, 0, 0, 0.35);
   padding: 4px;
   width: 50px;
@@ -189,7 +189,7 @@
 
 .eye-icon {
   margin-right: 5px;
-  height: 20px;
+  height: 15px;
 }
 
 .stats-icon {
@@ -209,7 +209,7 @@
   left: 17%;
   margin-top: 2px;
   width: 49.5px;
-  height: 28px;
+  height: 20px;
 }
 
 .types {
@@ -253,7 +253,7 @@
 
 .abilities,
 .description {
-  font-size: 9.5px;
+  font-size: 9px;
   text-align: center;
   margin: 3px 0;
   background: rgba(0, 0, 0, 0.35);
@@ -284,11 +284,11 @@
 
 .power,
 .health {
-  font-size: 14px; /* Increased size for visibility */
+  font-size: 12px; /* Increased size for visibility */
 }
 
 .timer {
-  font-size: 14px;
+  font-size: 12px;
   position: absolute;
   bottom: -15px; /* Adjusted to move timer lower */
   left: 50%;
@@ -313,8 +313,8 @@
 }
 
 .icon {
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   margin-left: 2px;
 }
 

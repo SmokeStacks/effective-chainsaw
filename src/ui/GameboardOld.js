@@ -4,13 +4,13 @@ import React, { Component } from 'react';
 
 import PlayerHandDisplay from "./PlayerHandDisplay";
 import EnemyHandDisplay from "./PlayerHandDisplay";
+import TimeController from "./TimeController";
 import Actions from "./Actions";
 import HUD from './HUD';
 import FocusDisplay from './FocusDisplay';
 //import ConfirmButton from './ConfirmButton';
 import BattlefieldCreatures from './BattlefieldCreatures';
 import Modal from './Modal';
-import { Elysium } from './renders/Board';
 
 class Gameboard extends Component {
     constructor(props) {
@@ -43,22 +43,12 @@ class Gameboard extends Component {
             playerBoost,
             playerWounds,
             playerBits,
+            playerDebt,
             playerMine,
             playerActions,
             playerFate,
             playerBurden,
             playerAshes,
-            playerSurge,
-            playerOverload,
-            enemyWounds,
-            enemyBits,
-            enemyDebt,
-            enemyActions,
-            enemyFate,
-            enemyBurden,
-            enemyAshes,
-            enemySurge,
-            enemyOverload,
             realmComponents,
             onCardSelect,
             onRealmSelect,
@@ -67,12 +57,10 @@ class Gameboard extends Component {
             playerTheater,
             playerUnderpass,
             playerGrid,
-            playerElysium,
             enemySolarium,
             enemyTheater,
             enemyUnderpass,
             enemyGrid,
-            enemyElysium,
             onRealmCardSelect,
             enemyBattleSlots,
             playerBattleSlots,
@@ -108,7 +96,6 @@ class Gameboard extends Component {
             Theater: playerTheater,
             Underpass: playerUnderpass,
             Grid: playerGrid,
-            Elysium: playerElysium,
         };
 
         const enemyRealmsState = {
@@ -116,48 +103,47 @@ class Gameboard extends Component {
             Theater: enemyTheater,
             Underpass: enemyUnderpass,
             Grid: enemyGrid,
-            Elysium: enemyElysium,
         };
 
         return (
-            <div className="screen">
-                <div className="left-side">
-                    {/* <EnemyHandDisplay cards={enemyHand} /> */}
-                    <div className="board-top">
-                        <button
-                            className="nav-button pan-left-button"
-                            onClick={this.handlePanLeft}
-                        >
-                            <div className='pan-arrow'>REGRESS</div>
-                        </button>
-                        <div className="realms-container">
-                            {displayedRealms.map((RealmComponent, index) => {
-                                return (
-                                    <RealmComponent
-                                        key={index}
-                                        onRealmSelect={() => onRealmSelect(RealmComponent.name)}
-                                        onServerSelect={onServerSelect}
-                                        onRealmCardSelect={onRealmCardSelect}
-                                        onRezPlayerCard={onRezPlayerCard}
-                                        playerState={playerRealmsState[RealmComponent.name]}
-                                        enemyState={enemyRealmsState[RealmComponent.name]}
-                                        name={RealmComponent.name}
-                                    />
-                                );
-                            })}
-                        </div>
-                        <button
-                            className="nav-button pan-right-button"
-                            onClick={this.handlePanRight}
-                        >
-                            <div className='pan-arrow'>PREDICT</div>
-                        </button>
+            <div className="game-boardz">
+                <EnemyHandDisplay cards={enemyHand} />
+                <div className="board-top">
+                    <button
+                        className="nav-button pan-left-button"
+                        onClick={this.handlePanLeft}
+                    >
+                        <i className="fas fa-chevron-left"></i>
+                    </button>
+                    <div className="realms-container">
+                        {displayedRealms.map((RealmComponent, index) => {
+                            return (
+                                <RealmComponent
+                                    key={index}
+                                    onRealmSelect={() => onRealmSelect(RealmComponent.name)}
+                                    onServerSelect={onServerSelect}
+                                    onRealmCardSelect={onRealmCardSelect}
+                                    onRezPlayerCard={onRezPlayerCard}
+                                    playerState={playerRealmsState[RealmComponent.name]}
+                                    enemyState={enemyRealmsState[RealmComponent.name]}
+                                    name={RealmComponent.name}
+                                />
+                            );
+                        })}
                     </div>
+                    <button
+                        className="nav-button pan-right-button"
+                        onClick={this.handlePanRight}
+                    >
+                        <i className="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div className="board-bottom">
                     <div className={`battlefield ${battleRealm ? battleRealm.toLowerCase() : ''}`}>
                         <BattlefieldCreatures cards={enemyBattleSlots} />
                         <BattlefieldCreatures cards={playerBattleSlots} onCardSelect={onBattleCardSelect} onSlotSelect={onSlotSelect} />
                     </div>
-                    <div>
+                    <div className="action-hud">
                         <Actions
                             playerDraw={playerDraw}
                             playerDraft={playerDraft}
@@ -169,40 +155,29 @@ class Gameboard extends Component {
                             onConfirmDefenseSelection={onConfirmDefenseSelection}
                             onPlayerBattle={onPlayerBattle}
                         />
-                        {/* <FocusDisplay awaitingSacrifices={awaitingSacrifices} onSacrificeConfirmation={onSacrificeConfirmation} /> */}
+                        <FocusDisplay awaitingSacrifices={awaitingSacrifices} onSacrificeConfirmation={onSacrificeConfirmation} />
+                        <HUD
+                            ashes={playerAshes}
+                            wounds={playerWounds}
+                            bits={playerBits}
+                            debt={playerDebt}
+                            actions={playerActions}
+                            fate={playerFate}
+                            burden={playerBurden}
+                            surge={0}
+                            wishes={0}
+                        />
                     </div>
+                    {modalVisible && (
+                        <Modal
+                            title={modalProps.title}
+                            message={modalProps.message}
+                            onConfirm={modalProps.onConfirm}
+                            onCancel={modalProps.onCancel}
+                        />
+                    )}
                     <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />
                 </div>
-                <div className="status-menu">
-                    <HUD
-                        ashes={playerAshes}
-                        wounds={playerWounds}
-                        bits={playerBits}
-                        overload={playerOverload}
-                        actions={playerActions}
-                        fate={playerFate}
-                        burden={playerBurden}
-                        surge={playerSurge}
-                        enemyAshes={enemyAshes}
-                        enemyWounds={enemyWounds}
-                        enemyBits={enemyBits}
-                        enemyDebt={enemyDebt}
-                        enemyActions={enemyActions}
-                        enemyFate={enemyFate}
-                        enemyBurden={enemyBurden}
-                        enemySurge={enemySurge}
-                        enemyOverload={enemyOverload}
-                        enemyHand={enemyHand}
-                    />
-                </div>
-                {modalVisible && (
-                    <Modal
-                        title={modalProps.title}
-                        message={modalProps.message}
-                        onConfirm={modalProps.onConfirm}
-                        onCancel={modalProps.onCancel}
-                    />
-                )}
             </div>
         );
     }

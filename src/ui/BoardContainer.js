@@ -952,34 +952,96 @@ export function BoardContainer() {
 
     useEffect(() => {
         if (!awaitingSacrifices && rezCard) {
-            let activationCost = calculateActivationCost(rezCard, 'PLAYER');
+            console.log('rezzing card');
+            let activationCost = calculateActivationCost(rezCard.card, 'PLAYER');
+            console.log('rez cost ', activationCost);
             if (activationCost) {
+                console.log('lost bits');
                 playerLoseBits(activationCost);
             }
             if (rezCard.card.ash) {
+                console.log('lost ash');
                 playerLoseAshes(rezCard.card.ash);
             }
-
+    
             setRezCard(null);
             activateAbilities(rezCard, 'PLAYER');
-
-
+    
             switch (rezCard.realm) {
                 case 'SOLARIUM':
-                    setPlayerSolarium(prevRealm => ({ ...prevRealm, people: prevRealm.people.map(c => (c.id === rezCard.id ? { ...c, online: true } : c)) }));
+                    if (rezCard.card.category === 'ENTITY') {
+                        setPlayerSolarium(prevRealm => ({
+                            ...prevRealm,
+                            people: prevRealm.people.map(c => 
+                                c.id === rezCard.id ? { ...c, online: true } : c
+                            ),
+                        }));
+                    } else if (rezCard.card.category === 'SNIP') {
+                        setPlayerSolarium(prevRealm => ({
+                            ...prevRealm,
+                            things: prevRealm.things.map(c => 
+                                c.id === rezCard.id ? { ...c, online: true } : c
+                            ),
+                        }));
+                    }
                     break;
                 case 'THEATER':
-                    setPlayerTheater(prevRealm => ({ ...prevRealm, people: prevRealm.people.map(c => (c.id === rezCard.id ? { ...c, online: true } : c)) }));
+                    if (rezCard.card.category === 'ENTITY') {
+                        setPlayerTheater(prevRealm => ({
+                            ...prevRealm,
+                            people: prevRealm.people.map(c => 
+                                c.id === rezCard.id ? { ...c, online: true } : c
+                            ),
+                        }));
+                    } else if (rezCard.card.category === 'SNIP') {
+                        setPlayerTheater(prevRealm => ({
+                            ...prevRealm,
+                            things: prevRealm.things.map(c => 
+                                c.id === rezCard.id ? { ...c, online: true } : c
+                            ),
+                        }));
+                    }
                     break;
                 case 'UNDERPASS':
-                    setPlayerUnderpass(prevRealm => ({ ...prevRealm, people: prevRealm.people.map(c => (c.id === rezCard.id ? { ...c, online: true } : c)) }));
+                    if (rezCard.card.category === 'ENTITY') {
+                        setPlayerUnderpass(prevRealm => ({
+                            ...prevRealm,
+                            people: prevRealm.people.map(c => 
+                                c.id === rezCard.id ? { ...c, online: true } : c
+                            ),
+                        }));
+                    } else if (rezCard.card.category === 'SNIP') {
+                        setPlayerUnderpass(prevRealm => ({
+                            ...prevRealm,
+                            things: prevRealm.things.map(c => 
+                                c.id === rezCard.id ? { ...c, online: true } : c
+                            ),
+                        }));
+                    }
                     break;
                 case 'GRID':
-                    setPlayerGrid(prevRealm => ({ ...prevRealm, people: prevRealm.people.map(c => (c.id === rezCard.id ? { ...c, online: true } : c)) }));
+                    if (rezCard.card.category === 'ENTITY') {
+                        setPlayerGrid(prevRealm => ({
+                            ...prevRealm,
+                            people: prevRealm.people.map(c => 
+                                c.id === rezCard.id ? { ...c, online: true } : c
+                            ),
+                        }));
+                    } else if (rezCard.card.category === 'SNIP') {
+                        setPlayerGrid(prevRealm => ({
+                            ...prevRealm,
+                            things: prevRealm.things.map(c => 
+                                c.id === rezCard.id ? { ...c, online: true } : c
+                            ),
+                        }));
+                    }
                     break;
+                default:
+                    console.error(`Unknown realm: ${rezCard.realm}`);
             }
         }
-    }, [awaitingSacrifices]);
+    }, [awaitingSacrifices, rezCard]);
+    
 
     const handleCardSelect = (cardEntity, inHand) => {
         console.log('hand select')
@@ -1726,7 +1788,7 @@ export function BoardContainer() {
             });
         };
 
-        if (side == 'PLAYER') {
+        if (side === 'PLAYER') {
             updateBattleSlots(setPlayerBattleSlots);
             switch (realm) {
                 case 'SOLARIUM': updateRealm(setPlayerSolarium); break;
@@ -3157,6 +3219,7 @@ export function BoardContainer() {
 
 
     const handleRezPlayerCard = (entity) => {
+        console.log('handle rez')
         const soulsAvailable = calculateSoulsAvailable(entity.id);
         if (entity.online) {
             return;
@@ -3166,11 +3229,10 @@ export function BoardContainer() {
             //console.error('Not enough resources to rez the card');
             return;
         }
-
+        setRezCard(entity);
         setAwaitingSacrifices(true);
-        if (entity.card.soul > 0) {
-            setRezCard(entity);
-        } else {
+        if (!entity.card.soul || entity.card.soul === 0) {
+            console.log('no soul cost')
             setAwaitingSacrifices(false);
         }
     }
@@ -3804,13 +3866,24 @@ export function BoardContainer() {
         }
     }
 
+    const playerDraft = () => {
+        setSelectedCard(draft[0]);
+        setDraftSelected(true);
+        setSelectedInHand(true);
+    };
+
+    function handlePlayerMine() {
+        playerGainBits(1);
+        playerLoseActions(1);
+        setCurrentPlayer('ENEMY');
+    }
 
     function playerGainBurden(num) {
         setPlayerBurden(prevBurden => prevBurden + num);
     }
 
     function playerLoseBurden(num) {
-        setPlayerBurden(playerBurden - num);
+        setPlayerBurden(prevBurden => prevBurden - num);
     }
 
     function playerGainFate(num) {
@@ -3828,7 +3901,7 @@ export function BoardContainer() {
     }
 
     function playerLoseFate(num) {
-        setPlayerFate(playerFate - num);
+        setPlayerBurden(prevFate => prevFate - num);
     }
 
     function enemyGainFate(num) {
@@ -3846,7 +3919,7 @@ export function BoardContainer() {
     }
 
     function enemyLoseFate(num) {
-        setEnemyFate(enemyFate - num);
+        setEnemyFate(prevFate => prevFate - num);
     }
 
     function playerGainWounds(num) {
@@ -3854,7 +3927,7 @@ export function BoardContainer() {
     }
 
     function playerLoseWounds(num) {
-        setPlayerWounds(playerWounds - num);
+        setPlayerWounds(prevWounds => prevWounds - num);
     }
 
     function enemyGainBurden(num) {
@@ -3862,7 +3935,7 @@ export function BoardContainer() {
     }
 
     function enemyLoseBurden(num) {
-        setEnemyBurden(enemyBurden - num);
+        setEnemyBurden(prevBurden => prevBurden - num);
     }
 
     function enemyGainWounds(num) {
@@ -3870,7 +3943,7 @@ export function BoardContainer() {
     }
 
     function enemyLoseWounds(num) {
-        setEnemyWounds(enemyWounds - num);
+        setEnemyWounds(prevWounds => prevWounds - num);
     }
 
     function enemyGainOverload(num) {
@@ -3879,18 +3952,6 @@ export function BoardContainer() {
 
     function playerGainOverload(num) {
         setPlayerOverload(prevOverload => prevOverload + num);
-    }
-
-    const playerDraft = () => {
-        setSelectedCard(draft[0]);
-        setDraftSelected(true);
-        setSelectedInHand(true);
-    };
-
-    function handlePlayerMine() {
-        playerGainBits(1);
-        playerLoseActions(1);
-        setCurrentPlayer('ENEMY');
     }
 
     function playerGainBits(num) {
@@ -3906,7 +3967,7 @@ export function BoardContainer() {
     }
 
     function playerLoseBits(num) {
-        setPlayerBits(playerBits - num);
+        setPlayerBits(prevBits => prevBits - num);
     }
 
     function enemyGainBits(num) {
@@ -3922,7 +3983,7 @@ export function BoardContainer() {
     }
 
     function enemyLoseBits(num) {
-        setEnemyBits(enemyBits - num);
+        setEnemyBits(prevBits => prevBits - num);
     }
 
     function enemyGainActions(num) {
@@ -3950,11 +4011,11 @@ export function BoardContainer() {
     }
 
     function playerLoseAshes(num) {
-        setPlayerAshes(playerAshes - num);
+        setPlayerAshes(prevAshes => prevAshes - num);
     }
 
     function enemyLoseAshes(num) {
-        setEnemyAshes(enemyAshes - num);
+        setEnemyAshes(prevAshes => prevAshes - num);
     }
 
     function playerGainActions(num) {
@@ -5539,10 +5600,20 @@ export function BoardContainer() {
                 playerBurden={playerBurden}
                 playerMine={handlePlayerMine}
                 playerAshes={playerAshes}
+                playerSurge={playerSurge}
+                enemyActions={enemyActions}
+                enemyFate={enemyFate}
+                enemyWounds={enemyWounds}
+                enemyBits={enemyBits}
+                enemyOverload={enemyOverload}
+                enemyBurden={enemyBurden}
+                enemyAshes={enemyAshes}
+                enemySurge={enemySurge}
                 playerSolarium={playerSolarium}
                 playerTheater={playerTheater}
                 playerUnderpass={playerUnderpass}
                 playerGrid={playerGrid}
+                playerElysium={playerElysium}
                 onCardSelect={handleCardSelect}
                 onRealmCardSelect={handleRealmCardSelect}
                 onQuest={handleQuest}
@@ -5560,11 +5631,11 @@ export function BoardContainer() {
                 awaitingSacrifices={awaitingSacrifices}
                 enemyHand={enemyHand}
                 gameState={gameState}
-                enemyActions={enemyActions}
                 enemySolarium={enemySolarium}
                 enemyTheater={enemyTheater}
                 enemyUnderpass={enemyUnderpass}
                 enemyGrid={enemyGrid}
+                enemyElysium={enemyElysium}
                 battleRealm={battleRealm}
                 trashPromptVisible={trashPromptVisible}
                 currentPromptCard={currentPromptCard}

@@ -1,4 +1,4 @@
-import "./styles.css";
+//import "./styles.css";
 import React, { Component } from "react";
 import FeatherIcon from "feather-icons-react";
 
@@ -29,7 +29,7 @@ class LCard extends Component {
 
   render() {
     const {
-      type,
+      category,
       faction,
       name,
       rezCost,
@@ -60,7 +60,7 @@ class LCard extends Component {
                   {rezCost}
                 </div>
               </div>
-              <div className="type">{type.toLowerCase()}</div>
+              <div className="type">{category.toLowerCase()}</div>
             </div>
             {this.renderTypes(magi, phys, tech)}
             <div className="bottom-container">

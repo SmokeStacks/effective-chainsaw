@@ -1,4 +1,4 @@
-import "./styles.css";
+//import "./styles.css";
 import React, { Component } from "react";
 import FeatherIcon from "feather-icons-react";
 
@@ -14,7 +14,7 @@ class Card extends Component {
     } else if (ash > 0) {
       return (
         <div className="spirit">
-          {ash > 1 && <span className="cost-number">{ash}</span>}
+          {ash > 0 && <span className="cost-number">{ash}</span>}
           <FeatherIcon className="icon" icon="refresh-cw" />
         </div>
       );
