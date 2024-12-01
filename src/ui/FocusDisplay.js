@@ -14,29 +14,44 @@ class FocusDisplay extends Component {
         this.state = {}
     }
 
-    render() {
-        const { focus, awaitingSacrifices, onSacrificeConfirmation } = this.props;
-
-        if(awaitingSacrifices) {
+    renderFocus(focus, awaitingFocus, onFocusSelect) {
+        if (awaitingFocus) {
             return (
-                <div>
-                    <div className="focus">
-                        <Button className="action-button" onClick={onSacrificeConfirmation}>
-                            DEVOUR
-                        </Button>
-                        <img className="stat-icon" src={daggerIcon} />
-                    </div>
+                <div className="focus-container">
+                    <div className="focus">Focus:</div>
+                    <div className="action-item" onClick={() => onFocusSelect('magi')}>MAGI</div>
+                    <div className="action-item" onClick={() => onFocusSelect('phys')}>PHYS</div>
+                    <div className="action-item" onClick={() => onFocusSelect('tech')}>TECH</div>
                 </div>
-            );
+            )
+        } else {
+            return (
+                <div className="focus-container">
+                    <div className="focus">Focus:</div>
+                    <div className={`${focus === 'magi' ? 'action-item-selected' : 'action-item'}`}>MAGI</div>
+                    <div className={`${focus === 'phys' ? 'action-item-selected' : 'action-item'}`}>PHYS</div>
+                    <div className={`${focus === 'tech' ? 'action-item-selected' : 'action-item'}`}>TECH</div>
+                </div>
+            )
+        }
+    }
+
+    render() {
+        const { focus, awaitingFocus, onFocusSelect, awaitingSacrifices, onSacrificeConfirmation } = this.props;
+
+        if (awaitingSacrifices) {
+            return (
+                <div className="context-container">
+                    <div className="action-item" onClick={() => onSacrificeConfirmation()}>CONSUME</div>
+                    {this.renderFocus(focus, awaitingFocus, onFocusSelect)}
+                </div>
+            )
         }
 
         return (
-            <div>
-                <div className="focus">
-                        <div className="stat">Focus:</div>
-                        <img className="stat-icon" src={questIcon}/>
-                    </div>
-                </div>
+            <div className="context-container">
+                {this.renderFocus(focus, awaitingFocus, onFocusSelect)}
+            </div>
         );
     }
 }

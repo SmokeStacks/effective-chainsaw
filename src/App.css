@@ -33,7 +33,12 @@
   flex: 2;
   background-color: black; /* Placeholder background */
 }
-/* todo */
+
+.buttons-container {
+  display: flex;
+  flex-direction: row;
+}
+
 .action-menu {
   display: flex;
   flex-direction: row;
@@ -43,12 +48,20 @@
 }
 
 .action-item {
-  /* todo */
   border: 1px solid white;
   padding: 2px 4px;
   color: white;
   font-family: "Press Start 2P", sans-serif;
   font-size: 12px;
+}
+
+.action-item-selected {
+  border: 1px solid black;
+  padding: 2px 4px;
+  color: black;
+  font-family: "Press Start 2P", sans-serif;
+  font-size: 12px;
+  background: white;
 }
 
 .hand {
@@ -62,7 +75,6 @@
 
 /* Card */
 .card-container {
-  background: #23d620;
   color: white;
   font-family: "Press Start 2P", sans-serif;
   font-size: 8px;
@@ -81,7 +93,7 @@
 }
 
 .white-border {
-  borde-color: #23d620;
+  border-color: #23d620;
 }
 
 .orange-border.timer {
@@ -156,7 +168,7 @@
   font-size: 8px;
   /* background: rgba(0, 0, 0, 0.35); */
   padding: 4px;
-  height: 28px;
+  height: 20px;
 }
 
 .name-rune {
@@ -201,17 +213,17 @@
   /* background: rgba(0, 0, 0, 0.35); */
   padding: 4px;
   width: 50px;
-  height: 28px;
+  height: 20px;
 }
 
 .eye-icon {
-  margin-right: 5px;
-  height: 20px;
+  margin-right: 2px;
+  height: 14px;
 }
 
 .stats-icon {
   margin: 2px;
-  height: 15px;
+  height: 14px;
 }
 
 .spirit {
@@ -226,7 +238,7 @@
   left: 17%;
   margin-top: 2px;
   width: 49.5px;
-  height: 28px;
+  height: 20px;
 }
 
 .types {
@@ -236,18 +248,19 @@
   /* background: rgba(0, 0, 0, 0.35); */
   width: auto;
   position: relative;
-  top: 29%;
+  top: 26%;
   flex-direction: column;
   right: 82%;
 }
 
 .type-icon {
   margin: 1px 0;
-  width: 20px;
+  height: 16px;
+  width: 14px;
 }
 
 .heart-icon {
-  height: 20px;
+  height: 14px;
   margin-left: 2px;
   margin-top: 4px;
 }
@@ -258,7 +271,7 @@
 
 .star-icon {
   padding-bottom: 3px;
-  height: 23px;
+  height: 18px;
 }
 
 .runes-container {
@@ -330,10 +343,35 @@
 }
 
 .icon {
-  width: 20px;
-  height: 20px;
+  width: 15px;
+  height: 15px;
   margin-left: 2px;
 }
+
+/* mini card */
+.mini-card-container {
+  width: 115px;
+  height: 115px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid red;
+  box-sizing: content-box;
+}
+
+.mini-art-container {
+  overflow: hidden;
+}
+
+.mini-timer {
+  bottom: -5px;
+  padding: 3px; 
+}
+
+.mini-type {
+  padding: 1px;
+}
+
+
 
 /* Status Menu */
 .status-menu {
@@ -402,7 +440,23 @@
 }
 
 .context-container {
-  flex: 1;
+  display: flex;
+  width: 50%;
+  justify-content: end;
+}
+
+.focus {
+  font-family: "Press Start 2P", sans-serif;
+  font-size: 10px;
+  color: white;
+  padding-top: 5px;
+}
+
+.focus-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  margin: 2px 0;
 }
 
 /* Paragraphs */
@@ -440,6 +494,10 @@ p {
 .realms-container {
   width: 100%;
   display: flex;
+}
+
+.creatures-container, .places-container, .things-places-container, .things-container {
+  height: 33.3%;
 }
 
 /* Specific realm styles */
@@ -507,8 +565,15 @@ p {
 }
 
 .realm-name {
+  display: flex;
   writing-mode: vertical-rl;
   text-orientation: upright;
+}
+
+.server {
+  border: 2px solid white;
+  padding: 2px;
+  margin-top: 200px;
 }
 
 .cards-container {
@@ -527,3 +592,49 @@ p {
   justify-content: end;
 }
 
+.modal {
+  background: #ffffff;
+  box-shadow: 0 10px 20px rgba(black, 0.2);
+  left: 50%;
+  max-width: 90%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 30em;
+  text-align: left;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  font-family: "Press Start 2P", sans-serif;
+  font-size: 12px;
+  padding: 5px;
+}
+
+.modal-overlay {
+  transition: opacity 0.2s ease-out;
+  background: rgba(#0f172a, 0.8);
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  top: 0;
+}
+
+.modal-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.battle-cards {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+}
+
+.battle-slot {
+  margin: 5px;
+  height: 120px;
+  width: 120px;
+  border: 2px solid white;
+}

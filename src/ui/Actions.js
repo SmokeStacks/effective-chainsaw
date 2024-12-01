@@ -14,7 +14,7 @@ class Actions extends Component {
     };
 
     render() {
-        const { playerDraft, playerDraw, playerMine, attackMode, onConfirmDefenseSelection, onPlayerBattle, playerBoost, onRaid, onQuest, onHack } = this.props;
+        const { playerDraft, playerDraw, playerMine, playerDevelop, playerDetox,attackMode, onConfirmDefenseSelection, onPlayerBattle, playerBoost, onRaid, onQuest, onHack } = this.props;
 
         const renderQuestAction = () => {
             if (attackMode === 'PLAYER_QUEST') {
@@ -63,20 +63,19 @@ class Actions extends Component {
                 <div className="action-item" onClick={onHack}>HACK</div>
             );
         };
-
+        // todo1 
         return (
-
             <div className="action-menu">
-                    <div className="action-item" onClick={() => playerDraw()}>DRAW</div>
-                    <div className="action-item" onClick={() => playerDraft()}>DRAFT</div>
-                    <div className="action-item" onClick={() => playerMine()}>PHISH</div>
-                    <div className="action-item" onClick={() => playerBoost()}>BOOST</div>
-                    <div className="action-item" onClick={() => playerMine()}>DEVELOP</div>
-                    <div className="action-item" onClick={() => playerMine()}>DETOX</div>
-                    {renderQuestAction()}
-                    {renderRaidAction()}
-                    {renderHackAction()}
-                    </div>
+                <div className="action-item" onClick={() => playerDraw()}>DRAW</div>
+                <div className="action-item" onClick={() => playerDraft()}>DRAFT</div>
+                <div className="action-item" onClick={() => playerMine()}>PHISH</div>
+                <div className="action-item" onClick={() => playerBoost()}>BOOST</div>
+                <div className="action-item" onClick={() => playerDevelop()}>DEVELOP</div>
+                <div className="action-item" onClick={() => playerDetox('PLAYER')}>DETOX</div>
+                {renderQuestAction()}
+                {renderRaidAction()}
+                {renderHackAction()}
+            </div>
         );
     }
 

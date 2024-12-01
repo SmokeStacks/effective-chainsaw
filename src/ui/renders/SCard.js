@@ -27,7 +27,7 @@ class SCard extends Component {
     }
   }
 
-  renderTop(category, name, rezCost, faction, onRezPlayerCard, entity) {
+  renderTop(category, name, rezCost, faction, onRezPlayerCard, entity, online) {
     if (category === "SYM") {
       return (
         <div className="top-container">
@@ -47,7 +47,7 @@ class SCard extends Component {
           <div className="title-container">
             <div className={`name ${faction}`}>{name}</div>
             <div className="rez" onClick={() => onRezPlayerCard(entity)}>
-              <FeatherIcon className="eye-icon" icon="eye-off" />
+              <FeatherIcon className="eye-icon" icon={`${online ? 'eye-off' : 'sun'}`} />
               {rezCost}
             </div>
           </div>
@@ -76,7 +76,8 @@ class SCard extends Component {
     } = this.props.entity.card;
 
     const {
-      development
+      development,
+      online
     } = this.props.entity;
 
     const {
@@ -92,7 +93,7 @@ class SCard extends Component {
         <div className="art-container">
           <img className="art" src={imgSrc} alt={name} />
           <div className="overlay-content">
-            {this.renderTop(category, name, rezCost, faction, onRezPlayerCard, entity)}
+            {this.renderTop(category, name, rezCost, faction, onRezPlayerCard, entity, online)}
             {this.renderTypes(magi, phys, tech)}
             <div className="bottom-container">
               {runes ? (

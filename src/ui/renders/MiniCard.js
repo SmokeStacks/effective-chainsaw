@@ -2,7 +2,7 @@
 import React, { Component } from "react";
 import FeatherIcon from "feather-icons-react";
 
-class Card extends Component {
+class MiniCard extends Component {
   renderSoulAshes(soul, ash) {
     if (soul > 0) {
       return (
@@ -81,33 +81,19 @@ class Card extends Component {
     } = this.props;
 
     return (
-      <div className={`card-container ${faction}`} onClick={() => onCardSelect(entity, inHand)}>
-        <div className="art-container">
+      <div className={`mini-card-container card-container ${faction}`} onClick={() => onCardSelect(entity, inHand)}>
+        <div className="mini-art-container art-container">
           <img className="art" src={imgSrc} alt={name} />
           <div className="overlay-content">
             <div className="top-container">
               <div className="title-container">
                 <div className={`name ${faction}`}>{name}</div>
-                {online ?
-                  <div className="rez">
-                    <FeatherIcon className="eye-icon" icon="sun" />
-                    {rezCost}
-                  </div> :
-                  <div className="rez" onClick={() => onRezPlayerCard(entity)}>
-                    <FeatherIcon className="eye-icon" icon="eye-off" />
-                    {rezCost}
-                  </div>}
               </div>
-              <div className="type">entity</div>
-              {subTypes ? <div className="type">{subTypes}</div> : null}
+              {subTypes ? <div className="mini-type type">{subTypes}</div> : null}
             </div>
-            {this.renderSoulAshes(soul, ash)}
             {this.renderTypes(magi, phys, tech)}
             <div className="bottom-container">
               {keywords ? <div className="abilities">{keywords}</div> : null}
-              {description ? (
-                <div className="description">{description}</div>
-              ) : null}
               <div className="body">
                 <div className="power">
                   {power}
@@ -119,7 +105,7 @@ class Card extends Component {
                 </div>
               </div>
             </div>
-            <div className={`timer ${faction}`}>
+            <div className={`mini-timer timer ${faction}`}>
               <div className="timer-content">
                 {Math.max(0, timer - steps + freeze)}
                 <FeatherIcon className="icon timer-icon" icon="clock" />
@@ -132,4 +118,4 @@ class Card extends Component {
   }
 }
 
-export default Card;
+export default MiniCard;

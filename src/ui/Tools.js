@@ -87,12 +87,12 @@ import dread from "../images/dread.png";
 import exploit from "../images/exploit.png";
 import forgery from "../images/forgery.png";
 import frostwitch from "../images/frostwitch.png";
-import homunculus from "../images/homun.png";
+import train from "../images/train.png";
 import implants from "../images/implants.png";
 import imitation from "../images/imitation.png";
 import island from "../images/island.png"; // Forgotten Island
 import leviathan from "../images/leviathan.png";
-import precognition from "../images/precognition.png";
+import foresight from "../images/foresight.png";
 import multithreading from "../images/multithreading.png";
 import novakane from "../images/novakane.png"; // Nova Kane
 import pharmacist from "../images/pharmacist.png";
@@ -232,12 +232,12 @@ export const imgObj = {
   Exploit: exploit,
   Forgery: forgery,
   "Frost Witch": frostwitch,
-  Homunculus: homunculus,
+  'Freight Train': train,
   Implants: implants,
   "Imitation Game": imitation,
   "Forgotten Island": island,
   Leviathan: leviathan,
-  Precognition: precognition,
+  Foresight: foresight,
   "Multi Threading": multithreading,
   "Nova Kane": novakane,
   Pharmacist: pharmacist,
@@ -289,3 +289,37 @@ export const imgObj = {
   ERROR: error,
   Dreamer: dreamer,
 };
+
+// eventManager.js
+export const eventManager = {
+  events: {},
+
+  subscribe: (eventType, callback) => {
+      console.log('SUBSCRIBED', eventType);
+      if (!eventManager.events[eventType]) {
+          eventManager.events[eventType] = [];
+      }
+      eventManager.events[eventType].push(callback);
+      console.log('new event ', eventManager.events);
+  },
+
+  unsubscribe: (eventType, callback) => {
+      if (eventManager.events[eventType]) {
+          eventManager.events[eventType] = eventManager.events[eventType].filter(cb => cb !== callback);
+          console.log('UNSUBSCRIBED', eventType);
+      }
+  },
+
+  publish: (eventType, data) => {
+      console.log('PUBLISH', eventType);
+      console.log('PUBLISH DATA', data);
+      console.log('EVENTS', eventManager.events);
+      if (eventManager.events[eventType] && eventManager.events[eventType].length > 0) {
+          console.log('CALLBACK');
+          eventManager.events[eventType].forEach(callback => callback(data));
+      } else {
+          console.log(`No callbacks subscribed for event: ${eventType}`);
+      }
+  },
+};
+

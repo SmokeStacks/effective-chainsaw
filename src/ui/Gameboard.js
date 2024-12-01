@@ -44,6 +44,9 @@ class Gameboard extends Component {
             playerWounds,
             playerBits,
             playerMine,
+            playerDevelop,
+            playerDetox,
+            onAbilityClick,
             playerActions,
             playerFate,
             playerBurden,
@@ -62,6 +65,9 @@ class Gameboard extends Component {
             realmComponents,
             onCardSelect,
             onRealmSelect,
+            onFocusSelect,
+            awaitingFocus,
+            focus,
             onServerSelect,
             playerSolarium,
             playerTheater,
@@ -86,9 +92,6 @@ class Gameboard extends Component {
             onSacrificeConfirmation,
             onRezPlayerCard,
             enemyHand,
-            onPlayerTurn,
-            onEnemyTurn,
-            gameState,
             battleRealm,
             onRaid,
             trashPromptVisible,
@@ -122,7 +125,7 @@ class Gameboard extends Component {
         return (
             <div className="screen">
                 <div className="left-side">
-                    {/* <EnemyHandDisplay cards={enemyHand} /> */}
+                    <EnemyHandDisplay cards={enemyHand} />
                     <div className="board-top">
                         <button
                             className="nav-button pan-left-button"
@@ -139,6 +142,7 @@ class Gameboard extends Component {
                                         onServerSelect={onServerSelect}
                                         onRealmCardSelect={onRealmCardSelect}
                                         onRezPlayerCard={onRezPlayerCard}
+                                        onAbilityClick={onAbilityClick}
                                         playerState={playerRealmsState[RealmComponent.name]}
                                         enemyState={enemyRealmsState[RealmComponent.name]}
                                         name={RealmComponent.name}
@@ -153,25 +157,31 @@ class Gameboard extends Component {
                             <div className='pan-arrow'>PREDICT</div>
                         </button>
                     </div>
-                    <div className={`battlefield ${battleRealm ? battleRealm.toLowerCase() : ''}`}>
-                        <BattlefieldCreatures cards={enemyBattleSlots} />
-                        <BattlefieldCreatures cards={playerBattleSlots} onCardSelect={onBattleCardSelect} onSlotSelect={onSlotSelect} />
-                    </div>
-                    <div>
+                    {attackMode === 'PLAYER_QUEST' || attackMode === 'PLAYER_RAID' || attackMode === 'PLAYER_HACK' || attackMode === 'ENEMY_magi' || attackMode === 'ENEMY_phys' || attackMode === 'ENEMY_tech' ?
+                        <div className={`battlefield ${battleRealm ? battleRealm.toLowerCase() : ''}`}>
+                            <BattlefieldCreatures cards={enemyBattleSlots} />
+                            <BattlefieldCreatures cards={playerBattleSlots} onCardSelect={onBattleCardSelect} onSlotSelect={onSlotSelect} />
+                        </div> :
+                        null}
+                    <div className="buttons-container">
                         <Actions
                             playerDraw={playerDraw}
                             playerDraft={playerDraft}
                             playerBoost={playerBoost}
                             playerMine={playerMine}
+                            playerDevelop={playerDevelop}
+                            playerDetox={playerDetox}
                             attackMode={attackMode}
                             onQuest={onQuest}
                             onRaid={onRaid}
                             onConfirmDefenseSelection={onConfirmDefenseSelection}
                             onPlayerBattle={onPlayerBattle}
                         />
-                        {/* <FocusDisplay awaitingSacrifices={awaitingSacrifices} onSacrificeConfirmation={onSacrificeConfirmation} /> */}
+                        <FocusDisplay awaitingFocus={awaitingFocus} focus={focus} onFocusSelect={onFocusSelect} awaitingSacrifices={awaitingSacrifices} onSacrificeConfirmation={onSacrificeConfirmation} />
                     </div>
-                    <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />
+                    {attackMode === 'PLAYER_QUEST' || attackMode === 'PLAYER_RAID' || attackMode === 'PLAYER_HACK' || attackMode === 'ENEMY_magi' || attackMode === 'ENEMY_phys' || attackMode === 'ENEMY_tech' ?
+                        null :
+                        <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />}
                 </div>
                 <div className="status-menu">
                     <HUD
@@ -195,14 +205,7 @@ class Gameboard extends Component {
                         enemyHand={enemyHand}
                     />
                 </div>
-                {modalVisible && (
-                    <Modal
-                        title={modalProps.title}
-                        message={modalProps.message}
-                        onConfirm={modalProps.onConfirm}
-                        onCancel={modalProps.onCancel}
-                    />
-                )}
+                {modalVisible && <Modal {...modalProps} />}
             </div>
         );
     }

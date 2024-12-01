@@ -3,26 +3,6 @@ import { Card, Category, EffectType, SkillType, Trigger } from '../rules/cards';
 const enemyOne: Card[] = [
     {
         faction: 'orange-border',
-        id: 100,
-        category: "ENTITY",
-        name: "TerraBite",
-        rezCost: 4,
-        soul: 1,
-        ash: 0,
-        subTypes: ["JAWbreaker"],
-        power: 5,
-        HP: 3,
-        timer: 3,
-        abilities: [
-            { name: "DominanceGainCharge" },
-        ],
-        description: "Dominance ➔ Gain Charge.",
-        magi: false,
-        phys: false,
-        tech: true,
-    },
-    {
-        faction: 'orange-border',
         id: 101,
         name: "SilkWorm",
         category: "ENTITY",
@@ -321,9 +301,8 @@ const enemyOne: Card[] = [
         phys: true,
         tech: false,
     },
-
-
     {
+        faction: 'orange-border',
         id: 113,
         category: "ENTITY",
         name: "Frost Witch",
@@ -394,6 +373,7 @@ const enemyOne: Card[] = [
         soulless: true,
         locality: true,
         defensive: true,
+        keywords: "Buffer 3.",
         description: "Exhaust ➔ Friendly entities gain Boost 2.",
         magi: false,
         phys: true,
@@ -425,6 +405,7 @@ const enemyOne: Card[] = [
                 },
             },
         ],
+        keywords: "Buffer 2.",
         description:
             "When you Interface HeadSpace, +3 Venom. Exhaust ➔ Destroy target Online entity with HP less than Venom.",
         magi: true,
@@ -544,7 +525,7 @@ const enemyOne: Card[] = [
         faction: 'orange-border',
         id: 117, // Replace with a specific ID if needed
         category: "SNIP",
-        name: "Precognition",
+        name: "Foresight",
         rezCost: 1,
         soul: 0,
         ash: 0,

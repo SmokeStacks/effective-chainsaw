@@ -2,6 +2,7 @@ import { Card, Category, EffectType, SkillType, Trigger } from './cards';
 
 const binder: Card[] = [
   {
+    faction: 'orange-border',
     id: 100,
     category: "ENTITY",
     name: "TerraBite",
@@ -12,6 +13,7 @@ const binder: Card[] = [
     power: 5,
     HP: 3,
     timer: 3,
+    keywords: "Aggressive.",
     abilities: [
       { name: "DominanceGainCharge" },
     ],
@@ -37,7 +39,6 @@ const binder: Card[] = [
     phys: false,
     tech: true,
     power: 1,
-    aggressive: true,
     HP: 3,
     timer: 2,
     scrap: 0,
@@ -45,6 +46,7 @@ const binder: Card[] = [
       { name: "Buffer", amount: 2 },
       { name: "MassFreezeEnemies" },
     ],
+    aggressive: true,
   },
   {
     faction: 'orange-border',
@@ -185,8 +187,6 @@ const binder: Card[] = [
         },
       },
     ],
-    aggressive: false,
-    defensive: false,
   },
   {
     faction: 'orange-border',
@@ -278,9 +278,9 @@ const binder: Card[] = [
     abilities: [
       {
         name: "ManualAbility",
-        actionsRequired: 0, // No actions required to activate
-        requiresExhaust: true, // Requires exhaustion
-        requiresTarget: false, // Does not require a target
+        actionsRequired: 0,
+        requiresExhaust: true,
+        requiresTarget: false,
         effect: {
           name: "GainAshAndInflictOverload",
           ashAmount: 4,
@@ -320,9 +320,8 @@ const binder: Card[] = [
     phys: true,
     tech: false,
   },
-
-
   {
+    faction: 'orange-border',
     id: 113,
     category: "ENTITY",
     name: "Frost Witch",
@@ -393,6 +392,7 @@ const binder: Card[] = [
     soulless: true,
     locality: true,
     defensive: true,
+    keywords: "Buffer 3.",
     description: "Exhaust ➔ Friendly entities gain Boost 2.",
     magi: false,
     phys: true,
@@ -424,6 +424,7 @@ const binder: Card[] = [
         },
       },
     ],
+    keywords: "Buffer 2.",
     description:
       "When you Interface HeadSpace, +3 Venom. Exhaust ➔ Destroy target Online entity with HP less than Venom.",
     magi: true,
@@ -543,7 +544,7 @@ const binder: Card[] = [
     faction: 'orange-border',
     id: 117, // Replace with a specific ID if needed
     category: "SNIP",
-    name: "Precognition",
+    name: "Foresight",
     rezCost: 1,
     soul: 0,
     ash: 0,
