@@ -83,7 +83,6 @@ class Gameboard extends Component {
             enemyBattleSlots,
             playerBattleSlots,
             attackMode,
-            onQuest,
             onSlotSelect,
             onBattleCardSelect,
             onConfirmDefenseSelection,
@@ -93,7 +92,9 @@ class Gameboard extends Component {
             onRezPlayerCard,
             enemyHand,
             battleRealm,
+            onQuest,
             onRaid,
+            onHack,
             trashPromptVisible,
             currentPromptCard,
             handleTrashDecision,
@@ -125,7 +126,7 @@ class Gameboard extends Component {
         return (
             <div className="screen">
                 <div className="left-side">
-                    <EnemyHandDisplay cards={enemyHand} />
+                    {/* <EnemyHandDisplay cards={enemyHand} /> */}
                     <div className="board-top">
                         <button
                             className="nav-button pan-left-button"
@@ -174,6 +175,7 @@ class Gameboard extends Component {
                             attackMode={attackMode}
                             onQuest={onQuest}
                             onRaid={onRaid}
+                            onHack={onHack}
                             onConfirmDefenseSelection={onConfirmDefenseSelection}
                             onPlayerBattle={onPlayerBattle}
                         />

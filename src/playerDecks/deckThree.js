@@ -720,7 +720,7 @@ const deckTwo: Card[] = [
       },
     ],
     description:
-      "If you Interfaced HeadSpace this turn, gain 10 Bits and place a new enemy CatPhish in Underpass.",
+      "If you Interfaced HeadSpace this turn, gain 10 Bits and place a new enemy CatPhish in IRL.",
     magi: true,
     phys: false,
     tech: true,
@@ -740,7 +740,7 @@ const deckTwo: Card[] = [
       },
     ],
     description:
-      "If you Interfaced HeadSpace this turn, gain 10 Bits and place a new enemy CatPhish in Underpass.",
+      "If you Interfaced HeadSpace this turn, gain 10 Bits and place a new enemy CatPhish in IRL.",
     magi: true,
     phys: false,
     tech: true,
@@ -760,7 +760,7 @@ const deckTwo: Card[] = [
       },
     ],
     description:
-      "If you Interfaced HeadSpace this turn, gain 10 Bits and place a new enemy CatPhish in Underpass.",
+      "If you Interfaced HeadSpace this turn, gain 10 Bits and place a new enemy CatPhish in IRL.",
     magi: true,
     phys: false,
     tech: true,

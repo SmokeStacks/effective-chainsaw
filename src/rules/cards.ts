@@ -84,6 +84,11 @@ export type Card = {
   locality?: boolean;
   aggressive?: boolean;
   defensive?: boolean;
+  deathless?: number;
+  pounce?: number;
+  override?: number;
+  stealth?: number;
+  armored?: number;
 };
 
 export class CardEntity {

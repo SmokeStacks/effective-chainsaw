@@ -121,6 +121,7 @@ import dingo from "../images/dingo.png";
 import disintegrate from "../images/disintegrate.png";
 import dreamer from "../images/dreamer.png";
 import embedding from "../images/embedding.png";
+import extortion from "../images/extortion.png";
 import error from "../images/error.png";
 import familiar from "../images/familiar.png";
 import forest from "../images/forest.png"; // Haunted Forest
@@ -274,6 +275,7 @@ export const imgObj = {
   Overclock: overclock,
   Unification: unification,
   Bloodletting: bloodletting,
+  Extortion: extortion,
   Disintegrate: disintegrate,
   Amnesia: amnesia,
   Sigil: sigil,

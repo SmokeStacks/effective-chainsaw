@@ -1,4 +1,5 @@
 import React, { Component, useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 import {
     Solarium,
@@ -8,7 +9,7 @@ import {
     Elysium
 } from './renders/Board';
 import BidInputModal from './BidInputModal';
-import { eventManager } from "./Tools"; 
+import { eventManager } from "./Tools";
 
 import Gameboard from './Gameboard';
 
@@ -32,15 +33,11 @@ export function BoardContainer() {
     function shuffle(array) {
         let currentIndex = array.length;
         while (currentIndex !== 0) {
-          let randomIndex = Math.floor(Math.random() * currentIndex);
-          currentIndex--;
-          [array[currentIndex], array[randomIndex]] = [
-            array[randomIndex], array[currentIndex]];
+            let randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [
+                array[randomIndex], array[currentIndex]];
         }
-      }
-
-      function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     const createLibrary = () => {
@@ -64,6 +61,11 @@ export function BoardContainer() {
                 charge: card.charge || 0,
                 sacrificed: false,
                 cosmic: card.cosmic || 1,
+                deathless: card.deathless || 0,
+                pounce: card.pounce || 0,
+                override: card.override || 0,
+                stealth: card.stealth || 0,
+                armored: card.armored || 0,
                 development: card.development || 0,
                 plot: card.plot || 0,
                 owner: 'PLAYER',
@@ -95,6 +97,11 @@ export function BoardContainer() {
                 charge: card.charge || 0,
                 sacrificed: false,
                 cosmic: card.cosmic || 1,
+                deathless: card.deathless || 0, //todo1
+                pounce: card.pounce || 0,
+                override: card.override || 0,
+                stealth: card.stealth || 0,
+                armored: card.armored || 0,
                 development: card.development || 0,
                 plot: card.plot || 0,
                 owner: 'ENEMY',
@@ -109,7 +116,7 @@ export function BoardContainer() {
         for (let i = 0; i < draftList.length; i++) {
             const card = draftList[i];
             const cardEntityInstance = {
-                id: `b${i.toString()}`,
+                id: `c${i.toString()}`,
                 card: card,
                 power: card.power || 0,
                 HP: card.HP || 0,
@@ -125,6 +132,11 @@ export function BoardContainer() {
                 charge: card.charge || 0,
                 sacrificed: false,
                 cosmic: card.cosmic || 1,
+                deathless: card.deathless || 0, //todo1
+                pounce: card.pounce || 0,
+                override: card.override || 0,
+                stealth: card.stealth || 0,
+                armored: card.armored || 0,
                 development: card.development || 0,
                 plot: card.plot || 0,
                 owner: 'ENEMY',
@@ -157,7 +169,9 @@ export function BoardContainer() {
     const [playerPandoraAccess, setPlayerPandoraAccess] = useState(1);
     const [playerHeadSpaceAccess, setPlayerHeadSpaceAccess] = useState(1);
     const [playerGlitchyAmount, setPlayerGlitchyAmount] = useState(0);
+    const [playerDividendAmount, setPlayerDividendAmount] = useState(0);
     const [enemyGlitchyAmount, setEnemyGlitchyAmount] = useState(0);
+    const [enemyDividendAmount, setEnemyDividendAmount] = useState(2);
 
 
     const [soulSelections, setSoulSelections] = useState([]);
@@ -237,6 +251,9 @@ export function BoardContainer() {
     const [battleRealm, setBattleRealm] = useState('NONE');
     const [attackMode, setAttackMode] = useState('NONE');
     const [gameMode, setGameMode] = useState('BEGIN');
+
+    const [attackPlanned, setAttackPlanned] = useState(false);
+    const [attackCount, setAttackCount] = useState(0);
 
     const [playerDriftCount, setPlayerDriftCount] = useState(0);
     const [enemyDriftCount, setEnemyDriftCount] = useState(0);
@@ -374,7 +391,8 @@ export function BoardContainer() {
             console.log(`Enemy gains ${enemyGlitchyAmount} Overload due to Glitchy abilities.`);
         }
         enemyGainActions(2 + enemyDriftCount);
-        enemyGainBits(2);
+        enemyGainBits(enemyDividendAmount);
+        playerGainBits(playerDividendAmount);
         playerDraw(1);
         enemyDraw(1);
         setPlayerFirstAttack(true);
@@ -383,10 +401,10 @@ export function BoardContainer() {
         enemyAdvanceCards();
     }
 
-    function enemyPerformAction() {
+    async function enemyPerformAction() {
         console.log('enemy perform action', enemyActions)
         if (enemyActions > 0) {
-            enemyRezCards();
+            await enemyRezCards();
             const attackPlanned = enemyPlanAttack();
             if (attackPlanned) {
                 enemyLoseActions(1);
@@ -405,12 +423,13 @@ export function BoardContainer() {
         }
     }
 
-    useEffect(() => { //todo1 sacrifice
+    useEffect(() => {
         if (
             playerActions <= 0 &&
             enemyActions <= 0 &&
             gameState === 'NORMAL' &&
-            gameMode !== 'BEGIN'
+            gameMode !== 'BEGIN' &&
+            attackMode === 'NONE'
         ) {
             handleDominationPhase();
         }
@@ -501,54 +520,54 @@ export function BoardContainer() {
         console.log('playerScore', playerScore);
         console.log('enemyBits', enemyBits);
         console.log('playerBits', playerBits);
-        
+
         const currentPlayerScore = playerScore;
         const maxPlayerPossibleScore = playerScore + playerBits;
         const maxEnemyPossibleScore = enemyScore + enemyBits;
-        
+
         console.log('currentPlayerScore', currentPlayerScore);
         console.log('maxPlayerPossibleScore', maxPlayerPossibleScore);
         console.log('maxEnemyPossibleScore', maxEnemyPossibleScore);
-        
+
         // If enemy cannot surpass player's current score even with all bits
         if (maxEnemyPossibleScore <= currentPlayerScore) {
             console.log('Enemy cannot exceed player score even with all bits.');
             return 0;
         }
-        
+
         // Calculate the minimum bid needed to surpass the player's current score
         let minBidToWin = (currentPlayerScore - enemyScore) + 1;
         minBidToWin = Math.max(minBidToWin, 0); // Ensure non-negative
         minBidToWin = Math.min(minBidToWin, enemyBits); // Clamp to available bits
         console.log('minBidToWin', minBidToWin);
-        
+
         // Calculate the maximum bid to ensure the enemy doesn't bid excessively
         let maxBid = (maxPlayerPossibleScore - enemyScore) + 1;
         maxBid = Math.min(maxBid, enemyBits); // Clamp to available bits
         console.log('maxBid', maxBid);
-        
+
         // Ensure that minBidToWin does not exceed maxBid
         if (minBidToWin > maxBid) {
             console.log('No valid bids to exceed player score.');
             return 0;
         }
-        
+
         // Generate possible bids from minBidToWin to maxBid inclusive
         const possibleBids = [];
         for (let bid = minBidToWin; bid <= maxBid; bid++) {
             possibleBids.push(bid);
         }
         console.log('possibleBids', possibleBids);
-        
+
         // Randomly select a bid from the possibleBids array
         if (possibleBids.length === 0) {
             console.log('No valid bids available.');
             return 0;
         }
-        
+
         const enemyBid = possibleBids[Math.floor(Math.random() * possibleBids.length)];
         console.log('enemyBid', enemyBid);
-        
+
         return enemyBid;
     }
 
@@ -659,72 +678,82 @@ export function BoardContainer() {
     }
 
     function enemyPlanAttack() {
-        let realms;
-        if (priorityLeft) {
-            realms = [
-                { realm: enemySolarium, name: 'Solarium', aspects: ['magi'] },
-                { realm: enemyTheater, name: 'Theater', aspects: ['phys', 'magi'] },
-                { realm: enemyUnderpass, name: 'Underpass', aspects: ['tech', 'phys'] },
-                { realm: enemyGrid, name: 'Grid', aspects: ['tech'] },
-            ];
-        } else {
-            realms = [
-                { realm: enemyGrid, name: 'Grid', aspects: ['tech'] },
-                { realm: enemyUnderpass, name: 'Underpass', aspects: ['tech', 'phys'] },
-                { realm: enemyTheater, name: 'Theater', aspects: ['magi', 'phys'] },
-                { realm: enemySolarium, name: 'Solarium', aspects: ['magi'] },
-            ];
-        }
+        flushSync(() => {
+            console.log('PLAN ATTACK');
+            console.log(enemyUnderpass)
+            let realms;
+            if (priorityLeft) {
+                realms = [
+                    { realm: enemySolarium, name: 'Solarium', aspects: ['magi'] },
+                    { realm: enemyTheater, name: 'Theater', aspects: ['phys', 'magi'] },
+                    { realm: enemyUnderpass, name: 'Underpass', aspects: ['tech', 'phys'] },
+                    { realm: enemyGrid, name: 'Grid', aspects: ['tech'] },
+                ];
+            } else {
+                realms = [
+                    { realm: enemyGrid, name: 'Grid', aspects: ['tech'] },
+                    { realm: enemyUnderpass, name: 'Underpass', aspects: ['tech', 'phys'] },
+                    { realm: enemyTheater, name: 'Theater', aspects: ['magi', 'phys'] },
+                    { realm: enemySolarium, name: 'Solarium', aspects: ['magi'] },
+                ];
+            }
 
-        const newSlots = Array(6).fill(null);
+            const newSlots = Array(6).fill(null);
 
-        for (const { realm, name, aspects } of realms) {
-            for (const aspect of aspects) {
-                const matchingCreatures = realm.people.filter(
-                    creature => creature.card[aspect] && creature.online && creature.readied && !creature.card.defensive
-                );
+            for (const { realm, name, aspects } of realms) {
+                for (const aspect of aspects) {
+                    console.log('__________________realm people', realm.people)
+                    const matchingCreatures = realm.people.filter(
+                        creature => creature.card[aspect] && creature.online && creature.readied && !creature.card.defensive
+                    );
 
-                if (matchingCreatures.length > 0) {
-                    setBattleRealm(name);
+                    if (matchingCreatures.length > 0) {
+                        setBattleRealm(name);
 
-                    // Fill battle slots with attacking creatures from this realm
-                    for (let i = 0; i < newSlots.length && matchingCreatures.length > 0; i++) {
-                        const creature = matchingCreatures.shift();
+                        // Fill battle slots with attacking creatures from this realm
+                        for (let i = 0; i < newSlots.length && matchingCreatures.length > 0; i++) {
+                            const creature = matchingCreatures.shift();
 
-                        // Set steps to 0 and readied to false
-                        creature.steps = creature.charge;
-                        if(creature.steps < creature.card.timer) {
-                            creature.readied = false;
-                        } else {
-                            creature.readied = true;
+                            // Set steps to 0 and readied to false
+                            creature.steps = creature.charge;
+                            if (creature.steps < creature.card.timer) {
+                                creature.readied = false;
+                            } else {
+                                creature.readied = true;
+                            }
+
+                            removeFromRealm(creature, creature.realm, 'ENEMY');
+                            newSlots[i] = creature;
                         }
 
-                        removeFromRealm(creature, creature.realm, 'ENEMY');
-                        newSlots[i] = creature;
+                        setEnemyBattleSlots(newSlots);
+
+                        // Determine attack mode based on aspect
+                        let attackMode;
+                        if (aspect === 'magi') {
+                            attackMode = 'ENEMY_magi';
+                        } else if (aspect === 'phys') {
+                            attackMode = 'ENEMY_phys';
+                        } else if (aspect === 'tech') {
+                            attackMode = 'ENEMY_tech';
+                        }
+                        setAttackMode(attackMode);
+
+                        // Select target based on attack type
+                        selectEnemyAttackTarget(name, aspect);
+
+                        setGameState('WAITING_FOR_PLAYER_DEFENSE');
+                        return true; // Attack was planned
+                        // setAttackPlanned(true);
+                        // setAttackCount(prev => prev + 1);
+
                     }
-
-                    setEnemyBattleSlots(newSlots);
-
-                    // Determine attack mode based on aspect
-                    let attackMode;
-                    if (aspect === 'magi') {
-                        attackMode = 'ENEMY_magi';
-                    } else if (aspect === 'phys') {
-                        attackMode = 'ENEMY_phys';
-                    } else if (aspect === 'tech') {
-                        attackMode = 'ENEMY_tech';
-                    }
-                    setAttackMode(attackMode);
-
-                    // Select target based on attack type
-                    selectEnemyAttackTarget(name, aspect);
-
-                    setGameState('WAITING_FOR_PLAYER_DEFENSE');
-                    return true; // Attack was planned
                 }
             }
-        }
-        return false; // No attack possible
+            return false; // No attack possible
+            // setAttackPlanned(false);
+            // setAttackCount(prev => prev + 1);
+        })
     }
 
 
@@ -788,7 +817,7 @@ export function BoardContainer() {
                 return null;
         }
     }
-    
+
     function getSetPlayerRealm(realmName) {
         switch (realmName) {
             case 'Solarium':
@@ -803,7 +832,7 @@ export function BoardContainer() {
                 return null;
         }
     }
-    
+
     // Define functions to get the enemy's realm and its setter by name
     function getEnemyRealmByName(realmName) {
         switch (realmName) {
@@ -819,7 +848,7 @@ export function BoardContainer() {
                 return null;
         }
     }
-    
+
     function getSetEnemyRealm(realmName) {
         switch (realmName) {
             case 'Solarium':
@@ -834,7 +863,7 @@ export function BoardContainer() {
                 return null;
         }
     }
-    
+
     // Function to determine the array name based on the card's category
     function getArrayNameForCategory(category) {
         switch (category) {
@@ -852,7 +881,7 @@ export function BoardContainer() {
                 return 'things'; // Default to 'things' if unknown
         }
     }
-    
+
 
 
 
@@ -891,68 +920,60 @@ export function BoardContainer() {
     }, [currentPlayer, enemyActions, gameState]);
 
 
-    function enemyRezCards() { //zeebo
+    async function enemyRezCards() {
+        console.log('--- enemyRezCards Invoked ---');
+
         // Function to activate abilities for entities being rez'd
-        const rezActiveEntities = (cardList) => {
-            return cardList.map(cardEntity => {
-                if (cardEntity.card.timer && cardEntity.steps >= cardEntity.card.timer && cardEntity.freeze === 0 && !cardEntity.online) {
-                    // Activate abilities before setting the entity online
-                    console.log('activate new entity', cardEntity)
-                    activateAbilities(cardEntity, 'ENEMY');
-                    return {
-                        ...cardEntity,
-                        online: true
-                    };
+        const rezActiveEntities = async (cardList) => {
+            return Promise.all(cardList.map(async (cardEntity) => {
+                if (
+                    cardEntity.card.timer &&
+                    cardEntity.steps >= cardEntity.card.timer &&
+                    cardEntity.freeze === 0 &&
+                    !cardEntity.online
+                ) {
+                    console.log(`ACTIVATING ABILITIES for entity "${cardEntity.card.name}" (ID: ${cardEntity.id}) in realm.`);
+                    await activateAbilities(cardEntity, 'ENEMY');
                 }
                 return cardEntity;
-            });
+            }));
         };
-    
+
         // Function to activate abilities for things being rez'd (traps)
-        const rezActiveThings = (cardList) => {
-            return cardList.map(cardEntity => {
-                if (!cardEntity.card.trap) {
-                    return {
-                        ...cardEntity,
-                        online: true
-                    };
+        const rezActiveThings = async (cardList) => {
+            return Promise.all(cardList.map(async (cardEntity) => {
+                if (!cardEntity.card.trap && !cardEntity.online) {
+                    console.log(`ACTIVATING ABILITIES for thing "${cardEntity.card.name}" (ID: ${cardEntity.id}) in realm.`);
+                    await activateAbilities(cardEntity, 'ENEMY');
+                } else {
+                    console.log(`Trap skipped: "${cardEntity.card.name}"`);
                 }
-                // Activate abilities for traps
-                activateAbilities(cardEntity, 'ENEMY');
-                return {
-                    ...cardEntity,
-                    online: true
-                };
-            });
+                return cardEntity;
+            }));
         };
-    
+
         // Update Enemy Solarium Realm
-        setEnemySolarium(prevRealm => ({
-            ...prevRealm,
-            people: rezActiveEntities(prevRealm.people)
-        }));
-    
+        await rezActiveEntities(enemySolarium.people);
+        await rezActiveThings(enemySolarium.things);
+        setEnemySolarium(prevRealm => ({ ...prevRealm }));
+
         // Update Enemy Theater Realm
-        setEnemyTheater(prevRealm => ({
-            ...prevRealm,
-            people: rezActiveEntities(prevRealm.people)
-        }));
-    
+        await rezActiveEntities(enemyTheater.people);
+        await rezActiveThings(enemyTheater.things);
+        setEnemyTheater(prevRealm => ({ ...prevRealm }));
+
         // Update Enemy Underpass Realm
-        setEnemyUnderpass(prevRealm => ({
-            ...prevRealm,
-            people: rezActiveEntities(prevRealm.people),
-            things: rezActiveThings(prevRealm.things)
-        }));
-    
+        await rezActiveEntities(enemyUnderpass.people);
+        await rezActiveThings(enemyUnderpass.things);
+        setEnemyUnderpass(prevRealm => ({ ...prevRealm }));
+
         // Update Enemy Grid Realm
-        setEnemyGrid(prevRealm => ({
-            ...prevRealm,
-            people: rezActiveEntities(prevRealm.people),
-            things: rezActiveThings(prevRealm.things)
-        }));
+        await rezActiveEntities(enemyGrid.people);
+        await rezActiveThings(enemyGrid.things);
+        setEnemyGrid(prevRealm => ({ ...prevRealm }));
+        console.log('--- enemyRezCards Completed ---');
     }
-    
+
     function calculateActivationCost(card, side) {
         let rezCost = card.rezCost || 0;
 
@@ -981,23 +1002,23 @@ export function BoardContainer() {
                 console.log('lost ash');
                 playerLoseAshes(rezCard.card.ash);
             }
-    
+
             setRezCard(null);
             activateAbilities(rezCard, 'PLAYER');
-    
+
             switch (rezCard.realm) {
                 case 'Solarium':
                     if (rezCard.card.category === 'ENTITY') {
                         setPlayerSolarium(prevRealm => ({
                             ...prevRealm,
-                            people: prevRealm.people.map(c => 
+                            people: prevRealm.people.map(c =>
                                 c.id === rezCard.id ? { ...c, online: true } : c
                             ),
                         }));
                     } else if (rezCard.card.category === 'SNIP') {
                         setPlayerSolarium(prevRealm => ({
                             ...prevRealm,
-                            things: prevRealm.things.map(c => 
+                            things: prevRealm.things.map(c =>
                                 c.id === rezCard.id ? { ...c, online: true } : c
                             ),
                         }));
@@ -1007,14 +1028,14 @@ export function BoardContainer() {
                     if (rezCard.card.category === 'ENTITY') {
                         setPlayerTheater(prevRealm => ({
                             ...prevRealm,
-                            people: prevRealm.people.map(c => 
+                            people: prevRealm.people.map(c =>
                                 c.id === rezCard.id ? { ...c, online: true } : c
                             ),
                         }));
                     } else if (rezCard.card.category === 'SNIP') {
                         setPlayerTheater(prevRealm => ({
                             ...prevRealm,
-                            things: prevRealm.things.map(c => 
+                            things: prevRealm.things.map(c =>
                                 c.id === rezCard.id ? { ...c, online: true } : c
                             ),
                         }));
@@ -1024,14 +1045,14 @@ export function BoardContainer() {
                     if (rezCard.card.category === 'ENTITY') {
                         setPlayerUnderpass(prevRealm => ({
                             ...prevRealm,
-                            people: prevRealm.people.map(c => 
+                            people: prevRealm.people.map(c =>
                                 c.id === rezCard.id ? { ...c, online: true } : c
                             ),
                         }));
                     } else if (rezCard.card.category === 'SNIP') {
                         setPlayerUnderpass(prevRealm => ({
                             ...prevRealm,
-                            things: prevRealm.things.map(c => 
+                            things: prevRealm.things.map(c =>
                                 c.id === rezCard.id ? { ...c, online: true } : c
                             ),
                         }));
@@ -1041,14 +1062,14 @@ export function BoardContainer() {
                     if (rezCard.card.category === 'ENTITY') {
                         setPlayerGrid(prevRealm => ({
                             ...prevRealm,
-                            people: prevRealm.people.map(c => 
+                            people: prevRealm.people.map(c =>
                                 c.id === rezCard.id ? { ...c, online: true } : c
                             ),
                         }));
                     } else if (rezCard.card.category === 'SNIP') {
                         setPlayerGrid(prevRealm => ({
                             ...prevRealm,
-                            things: prevRealm.things.map(c => 
+                            things: prevRealm.things.map(c =>
                                 c.id === rezCard.id ? { ...c, online: true } : c
                             ),
                         }));
@@ -1059,13 +1080,29 @@ export function BoardContainer() {
             }
         }
     }, [awaitingSacrifices, rezCard]);
-    
+
 
     const handleCardSelect = (cardEntity, inHand) => {
         console.log('hand select')
         setSelectedCard(cardEntity);
         setSelectedInHand(inHand);
+        setDraftSelected(false);
+        setDraftSelected(false);
+        setTargetType('none');
+        setPendingRitual(null);
+        setTargetSelection({ enabled: false });
     };
+
+    const handleCancel = () => {
+        setSelectedCard(null);
+        setSelectedInHand(null);
+        setDraftSelected(false);
+        setDraftSelected(false);
+        setTargetType('none');
+        setPendingRitual(null);
+        setTargetSelection({ enabled: false });
+    };
+
 
     const handleQuest = () => {
         setAttackMode('PLAYER_QUEST')
@@ -1078,6 +1115,7 @@ export function BoardContainer() {
     };
 
     const handleHack = () => {
+        console.log('handle hack')
         setAttackMode('PLAYER_HACK')
         playerLoseActions(1);
     };
@@ -1106,8 +1144,10 @@ export function BoardContainer() {
 
     const handleRealmCardSelect = (cardEntity) => {
         if (awaitingImpostor) {
+            console.log('_______________________________swap impostor')
             if (cardEntity.owner === 'ENEMY' && cardEntity.card.category === 'ENTITY') {
-                handleImpostorPlacement(selectedCard, cardEntity, impostorRealm, 'PLAYER');
+                let dreamer = selectedCard.card.name === 'Dreamer' ? true : false;
+                handleImpostorPlacement(selectedCard, cardEntity, impostorRealm, 'PLAYER', dreamer);
                 setAwaitingImpostor(false);
                 setImpostorRealm(null);
                 setSelectedCard(null);
@@ -1122,7 +1162,7 @@ export function BoardContainer() {
                 console.log(`${cardEntity.card.name} is Soulless and cannot be sacrificed.`);
                 return;
             }
-             console.log('sacrifice selected ', cardEntity)
+            console.log('sacrifice selected ', cardEntity)
             setSoulSelections(prevSelections => {
                 const index = prevSelections.findIndex(card => card.id === cardEntity.id);
                 if (index > -1) {
@@ -1301,7 +1341,7 @@ export function BoardContainer() {
             updatedEntity.abilities = {};
         }
 
-        updatedEntity.abilities[abilityName] = (updatedEntity.abilities[abilityName] || 0) + amount;
+        updatedEntity[abilityName] = (updatedEntity[abilityName] || 0) + amount;
 
         // Update the realm's people array
         const newPeople = [...realm.people];
@@ -1486,7 +1526,7 @@ export function BoardContainer() {
         const [realm, setRealm] = getRealmAndSetter(realmName, side);
         let cardFound = false;
         const arrays = ['places', 'things'];
-    
+
         arrays.forEach(arrayName => {
             if (realm[arrayName].some(card => card.id === cardEntity.id)) {
                 setRealm(prevRealm => ({
@@ -1496,10 +1536,10 @@ export function BoardContainer() {
                 cardFound = true;
             }
         });
-    
+
         if (cardFound) {
             cardEntity.realm = 'Elysium';
-    
+
             if (side === 'PLAYER') {
                 setPlayerElysium(prevElysium => ({
                     ...prevElysium,
@@ -1511,20 +1551,20 @@ export function BoardContainer() {
                     things: [...prevElysium.things, cardEntity],
                 }));
             }
-    
+
             // Trigger one-time onAscend abilities
             triggerAscendAbilities(cardEntity, side);
-    
+
             // Activate ongoing Ascended abilities
             activateAscendedAbilities(cardEntity, side);
-    
+
             console.log(`${cardEntity.card.name} has ascended to Elysium.`);
         } else {
             console.error(`Card ${cardEntity.card.name} not found in realm ${realmName}.`);
         }
     }
-    
-    
+
+
 
     function triggerAscendAbilities(entity, side) {
         entity.card.abilities.forEach((abilityName) => {
@@ -1539,7 +1579,7 @@ export function BoardContainer() {
         const ascendedAbilities = cardEntity.card.abilities.filter(
             abilityName => abilitiesDefinitions[abilityName]?.type === 'Ascended'
         );
-    
+
         ascendedAbilities.forEach(abilityName => {
             const abilityDef = abilitiesDefinitions[abilityName];
             if (abilityDef) {
@@ -1564,7 +1604,7 @@ export function BoardContainer() {
             }
         });
     }
-    
+
 
 
 
@@ -1575,7 +1615,7 @@ export function BoardContainer() {
         const realmSetter = realm.charAt(0).toUpperCase() + realm.slice(1).toLowerCase(); // Convert to proper case
 
         let isReady = false;
-        const newSteps = cardEntity.steps
+        let newSteps = cardEntity.steps
         if (cardEntity.freeze > 0) {
             cardEntity.freeze -= 1;
             console.log(`${cardEntity.card.name} reduces Freeze by 1. Remaining Freeze: ${cardEntity.freeze}`);
@@ -1844,15 +1884,15 @@ export function BoardContainer() {
                         }
                     }
                 });
-                
+
                 if (!removed) {
                     console.warn(`Entity with ID ${cardEntity.id} not found in any array within ${realmName} realm.`);
                 }
-                
+
                 return updated;
             });
         };
-        
+
         if (side === 'PLAYER') {
             switch (realm) {
                 case 'Solarium':
@@ -1891,7 +1931,7 @@ export function BoardContainer() {
             console.error('Invalid side: ' + side);
         }
     };
-    
+
 
 
     const handleEnemyBattle = () => {
@@ -2261,15 +2301,15 @@ export function BoardContainer() {
 
         if (defender && defenderCanBlock) {
             // Determine if attacker and defender have Pounce
-            const attackerHasPounce = attacker.abilities?.Pounce > 0 || false;
-            const defenderHasPounce = defender?.abilities?.Pounce > 0 || false;
+            const attackerHasPounce = attacker.pounce > 0 || false;
+            const defenderHasPounce = defender?.pounce > 0 || false;
 
             if (attackerHasPounce && !defenderHasPounce) {
                 // Attacker deals damage first
                 const damageDealtToDefender = handleDamage('BATTLE', defender.id, attackerPower, getOppositeSide(side));
 
                 // Handle Override
-                if (attacker.abilities?.Override > 0 && damageDealtToDefender.excessDamage > 0) {
+                if (attacker.override > 0 && damageDealtToDefender.excessDamage > 0) {
                     applyOverrideDamage(attacker, damageDealtToDefender.excessDamage, side, battleRealm);
                 }
 
@@ -2305,7 +2345,7 @@ export function BoardContainer() {
                     const damageDealtToDefender = handleDamage('BATTLE', defender.id, attackerPower, getOppositeSide(side));
 
                     // Handle Override
-                    if (attacker.abilities?.Override > 0 && damageDealtToDefender.excessDamage > 0) {
+                    if (attacker.override > 0 && damageDealtToDefender.excessDamage > 0) {
                         applyOverrideDamage(attacker, damageDealtToDefender.excessDamage, side, battleRealm);
                     }
 
@@ -2330,7 +2370,7 @@ export function BoardContainer() {
                 const damageDealtToAttacker = handleDamage('BATTLE', attacker.id, defenderPower, side);
 
                 // Handle Override
-                if (attacker.abilities?.Override > 0 && damageDealtToDefender.excessDamage > 0) {
+                if (attacker.override > 0 && damageDealtToDefender.excessDamage > 0) {
                     applyOverrideDamage(attacker, damageDealtToDefender.excessDamage, side, battleRealm);
                 }
 
@@ -2391,7 +2431,7 @@ export function BoardContainer() {
             unblockedHacking = true;
         }
 
-        setAttackMode('none');
+        setAttackMode('NONE');
         return { unblockedHacking };
     }
 
@@ -2999,7 +3039,7 @@ export function BoardContainer() {
 
             if (cardToWound) {
                 // Get Armor amount
-                const armorAmount = cardToWound.abilities?.Armored || 0;
+                const armorAmount = cardToWound.armored || 0;
 
                 // Adjust damage amount by Armor
                 const adjustedDamageAmount = Math.max(damageAmount - armorAmount, 0);
@@ -3036,7 +3076,7 @@ export function BoardContainer() {
             const oldEntity = realm.people[entityIndex];
 
             // Get Armor amount
-            const armorAmount = oldEntity.abilities?.Armored || 0;
+            const armorAmount = oldEntity.armored || 0;
 
             // Adjust damage amount by Armor
             const adjustedDamageAmount = Math.max(damageAmount - armorAmount, 0);
@@ -3075,14 +3115,14 @@ export function BoardContainer() {
     function handleDeadCard(location, entityId, side) {
         let cardToRemove;
         console.log("handleDeadCard called with:", { location, entityId, side })
-    
+
         // Convert entityId to number if necessary
         const numericEntityId = typeof entityId === 'string' ? entityId : entityId;
         console.log('Numeric Entity ID:', numericEntityId, 'Type:', typeof numericEntityId);
-    
+
         if (location === 'BATTLE') {
             let battleSlots, setBattleSlots;
-    
+
             if (side === 'PLAYER') {
                 battleSlots = playerBattleSlots;
                 setBattleSlots = setPlayerBattleSlots;
@@ -3090,10 +3130,10 @@ export function BoardContainer() {
                 battleSlots = enemyBattleSlots;
                 setBattleSlots = setEnemyBattleSlots;
             }
-    
+
             cardToRemove = battleSlots.find(card => card && card.id === numericEntityId);
             console.log('Card to remove in BATTLE:', cardToRemove);
-    
+
             if (cardToRemove) {
                 // Remove the card from battle slots
                 setBattleSlots(prev => {
@@ -3113,10 +3153,10 @@ export function BoardContainer() {
         } else {
             const [realm, setRealm] = getRealmAndSetter(location, side);
             console.log('Retrieved realm and setter:', { realm, setRealm });
-    
+
             // Check the structure of the realm.people array
             console.log(`Current people in ${location}:`, realm.people);
-    
+
             cardToRemove = realm.people.find(card => card.id === numericEntityId);
             console.log('cardToRemove:', cardToRemove);
             console.log('filter ', playerUnderpass.people.filter(card => card.id !== numericEntityId))
@@ -3129,21 +3169,21 @@ export function BoardContainer() {
                 console.log(`Card with ID ${numericEntityId} removed from ${location}.`);
             }
         }
-    
+
         if (cardToRemove) {
             console.log('Proceeding to deactivate abilities and handle Deathless.');
-    
+
             // Deactivate abilities
             deactivateAbilities(cardToRemove, side);
             console.log(`Abilities of ${cardToRemove.card.name} deactivated.`);
-    
+
             // Check if the card has Deathless
-            const hasDeathless = cardToRemove.card.abilities?.includes('Deathless');
+            const hasDeathless = cardToRemove.deathless > 0;
             console.log(`Card has Deathless: ${hasDeathless}`);
-    
+
             // Publish death event
             eventManager.publish('entityDied', { entityId: numericEntityId, realmName: location, owner: side });
-    
+
             // Gain ashes based on side
             if (side === 'PLAYER') {
                 playerGainAshes(1);
@@ -3152,7 +3192,7 @@ export function BoardContainer() {
                 enemyGainAshes(1);
                 console.log('Enemy gains 1 Ash.');
             }
-    
+
             if (hasDeathless) {
                 // Reset the card's stats
                 const resetCard = {
@@ -3171,9 +3211,14 @@ export function BoardContainer() {
                     charge: cardToRemove.card.charge || 0,
                     sacrificed: false,
                     cosmic: cardToRemove.card.cosmic || 1,
+                    deathless: cardToRemove.deathless || 0,
+                    pounce: cardToRemove.pounce || 0,
+                    override: cardToRemove.override || 0,
+                    stealth: cardToRemove.stealth || 0,
+                    armored: cardToRemove.armored || 0,
                     statusEffects: {},
                 };
-    
+
                 // Add the reset card to HeadSpace
                 if (side === 'PLAYER') {
                     setPlayerHand(prev => [...prev, resetCard]);
@@ -3182,7 +3227,7 @@ export function BoardContainer() {
                     setEnemyHand(prev => [...prev, resetCard]);
                     console.log(`Added reset card to Enemy Hand:`, resetCard);
                 }
-    
+
                 console.log(`${cardToRemove.card.name} is Deathless and returns to HeadSpace.`);
             } else {
                 if (side === 'PLAYER') {
@@ -3196,10 +3241,10 @@ export function BoardContainer() {
         } else {
             console.error(`Card with ID ${entityId} not found in ${location} for side ${side}`);
         }
-    
+
         setAwaitingSacrifices(false); // Indicate that sacrifices are complete
     }
-    
+
 
     function handleDestroyedThing(location, entityId, side, runes = 0) {
         const [realm, setRealm] = getRealmAndSetter(location, side);
@@ -3251,7 +3296,7 @@ export function BoardContainer() {
 
 
     function handleDestroyedPlace(location, entityId, side, runes = 0) {
-        
+
         const [realm, setRealm] = getRealmAndSetter(location, side);
 
         // Find the place to remove
@@ -3297,7 +3342,7 @@ export function BoardContainer() {
             console.log('already online')
             return;
         }
-        
+
         if (playerBits < entity.card.rezCost || playerAshes < entity.card.ash || soulsAvailable < entity.card.soul) {
             console.log('no resources')
             //console.error('Not enough resources to rez the card');
@@ -3341,10 +3386,10 @@ export function BoardContainer() {
         setAwaitingFocus(false);
     }
 
-    function handleImpostorPlacement(selectedCard, enemyCard, realmName, side) {
+    function handleImpostorPlacement(selectedCard, enemyCard, realmName, side, dreamer) {
         // Determine the realms and setter functions based on the side
         let ownRealm, setOwnRealm, opponentRealm, setOpponentRealm;
-    
+
         if (side === 'PLAYER') {
             ownRealm = getPlayerRealmByName(realmName);
             setOwnRealm = getSetPlayerRealm(realmName);
@@ -3356,24 +3401,24 @@ export function BoardContainer() {
             opponentRealm = getPlayerRealmByName(realmName);
             setOpponentRealm = getSetPlayerRealm(realmName);
         }
-    
+
         // Swap the cards
-        swapEntitiesForImpostor(selectedCard, enemyCard, realmName, setOwnRealm, setOpponentRealm, side);
-    
+        swapEntitiesForImpostor(selectedCard, enemyCard, realmName, setOwnRealm, setOpponentRealm, side, dreamer);
+
         // Remove the selected card from the player's or enemy's hand
         if (side === 'PLAYER') {
             setPlayerHand((prevHand) => prevHand.filter((card) => card.id !== selectedCard.id));
         } else {
             setEnemyHand((prevHand) => prevHand.filter((card) => card.id !== selectedCard.id));
         }
-    
+
         // Deduct an action point from the acting player
         if (side === 'PLAYER') {
             playerLoseActions(1);
         } else {
             enemyLoseActions(1);
         }
-    
+
         // Reset selection states
         setSelectedCard(null);
         setSelectedInHand(false);
@@ -3382,38 +3427,37 @@ export function BoardContainer() {
         setCurrentPlayer(getOppositeSide(side));
     }
 
-
-
-    function swapEntitiesForImpostor(selectedCard, enemyEntity, realmName, setOwnRealm, setOpponentRealm, side) {
+    function swapEntitiesForImpostor(selectedCard, enemyEntity, realmName, setOwnRealm, setOpponentRealm, side, dreamer) {
         // Update ownership and realm properties
         const updatedSelectedCard = { ...selectedCard, realm: realmName, owner: getOppositeSide(side) };
         const updatedEnemyEntity = { ...enemyEntity, realm: realmName, owner: side };
-    
+
         // Determine which arrays to use based on card categories
         const selectedCardArrayName = getArrayNameForCategory(selectedCard.card.category);
         const enemyCardArrayName = getArrayNameForCategory(enemyEntity.card.category);
-    
+
         // Remove enemy entity from opponent realm
         setOpponentRealm((prevRealm) => ({
             ...prevRealm,
             [enemyCardArrayName]: prevRealm[enemyCardArrayName].filter((entity) => entity.id !== enemyEntity.id),
         }));
-    
+
         // Add enemy entity to own realm
         setOwnRealm((prevRealm) => ({
             ...prevRealm,
             [enemyCardArrayName]: [...prevRealm[enemyCardArrayName], updatedEnemyEntity],
         }));
-    
+
         // Add selected card to opponent realm
         setOpponentRealm((prevRealm) => ({
             ...prevRealm,
             [selectedCardArrayName]: [...prevRealm[selectedCardArrayName], updatedSelectedCard],
         }));
-    
-        // Activate abilities for both entities in their new realms
-        activateAbilities(updatedSelectedCard, getOppositeSide(side));
-        activateAbilities(updatedEnemyEntity, side);
+
+        // Activate abilities for a Dreamer
+        if (dreamer) {
+            activateAbilities(updatedSelectedCard, getOppositeSide(side));
+        }
     }
 
     function endPlayerTurn() {
@@ -3447,7 +3491,7 @@ export function BoardContainer() {
             const ritualAbilities = selectedCard.card.abilities.filter(
                 (ability) => typeof ability === 'object' && ability.requiresTarget
             );
-    
+
             ritualAbilities.forEach((ability) => {
                 if (ability.requiresTarget) {
                     const abilityDef = abilitiesDefinitions[ability.name];
@@ -3468,18 +3512,18 @@ export function BoardContainer() {
                     }
                 }
             });
-    
+
             // Handle rituals without target requirements
             const nonTargetRitualAbilities = selectedCard.card.abilities.filter(
                 (ability) => !(typeof ability === 'object' && ability.requiresTarget)
             );
-    
+
             if (nonTargetRitualAbilities.length > 0) {
                 removeCardFromHand(selectedCard);
                 triggerRitualAbilities(selectedCard, null, 'PLAYER');
                 endPlayerTurn();
             }
-    
+
             return;
         }
 
@@ -3488,12 +3532,12 @@ export function BoardContainer() {
             setBattleSelectedCard(null);
         }
         if (!selectedInHand) return;
-
         const isImpostor = selectedCard.card.abilities?.some(
             (ability) => ability.name === 'Impostor'
         ) || (draftSelected && recruiterCount > 0);
 
-        if (isImpostor) { // todo1
+        if (isImpostor) {
+            console.log('___________awaiting impostor')
             setAwaitingImpostor(true);
             setImpostorRealm(realmName);
             console.log(`Awaiting Impostor target in realm: ${realmName}`);
@@ -3590,7 +3634,7 @@ export function BoardContainer() {
             setDraftSelected(false);
             setTargetType('none');
             setCurrentPlayer('ENEMY');
-            if (updatedCard.card.category === 'LANDMARK' || updatedCard.card.category === 'LOCATION') {
+            if (updatedCard.card.category === 'LANDMARK' || updatedCard.card.category === 'LOCATION' || updatedCard.card.name === 'Dreamer') {
                 console.log('rez place')
                 handleRezPlayerCard(updatedCard)
             }
@@ -3606,7 +3650,7 @@ export function BoardContainer() {
         triggerRitualAbilities(entity, target, 'PLAYER', ability);
         endPlayerTurn();
     }
-    
+
     function removeCardFromHand(card) {
         setPlayerHand((prevHand) => prevHand.filter((c) => c.id !== card.id));
         playerLoseActions(1);
@@ -3632,7 +3676,7 @@ export function BoardContainer() {
             }
         });
     }
-    
+
 
     function playerAdvanceCards() {
         const advanceCardList = (cardList) => {
@@ -3695,7 +3739,7 @@ export function BoardContainer() {
                         const newSteps = (cardEntity.steps || 0) + 1;
                         let updatedCard = { ...cardEntity, steps: newSteps };
 
-                        if (cardEntity.card.timer && newSteps >= cardEntity.card.timer) {
+                        if (cardEntity.card.timer && newSteps >= cardEntity.card.timer && !cardEntity.freeze) {
                             updatedCard.readied = true;
                         }
                         return updatedCard;
@@ -3873,7 +3917,7 @@ export function BoardContainer() {
         const realms = side === 'PLAYER'
             ? [playerSolarium, playerTheater, playerUnderpass, playerGrid]
             : [enemySolarium, enemyTheater, enemyUnderpass, enemyGrid];
-    
+
         const friendlyEntities = realms.flatMap(realm => realm.people);
         friendlyEntities.forEach(entity => {
             if (entity.freeze > 0) {
@@ -3885,19 +3929,19 @@ export function BoardContainer() {
                 console.log(`${entity.card.name}'s Decay is removed.`);
             }
         });
-    
+
         if (side !== 'PLAYER') { // Only enemy side clears venom from people, places, and things
             const enemySide = side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
             const enemyRealms = enemySide === 'PLAYER'
                 ? [playerSolarium, playerTheater, playerUnderpass, playerGrid]
                 : [enemySolarium, enemyTheater, enemyUnderpass, enemyGrid];
-    
+
             const enemyEntities = enemyRealms.flatMap(realm => [
                 ...realm.people,
                 ...realm.places,
                 ...realm.things
             ]);
-    
+
             enemyEntities.forEach(entity => {
                 if (entity.venom > 0) {
                     entity.venom = 0;
@@ -3905,10 +3949,10 @@ export function BoardContainer() {
                 }
             });
         }
-    
+
         console.log(`${side === 'PLAYER' ? 'Player' : 'Enemy'} performed Detox.`);
     }
-    
+
 
 
 
@@ -4156,16 +4200,42 @@ export function BoardContainer() {
         setEnemyLag(prevLag => prevLag - num);
     }
 
-  
+
 
 
     //effects
 
     const abilitiesDefinitions = {
+        'Extortion': {
+            name: 'Extortion',
+            type: 'onPlay',
+            onPlay: function (entity, gameState, side) {
+                const countEntities = () => {
+                    let count = 0;
+                    const realms = ['playerSolarium', 'enemySolarium', 'playerTheater', 'enemyTheater', 'playerUnderpass', 'enemyUnderpass', 'playerGrid', 'enemyGrid'];
+                    realms.forEach(realmName => {
+                        const realm = gameState[realmName];
+                        if (realm) {
+                            count += realm.people.length;
+                        }
+                    });
+                    return count;
+                };
+
+                const totalEntities = countEntities();
+                const bitsToGain = totalEntities * 2;
+                if (side === 'PLAYER') {
+                    playerGainBits(bitsToGain);
+                } else {
+                    enemyGainBits(bitsToGain);
+                }
+                console.log(`${side} gains ${bitsToGain} Bits from Extortion.`);
+            }
+        },
         'SplinterFactionAscend': {
             name: "SplinterFactionAscend",
             type: "onAscend",
-            onAscend: function(entity, gameState, side) {
+            onAscend: function (entity, gameState, side) {
                 const enemySide = side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
                 const library = enemySide === 'PLAYER' ? playerLibrary : enemyLibrary;
                 library.forEach(card => {
@@ -4177,7 +4247,7 @@ export function BoardContainer() {
         'ForgottenIsland': {
             name: "ForgottenIslandAscend",
             type: "onAscend",
-            onAscend: function(entity, gameState, side) {
+            onAscend: function (entity, gameState, side) {
                 if (side === 'PLAYER') {
                     playerGainBits(10);
                 } else {
@@ -4191,7 +4261,7 @@ export function BoardContainer() {
             type: "Ascended",
             typeCategory: "triggered",
             triggers: ["cardStolen", "placeDestroyed"],
-            eventHandler: function(entity, eventData, gameState, side) {
+            eventHandler: function (entity, eventData, gameState, side) {
                 if (
                     (eventData.card && eventData.card.id === entity.id) ||
                     (eventData.entityId && eventData.entityId === entity.id)
@@ -4206,12 +4276,12 @@ export function BoardContainer() {
                 }
             },
         },
-        'CatCafeAscended':{
+        'CatCafeAscended': {
             name: "CatCafeAscendedAbility",
             type: "Ascended",
             typeCategory: "triggered", // Indicates it's a triggered ability
             triggers: ["turnStart"], // List of events it listens to
-            eventHandler: function(entity, eventData, gameState, side) {
+            eventHandler: function (entity, eventData, gameState, side) {
                 if (eventData.side === side && entity.realm === 'Elysium') {
                     if (side === 'PLAYER') {
                         playerGainOverload(3);
@@ -4225,7 +4295,7 @@ export function BoardContainer() {
         'AdrenochromeAscend': {
             name: 'AdrenochromeAscend',
             type: 'onAscend',
-            onAscend: function(entity, gameState, side) {
+            onAscend: function (entity, gameState, side) {
                 if (side === 'PLAYER') {
                     playerGainActions(prevActions => prevActions + 2);
                     playerGainAshes(prevAsh => prevAsh + 3);
@@ -4250,11 +4320,11 @@ export function BoardContainer() {
                     enemyGainSurge(2);
                     enemyGainAshes(2);
                 }
-        
+
                 // Search Pandora for JAWbreaker entities
                 const pandora = side === 'PLAYER' ? playerLibrary : enemyLibrary; // Ensure these state variables exist
                 //console.log(pandora)
-                const jawbreakerEntities = pandora.filter(entity => 
+                const jawbreakerEntities = pandora.filter(entity =>
                     entity.card.subTypes?.includes('JAWbreaker')
                 );
                 console.log(jawbreakerEntities)
@@ -4266,12 +4336,12 @@ export function BoardContainer() {
                             <div>
                                 <ul>
                                     {jawbreakerEntities.map(jb => (
-                                        <li 
-                                            key={jb.id} 
+                                        <li
+                                            key={jb.id}
                                             onClick={() => {
                                                 drawSpecificCard(jb, side);
                                                 setModalVisible(false);
-                                            }} 
+                                            }}
                                             style={{ cursor: 'pointer', marginBottom: '5px' }}
                                         >
                                             {jb.card.name}
@@ -4289,14 +4359,14 @@ export function BoardContainer() {
                 }
             },
         },
-        'ExploitEffect':  {
+        'ExploitEffect': {
             name: 'ExploitEffect',
             type: 'onPlay',
             condition: 'successfulHack',
             requiresTarget: true,
-            targetFilter: (target) => 
-                target.card.subTypes?.includes('JAWbreaker') && 
-                target.owner === 'PLAYER' && 
+            targetFilter: (target) =>
+                target.card.subTypes?.includes('JAWbreaker') &&
+                target.owner === 'PLAYER' &&
                 target.online,
             onPlay: function (entity, gameState, side, target) {
                 const hasHacked = side === 'PLAYER' ? playerInterfaced : enemyInterfaced;
@@ -4397,6 +4467,11 @@ export function BoardContainer() {
                             charge: CatPhishCard.charge || 0,
                             sacrificed: false,
                             cosmic: CatPhishCard.cosmic || 1,
+                            deathless: CatPhishCard.deathless || 0, //todo1
+                            pounce: CatPhishCard.pounce || 0,
+                            override: CatPhishCard.override || 0,
+                            stealth: CatPhishCard.stealth || 0,
+                            armored: CatPhishCard.armored || 0,
                             development: CatPhishCard.development || 0,
                             plot: CatPhishCard.plot || 0,
                             owner: 'ENEMY',
@@ -4430,6 +4505,11 @@ export function BoardContainer() {
                             charge: CatPhishCard.charge || 0,
                             sacrificed: false,
                             cosmic: CatPhishCard.cosmic || 1,
+                            deathless: CatPhishCard.deathless || 0,
+                            pounce: CatPhishCard.pounce || 0,
+                            override: CatPhishCard.override || 0,
+                            stealth: CatPhishCard.stealth || 0,
+                            armored: CatPhishCard.armored || 0,
                             development: CatPhishCard.development || 0,
                             plot: CatPhishCard.plot || 0,
                             owner: 'ENEMY',
@@ -4581,6 +4661,26 @@ export function BoardContainer() {
                 console.log(`${entity.card.name} decreases Drift count by 1.`);
             },
         },
+        'Dividend': (amount) => ({
+            name: 'Dividend',
+            type: 'static',
+            applyEffect: function (entity, gameState, side) {
+                if (side === 'PLAYER') {
+                    setPlayerDividendAmount(prev => prev + amount);
+                } else {
+                    setEnemyDividendAmount(prev => prev + amount);
+                }
+                console.log(`${entity.card.name} increases Dividend count.`);
+            },
+            removeEffect: function (entity, gameState, side) {
+                if (side === 'PLAYER') {
+                    setPlayerDividendAmount(prev => prev - amount);
+                } else {
+                    setEnemyDividendAmount(prev => prev - amount);
+                }
+                console.log(`${entity.card.name} decreases Dividend count.`);
+            },
+        }),
         'GainActionsOnPandoraInterface': {
             name: 'GainActionsOnPandoraInterface',
             type: 'triggered',
@@ -4693,7 +4793,7 @@ export function BoardContainer() {
             execute: function (entity, effect, side) {
                 // Use grantAbility to give Stealth to the entity
                 const amount = effect.amount || 1;
-                grantAbility(entity, 'Stealth', amount, side);
+                grantAbility(entity, 'stealth', amount, side);
                 console.log(`${entity.card.name} gains Stealth (${amount}).`);
             },
         },
@@ -4742,11 +4842,11 @@ export function BoardContainer() {
             name: 'Armored',
             type: 'static',
             applyEffect: function (entity, gameState, side, amount = 1) {
-                grantAbility(entity, 'Armored', amount, side);
+                grantAbility(entity, 'armored', amount, side);
                 console.log(`${entity.card.name} gains Armored (${amount}).`);
             },
             removeEffect: function (entity, gameState, side, amount = 1) {
-                removeAbility(entity, 'Armored', amount, side);
+                removeAbility(entity, 'armored', amount, side);
                 console.log(`${entity.card.name} loses Armored.`);
             },
         },
@@ -5089,26 +5189,6 @@ export function BoardContainer() {
                 console.log(`${entity.card.name} gains Vengeance ${amount}.`);
             },
         }),
-        'Pounce': {
-            name: 'Pounce',
-            type: 'static',
-            applyEffect: function (entity, gameState, side, amount = 1) {
-                grantAbility(entity, 'Pounce', amount, side);
-            },
-            removeEffect: function (entity, gameState, side, amount = 1) {
-                removeAbility(entity, 'Pounce', amount, side);
-            },
-        },
-        'Override': {
-            name: 'Override',
-            type: 'static',
-            applyEffect: function (entity, gameState, side, amount = 1) {
-                grantAbility(entity, 'Override', amount, side);
-            },
-            removeEffect: function (entity, gameState, side, amount = 1) {
-                removeAbility(entity, 'Override', amount, side);
-            },
-        },
         'GrantBoostAndPounce': {
             name: 'GrantBoostAndPounce',
             type: 'manual',
@@ -5123,7 +5203,7 @@ export function BoardContainer() {
 
                 // Grant Pounce with specified amount
                 const pounceAmount = effect.pounceAmount || 1;
-                grantAbility(target, 'Pounce', pounceAmount, side);
+                grantAbility(target, 'pounce', pounceAmount, side);
 
                 console.log(`${target.card.name} gains Boost ${effect.boostAmount} and Pounce (${pounceAmount}).`);
             },
@@ -5141,6 +5221,18 @@ export function BoardContainer() {
                     playerGainLag(1);
                 }
                 console.log(`${entity.card.name} inflicts 2 Overload and 1 Lag on the opponent.`);
+            },
+        },
+        'Gravity': {
+            name: 'Gravity',
+            type: 'onEnter',
+            onActivate: function (entity, gameState, side) {
+                if (side === 'PLAYER') {
+                    playerGainLag(1);
+                } else {
+                    enemyGainLag(1);
+                }
+                console.log(`${entity.card.name} inflicts 1 Lag on owner.`);
             },
         },
         'Glitchy': {
@@ -5234,10 +5326,10 @@ export function BoardContainer() {
         const updatedLibrary = library.filter(entity => entity.id !== card.id);
         setLibrary(updatedLibrary);
         setHand(prevHand => [...prevHand, card]);
-    
+
         console.log(`${card.card.name} has been drawn.`);
     }
-    
+
 
     function addStatusEffect(entity, status, amount, side) {
         // Determine the realm and setter
@@ -5269,37 +5361,46 @@ export function BoardContainer() {
         });
     }
 
-    function activateAbilities(entity, side) {
+    // todo1 no activeAbilities update
+    async function activateAbilities(entity, side) {
         console.log('ACTIVATE ABILITIES ', entity);
+
+        // Set online first before processing abilities
+        await applyEffect(entity.id, entity.realm, side, { //todo1 set firstActivation to true
+            type: 'setOnline',
+            value: true,
+        });
+
         if (!entity.activeAbilities) {
             entity.activeAbilities = [];
         }
-    
-        // Iterate over the entity's abilities
+
         const abilities = entity.card.abilities || [];
-        abilities.forEach((ability) => {
+        for (const ability of abilities) {
             console.log('activating ability ', ability);
             const abilityName = ability.name;
             let abilityDef = abilitiesDefinitions[abilityName];
-    
+
             if (abilityDef) {
-                // If abilityDef is a function (e.g., Buffer), call it with necessary parameters
                 if (typeof abilityDef === 'function') {
-                    // Extract parameters from the ability object
-                    // Assuming the ability object contains necessary parameters like 'amount'
                     abilityDef = abilityDef(ability.amount);
                 }
-    
+
+                const isAbilityActive = entity.activeAbilities.some(ab => ab.abilityName === abilityName);
+                if (isAbilityActive) {
+                    console.log(`Ability "${abilityName}" is already active for "${entity.card.name}". Skipping.`);
+                    continue;
+                }
+
                 if (abilityDef.type === 'static') {
                     abilityDef.applyEffect(entity, gameState, side);
                     entity.activeAbilities.push({ abilityName, abilityDef });
                 } else if (abilityDef.type === 'triggered') {
-                    console.log('activate trigger listener')
+                    console.log('activate trigger listener');
                     abilityDef.triggers.forEach((eventType) => {
                         const handler = (eventData) => {
-                            // For Scheme abilities, check if unlocked
                             if (entity.scheming && !entity.schemeUnlocked) {
-                                return; // Ability not yet unlocked
+                                return;
                             }
                             abilityDef.eventHandler(entity, eventData, gameState, side);
                         };
@@ -5307,7 +5408,6 @@ export function BoardContainer() {
                         entity.activeAbilities.push({ abilityName, eventType, handler });
                     });
                 } else if (abilityDef.type === 'manual') {
-                    // Manual abilities are handled via user interaction
                     entity.activeAbilities.push({ abilityName, abilityDef });
                 } else if (abilityDef.type === 'onActivate') {
                     console.log('on activate');
@@ -5315,10 +5415,77 @@ export function BoardContainer() {
                     entity.activeAbilities.push({ abilityName, abilityDef });
                 }
             }
+        }
+    }
+
+
+    async function applyEffect(entityId, realmName, owner, effect) {
+        console.log('________APPLY EFFECT', effect);
+
+        const [realm, setRealmFunction] = getRealmAndSetter(realmName, owner);
+
+        setRealmFunction(prevRealm => {
+            // Create a deep copy of the entire realm to ensure immutability
+            const newRealm = {
+                ...prevRealm,
+                people: prevRealm.people.map(entity => {
+                    // Only modify the specific entity matching the ID
+                    if (entity.id === entityId) {
+                        const newEntity = { ...entity };
+
+                        newEntity.effects = newEntity.effects ? [...newEntity.effects] : [];
+
+                        if (effect.type === 'stat') {
+                            newEntity[effect.field] =
+                                (newEntity[effect.field] || newEntity.card[effect.field] || 0) + effect.value;
+                        } else if (effect.type === 'keyword') {
+                            newEntity.modifiedAbilities = new Set(newEntity.modifiedAbilities || (entity.card.abilities || []));
+                            newEntity.modifiedAbilities.add(effect.value);
+                        } else if (effect.type === 'status') {
+                            if (effect.status === 'Freeze') {
+                                newEntity.freeze = (newEntity.freeze || 0) + effect.amount;
+                                if (effect.amount > 0) {
+                                    newEntity.readied = false;
+                                }
+                                console.log(`${newEntity.card.name} gains ${effect.amount} Freeze (total Freeze: ${newEntity.freeze})`);
+                            } else if (effect.status === 'Decay') {
+                                newEntity.decay = (newEntity.decay || 0) + effect.amount;
+                                console.log(`${newEntity.card.name} gains ${effect.amount} Decay (total Decay: ${newEntity.decay})`);
+                            } else if (effect.status === 'Venom') {
+                                newEntity.venom = (newEntity.venom || 0) + effect.amount;
+                                console.log(`${newEntity.card.name} gains ${effect.amount} Venom (total Venom: ${newEntity.venom})`);
+                            }
+                        } else if (effect.type === 'setOnline') {
+                            newEntity.online = effect.value;
+                            console.log(`${newEntity.card.name} is set to online: ${newEntity.online}`);
+                        } else if (effect.type === 'swap') {
+                            // Handle swapping entities if needed
+                            // This could be a placeholder for more complex swap logic
+                            return effect.swapEntity;
+                        }
+
+                        if (effect.duration && effect.duration > 0) {
+                            newEntity.effects.push({
+                                ...effect,
+                                remainingDuration: effect.duration,
+                            });
+                        }
+
+                        console.log('_________________NEW ENTITY AFTER EFFECT ', newEntity);
+                        return newEntity;
+                    }
+
+                    // Return other entities unchanged
+                    return entity;
+                }),
+            };
+
+            return newRealm;
         });
     }
-    
-    
+
+
+
 
 
 
@@ -5358,25 +5525,25 @@ export function BoardContainer() {
     function getFriendlyEntities(side, realmName = null) {
         const realms = side === 'PLAYER' ? getAllPlayerRealms() : getAllEnemyRealms();
         let entities = [];
-    
+
         realms.forEach(realm => {
             if (!realmName || realm.name === realmName) {
                 entities = entities.concat(realm.people);
             }
         });
-    
+
         return entities;
     }
-    
+
     function getEnemyEntities(side, realmName = null) {
         const enemySide = getOppositeSide(side);
         return getFriendlyEntities(enemySide, realmName);
     }
-    
+
     function getAllPlayerRealms() {
         return [playerSolarium, playerUnderpass, playerGrid, playerTheater];
     }
-    
+
     function getAllEnemyRealms() {
         return [enemySolarium, enemyUnderpass, enemyGrid, enemyTheater];
     }
@@ -5532,11 +5699,6 @@ export function BoardContainer() {
                 }
 
                 // Handle status effects durations
-                if (newEntity.freeze > 0) {
-                    newEntity.freeze -= 1;
-                    console.log(`${newEntity.card.name} Freeze decreases to ${newEntity.freeze}`);
-                }
-
                 if (newEntity.decay > 0) {
                     // Handle damage and update entity state
                     handleDamage(realm.name, newEntity.id, newEntity.decay, newEntity.owner);
@@ -5574,63 +5736,6 @@ export function BoardContainer() {
             });
         });
         console.log(`All entities gain Freeze ${amount} due to Brain Freeze.`);
-    }
-
-    function applyEffect(entityId, realmName, owner, effect) {
-        console.log('APPLY EFFECT')
-        // Determine which realm and setter to use
-        const [realm, setRealm] = getRealmAndSetter(realmName, owner);
-
-        // Find the index of the entity in the realm's people array
-        const entityIndex = realm.people.findIndex((e) => e.id === entityId);
-        if (entityIndex === -1) return; // Entity not found
-
-        // Create a new entity object with updated fields
-        const oldEntity = realm.people[entityIndex];
-        const newEntity = { ...oldEntity };
-
-        // Initialize effects array if not present
-        newEntity.effects = newEntity.effects ? [...newEntity.effects] : [];
-
-        if (effect.type === 'stat') {
-            // Adjust the stat directly
-            newEntity[effect.field] =
-                (newEntity[effect.field] || newEntity.card[effect.field] || 0) + effect.value;
-        } else if (effect.type === 'keyword') {
-            // Add the keyword ability
-            newEntity.modifiedAbilities = new Set(newEntity.modifiedAbilities || newEntity.card.abilities || []);
-            newEntity.modifiedAbilities.add(effect.value);
-        } else if (effect.type === 'status') {
-            // Apply status effect (e.g., Freeze, Decay, Venom)
-            if (effect.status === 'Freeze') {
-                newEntity.freeze = (newEntity.freeze || 0) + effect.amount;
-                console.log(`${newEntity.card.name} gains ${effect.amount} Freeze (total Freeze: ${newEntity.freeze})`);
-            } else if (effect.status === 'Decay') {
-                newEntity.decay = (newEntity.decay || 0) + effect.amount;
-                console.log(`${newEntity.card.name} gains ${effect.amount} Decay (total Decay: ${newEntity.decay})`);
-            } else if (effect.status === 'Venom') {
-                newEntity.venom = (newEntity.venom || 0) + effect.amount;
-                console.log(`${newEntity.card.name} gains ${effect.amount} Venom (total Venom: ${newEntity.venom})`);
-            }
-        }
-
-        // Add effect to effects array if it has a duration
-        if (effect.duration && effect.duration > 0) {
-            newEntity.effects.push({
-                ...effect,
-                remainingDuration: effect.duration,
-            });
-        }
-
-        // Create a new people array with the updated entity
-        const newPeople = [...realm.people];
-        newPeople[entityIndex] = newEntity;
-
-        // Update the realm state
-        setRealm({
-            ...realm,
-            people: newPeople,
-        });
     }
 
     function getRealmAndSetter(realmName, owner) {
@@ -5729,6 +5834,7 @@ export function BoardContainer() {
                 onFocusSelect={handleFocusSelect}
                 focus={focus}
                 awaitingFocus={awaitingFocus}
+                awaitingImpostor={awaitingImpostor}
                 onQuest={handleQuest}
                 onRaid={handleRaid}
                 onHack={handleHack}
