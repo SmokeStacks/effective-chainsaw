@@ -89,6 +89,7 @@ export type Card = {
   override?: number;
   stealth?: number;
   armored?: number;
+  solo?: number;
 };
 
 export class CardEntity {

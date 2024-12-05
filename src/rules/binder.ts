@@ -504,13 +504,10 @@ const binder: Card[] = [
           name: "GainStealth",
           amount: 1,
         },
-      },
-      {
-        name: "Solo",
-        amount: 2, // Solo 2
-      },
+      }
     ],
     description: "Action ➔ Gain Stealth.",
+    solo: 2,
     magi: true,
     phys: false,
     tech: true,

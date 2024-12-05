@@ -160,6 +160,7 @@ class Gameboard extends Component {
                     </div>
                     {attackMode === 'PLAYER_QUEST' || attackMode === 'PLAYER_RAID' || attackMode === 'PLAYER_HACK' || attackMode === 'ENEMY_magi' || attackMode === 'ENEMY_phys' || attackMode === 'ENEMY_tech' ?
                         <div className={`battlefield ${battleRealm ? battleRealm.toLowerCase() : ''}`}>
+                            {battleRealm}
                             <BattlefieldCreatures cards={enemyBattleSlots} />
                             <BattlefieldCreatures cards={playerBattleSlots} onCardSelect={onBattleCardSelect} onSlotSelect={onSlotSelect} />
                         </div> :

@@ -77,7 +77,8 @@ class LCard extends Component {
     } = this.props.entity.card;
 
     const {
-      development
+      development,
+      wounds
     } = this.props.entity;
 
     const {
@@ -108,7 +109,7 @@ class LCard extends Component {
               <div className="location-body">
                 <div className="health">
                   <FeatherIcon className="stats-icon" icon="shield" />
-                  {HP}
+                  {HP-wounds}
                 </div>
               </div>
             </div>
