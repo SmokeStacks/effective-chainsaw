@@ -12,7 +12,8 @@ export function Solarium({ onRealmSelect, onRealmCardSelect, onAbilityClick, onR
                 <div className="creatures-container">
                     <RealmCreatures onCardSelect={onRealmCardSelect} cards={enemyState.people} isPlayerCard={false} />
                 </div>
-                <div className="slot-holder"></div>
+                <div className="places-container">
+                </div>
                 <div className="creatures-container player-container">
                     <RealmCreatures cards={playerState.people} onCardSelect={onRealmCardSelect} onAbilityClick={onAbilityClick} onRezPlayerCard={onRezPlayerCard} isPlayerCard={true} />
                 </div>

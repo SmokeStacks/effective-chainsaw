@@ -1,6 +1,7 @@
 //import "./styles.css";
 import React, { Component } from "react";
 import FeatherIcon from "feather-icons-react";
+import virus from "../../images/virus.png";
 
 class SCard extends Component {
   renderTypes(magi, phys, tech) {
@@ -86,7 +87,59 @@ class SCard extends Component {
       entity,
       imgSrc,
       onRezPlayerCard,
-  } = this.props;
+    } = this.props;
+
+    if (!entity.online && entity.owner === 'zeebo') {
+      return (
+        <div className={`card-container ${faction}`} onClick={() => onCardSelect(entity, inHand)}>
+          <div className="art-container">
+            <img className="art" src={virus} alt='virus' />
+            <div className="overlay-content">
+              <div className="top-container">
+                <div className="title-container">
+                  <div className="rez">
+                    <FeatherIcon className="eye-icon" icon="eye-off" />
+                  </div>
+                  <div className={`name name-rune ${faction}`}>Unknown</div>
+                </div>
+                {/* <div className="type rune-type">{category.toLowerCase()}</div> */}
+              </div>
+              {/* {this.renderTypes(magi, phys, tech)} */}
+              <div className="bottom-container">
+                {/* {runes ? (
+                  <div className="runes-container">
+                    <FeatherIcon className="icon star-icon" icon="star" />
+                    {runes}
+                  </div>
+                ) : null} */}
+                <div className="abilities">unknown</div>
+                {/* {description ? (
+                  <div className="description">{description}</div>
+                ) : null} */}
+                <div
+                  className={
+                    category === "SNIP" ? "location-body snip-body" : "location-body"
+                  }
+                >
+                  {/* {scrap ? (
+                    <div className="power">
+                      <FeatherIcon className="icon plot-icon" icon="trash-2" />
+                      {scrap}
+                    </div>
+                  ) : null} */}
+                </div>
+              </div>
+                <div className={`timer ${faction}`}>
+                  <div className="timer-content">
+                    <FeatherIcon className="icon plot-icon" icon="calendar" />
+                    {development ? `-${development}` : '?'}
+                  </div>
+                </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className={`card-container ${faction}`} onClick={() => onCardSelect(entity, inHand)}>
@@ -123,7 +176,7 @@ class SCard extends Component {
               <div className={`timer ${faction}`}>
                 <div className="timer-content">
                   <FeatherIcon className="icon plot-icon" icon="calendar" />
-                  {plot-development}
+                  {plot - development}
                 </div>
               </div>
             ) : null}

@@ -1,6 +1,8 @@
 //import "./styles.css";
 import React, { Component } from "react";
 import FeatherIcon from "feather-icons-react";
+import unknown from "../../images/unknown.png";
+
 
 class Card extends Component {
   renderSoulAshes(soul, ash) {
@@ -47,6 +49,16 @@ class Card extends Component {
     }
   }
 
+
+  renderHiddenSteps(steps, freeze) {
+    if(steps)
+    {
+      return(freeze > steps ? `${freeze - steps}` : `-${steps - freeze}`)
+    } else {
+      return(freeze)
+    }
+  }
+
   render() {
     const {
       name,
@@ -79,6 +91,58 @@ class Card extends Component {
       imgSrc,
       onRezPlayerCard,
     } = this.props;
+
+
+    if(!entity.online && entity.owner === 'zeebo') {
+      return (
+        <div className={`card-container ${faction}`} onClick={() => onCardSelect(entity, inHand)}>
+          <div className="art-container">
+            <img className="art" src={unknown} alt='unknown' />
+            <div className="overlay-content">
+              <div className="top-container">
+                <div className="title-container">
+                  <div className={`name ${faction}`}>Unknown</div>
+                  {online ?
+                    <div className="rez">
+                      <FeatherIcon className="eye-icon" icon="sun" />
+                      {rezCost}
+                    </div> :
+                    <div className="rez" onClick={() => onRezPlayerCard(entity)}>
+                      <FeatherIcon className="eye-icon" icon="eye-off" />
+                    </div>}
+                </div>
+                <div className="type">entity</div>
+                {/* {subTypes ? <div className="type">{subTypes}</div> : null} */}
+              </div>
+              {/* {this.renderSoulAshes(soul, ash)}
+              {this.renderTypes(magi, phys, tech)} */}
+              <div className="bottom-container">
+                <div className="abilities">unknown</div>
+                {/* {description ? (
+                  <div className="description">{description}</div>
+                ) : null} */}
+                <div className="body">
+                  <div className="power">
+                    ?
+                    <FeatherIcon className="stats-icon" icon="crosshair" />
+                  </div>
+                  <div className="health">
+                    <FeatherIcon className="stats-icon" icon="heart" />
+                    {wounds ? `-${wounds}` : '?'}
+                  </div>
+                </div>
+              </div>
+              <div className={`timer ${faction}`}>
+                <div className="timer-content">
+                  {this.renderHiddenSteps(steps, freeze)}
+                  <FeatherIcon className="icon timer-icon" icon="clock" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className={`card-container ${faction}`} onClick={() => onCardSelect(entity, inHand)}>

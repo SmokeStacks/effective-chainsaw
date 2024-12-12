@@ -1,4 +1,4 @@
-import { Card, Category, CostType, EffectType, SkillType, Trigger, Motive } from '../rules/cards';
+import { Card } from '../rules/cards';
 
 const cards: Card[] = [
     {
