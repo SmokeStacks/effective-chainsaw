@@ -5584,34 +5584,34 @@ export function BoardContainer() {
 
     async function activateAbilities(entity, side) {
         console.log('ACTIVATE ABILITIES ', entity);
-
+    
         // Set online first before processing abilities
-        await applyEffect(entity.id, entity.realm, side, { //todo1 set firstActivation to true
+        await applyEffect(entity.id, entity.realm, side, {
             type: 'setOnline',
             value: true,
         });
-
+    
         if (!entity.activeAbilities) {
             entity.activeAbilities = [];
         }
-
+    
         const abilities = entity.card.abilities || [];
         for (const ability of abilities) {
             console.log('activating ability ', ability);
             const abilityName = ability.name;
             let abilityDef = abilitiesDefinitions[abilityName];
-
+    
             if (abilityDef) {
                 if (typeof abilityDef === 'function') {
                     abilityDef = abilityDef(ability.amount);
                 }
-
+    
                 const isAbilityActive = entity.activeAbilities.some(ab => ab.abilityName === abilityName);
                 if (isAbilityActive) {
                     console.log(`Ability "${abilityName}" is already active for "${entity.card.name}". Skipping.`);
                     continue;
                 }
-
+    
                 if (abilityDef.type === 'static') {
                     abilityDef.applyEffect(entity, gameState, side);
                     entity.activeAbilities.push({ abilityName, abilityDef });
@@ -5637,72 +5637,82 @@ export function BoardContainer() {
             }
         }
     }
+    
 
 
     async function applyEffect(entityId, realmName, owner, effect) {
         console.log('________APPLY EFFECT', effect);
-
+    
         const [realm, setRealmFunction] = getRealmAndSetter(realmName, owner);
-
+    
         setRealmFunction(prevRealm => {
-            // Create a deep copy of the entire realm to ensure immutability
             const newRealm = {
                 ...prevRealm,
                 people: prevRealm.people.map(entity => {
-                    // Only modify the specific entity matching the ID
                     if (entity.id === entityId) {
-                        const newEntity = { ...entity };
-
-                        newEntity.effects = newEntity.effects ? [...newEntity.effects] : [];
-
-                        if (effect.type === 'stat') {
-                            newEntity[effect.field] =
-                                (newEntity[effect.field] || newEntity.card[effect.field] || 0) + effect.value;
-                        } else if (effect.type === 'keyword') {
-                            newEntity.modifiedAbilities = new Set(newEntity.modifiedAbilities || (entity.card.abilities || []));
-                            newEntity.modifiedAbilities.add(effect.value);
-                        } else if (effect.type === 'status') {
-                            if (effect.status === 'Freeze') {
-                                newEntity.freeze = (newEntity.freeze || 0) + effect.amount;
-                                if (effect.amount > 0) {
-                                    newEntity.readied = false;
-                                }
-                                console.log(`${newEntity.card.name} gains ${effect.amount} Freeze (total Freeze: ${newEntity.freeze})`);
-                            } else if (effect.status === 'Decay') {
-                                newEntity.decay = (newEntity.decay || 0) + effect.amount;
-                                console.log(`${newEntity.card.name} gains ${effect.amount} Decay (total Decay: ${newEntity.decay})`);
-                            } else if (effect.status === 'Venom') {
-                                newEntity.venom = (newEntity.venom || 0) + effect.amount;
-                                console.log(`${newEntity.card.name} gains ${effect.amount} Venom (total Venom: ${newEntity.venom})`);
-                            }
-                        } else if (effect.type === 'setOnline') {
-                            newEntity.online = effect.value;
-                            console.log(`${newEntity.card.name} is set to online: ${newEntity.online}`);
-                        } else if (effect.type === 'swap') {
-                            // Handle swapping entities if needed
-                            // This could be a placeholder for more complex swap logic
-                            return effect.swapEntity;
-                        }
-
-                        if (effect.duration && effect.duration > 0) {
-                            newEntity.effects.push({
-                                ...effect,
-                                remainingDuration: effect.duration,
-                            });
-                        }
-
-                        console.log('_________________NEW ENTITY AFTER EFFECT ', newEntity);
-                        return newEntity;
+                        return applyEffectToEntity(entity, effect);
                     }
-
-                    // Return other entities unchanged
+                    return entity;
+                }),
+                things: (prevRealm.things || []).map(entity => {
+                    if (entity.id === entityId) {
+                        return applyEffectToEntity(entity, effect);
+                    }
+                    return entity;
+                }),
+                places: (prevRealm.places || []).map(entity => {
+                    if (entity.id === entityId) {
+                        return applyEffectToEntity(entity, effect);
+                    }
                     return entity;
                 }),
             };
-
+    
             return newRealm;
         });
     }
+    
+    function applyEffectToEntity(entity, effect) {
+        const newEntity = { ...entity };
+        newEntity.effects = newEntity.effects ? [...newEntity.effects] : [];
+    
+        if (effect.type === 'stat') {
+            newEntity[effect.field] = (newEntity[effect.field] || newEntity.card[effect.field] || 0) + effect.value;
+        } else if (effect.type === 'keyword') {
+            newEntity.modifiedAbilities = new Set(newEntity.modifiedAbilities || (entity.card.abilities || []));
+            newEntity.modifiedAbilities.add(effect.value);
+        } else if (effect.type === 'status') {
+            if (effect.status === 'Freeze') {
+                newEntity.freeze = (newEntity.freeze || 0) + effect.amount;
+                if (effect.amount > 0) {
+                    newEntity.readied = false;
+                }
+                console.log(`${newEntity.card.name} gains ${effect.amount} Freeze (total Freeze: ${newEntity.freeze})`);
+            } else if (effect.status === 'Decay') {
+                newEntity.decay = (newEntity.decay || 0) + effect.amount;
+                console.log(`${newEntity.card.name} gains ${effect.amount} Decay (total Decay: ${newEntity.decay})`);
+            } else if (effect.status === 'Venom') {
+                newEntity.venom = (newEntity.venom || 0) + effect.amount;
+                console.log(`${newEntity.card.name} gains ${effect.amount} Venom (total Venom: ${newEntity.venom})`);
+            }
+        } else if (effect.type === 'setOnline') {
+            newEntity.online = effect.value;
+            console.log(`${newEntity.card.name} is set to online: ${newEntity.online}`);
+        } else if (effect.type === 'swap') {
+            return effect.swapEntity;
+        }
+    
+        if (effect.duration && effect.duration > 0) {
+            newEntity.effects.push({
+                ...effect,
+                remainingDuration: effect.duration,
+            });
+        }
+    
+        console.log('_________________NEW ENTITY AFTER EFFECT ', newEntity);
+        return newEntity;
+    }
+    
 
 
 

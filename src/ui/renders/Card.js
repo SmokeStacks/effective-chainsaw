@@ -93,7 +93,7 @@ class Card extends Component {
     } = this.props;
 
 
-    if(!entity.online && entity.owner === 'zeebo') {
+    if(!entity.online && entity.owner === 'ENEMY') {
       return (
         <div className={`card-container ${faction}`} onClick={() => onCardSelect(entity, inHand)}>
           <div className="art-container">

@@ -80,6 +80,7 @@ export type Card = {
   timer?: number;
   scrap?: number;
   abilities?: object[];
+  trap?: boolean;
   soulless?: boolean;
   locality?: boolean;
   aggressive?: boolean;

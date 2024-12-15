@@ -48,7 +48,7 @@ class SCard extends Component {
           <div className="title-container">
             <div className={`name ${faction}`}>{name}</div>
             <div className="rez" onClick={() => onRezPlayerCard(entity)}>
-              <FeatherIcon className="eye-icon" icon={`${online ? 'eye-off' : 'sun'}`} />
+              <FeatherIcon className="eye-icon" icon={`${online ? 'sun' : 'eye-off'}`} />
               {rezCost}
             </div>
           </div>
@@ -89,7 +89,7 @@ class SCard extends Component {
       onRezPlayerCard,
     } = this.props;
 
-    if (!entity.online && entity.owner === 'zeebo') {
+    if (!entity.online && entity.owner === 'ENEMY') {
       return (
         <div className={`card-container ${faction}`} onClick={() => onCardSelect(entity, inHand)}>
           <div className="art-container">
