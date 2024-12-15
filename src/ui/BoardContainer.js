@@ -12,6 +12,7 @@ import BidInputModal from './BidInputModal';
 import { eventManager } from "./Tools";
 
 import Gameboard from './Gameboard';
+import CardDisplay from './CardDisplay';
 
 import { Realm, SharedSlot } from '../rules/cards.ts'
 import { cardList1 } from '../playerDecks/deckTwo.ts'
@@ -112,6 +113,7 @@ export function BoardContainer() {
             };
             libraryInstanceArray.push(cardEntityInstance);
         }
+        shuffle(libraryInstanceArray);
         return libraryInstanceArray;
     };
 
@@ -289,20 +291,30 @@ export function BoardContainer() {
     const [recruiterCount, setRecruiterCount] = useState(0);
     const [enemyRecruiterCount, setEnemyRecruiterCount] = useState(0); // todo
 
-    const showModal = ({ title, message, renderContent, onCancel }) => {
+    function showModal({ title, message, renderContent, onConfirm, onCancel }) {
         setModalProps({
             title,
             message,
             renderContent,
             onConfirm: () => {
+                // Call the user's onConfirm callback before closing
+                if (onConfirm && typeof onConfirm === 'function') {
+                    onConfirm();
+                }
                 setModalVisible(false);
             },
             onCancel: () => {
+                // Call the user's onCancel callback before closing
+                if (onCancel && typeof onCancel === 'function') {
+                    onCancel();
+                }
                 setModalVisible(false);
             },
         });
+    
         setModalVisible(true);
-    };
+    }
+    
 
     function startTurn(currentPriorityLeft) {
         console.log('start turn', currentPriorityLeft)
@@ -1815,10 +1827,6 @@ export function BoardContainer() {
         });
     }
 
-
-
-
-
     const handleEmptySlotSelect = (slotIndex) => {
         if (playerBattleSlots[slotIndex]) {
             return; // Return early if slot is not empty
@@ -1827,6 +1835,10 @@ export function BoardContainer() {
         if (selectedCard) {
             if (battleRealm && selectedCard.realm !== battleRealm) {
                 console.log('Chosen card does not match: ', battleRealm)
+                return;
+            }
+            if (!selectedCard.readied) {
+                console.log('Chosen card is not readied', selectedCard)
                 return;
             }
             if (!battleRealm) {
@@ -1872,7 +1884,6 @@ export function BoardContainer() {
             });
             setSelectedCard(null);
             setDraftSelected(false);
-            setBattleRealm(selectedCard.realm.name);
         }
     };
 
@@ -2604,21 +2615,21 @@ export function BoardContainer() {
                     }
                     break;
                 case 'ENEMY_magi':
-                    playerGainFate(attackerPower);
-                    break;
-                case 'PLAYER_QUEST':
                     enemyGainFate(attackerPower);
                     break;
+                case 'PLAYER_QUEST':
+                    playerGainFate(attackerPower);
+                    break;
                 case 'ENEMY_tech':
-                case 'PLAYER_HACK':
-                    // Handle unblocked hacking
                     if (attackerPower > 0) {
                         unblockedHacking = true;
-                        if (attackMode === 'PLAYER_HACK') {
-                            setPlayerSurge(prevSurge => prevSurge + attackerPower);
-                        } else {
-                            setEnemySurge(prevSurge => prevSurge + attackerPower);
-                        }
+                        setEnemySurge(prevSurge => prevSurge + attackerPower);
+                    }
+                    break;
+                case 'PLAYER_HACK':
+                    if (attackerPower > 0) {
+                        unblockedHacking = true;
+                        setPlayerSurge(prevSurge => prevSurge + attackerPower);
                     }
                     break;
                 default:
@@ -2791,8 +2802,7 @@ export function BoardContainer() {
         accessNextCard();
     }
 
-    function presentAccessedCard(card, battleRealm, side, callback) {
-        displayCardToPlayer(card);
+    async function presentAccessedCard(card, battleRealm, side, callback) {
         let location;
         let currentTargetType;
         if (side === 'PLAYER') {
@@ -2800,39 +2810,52 @@ export function BoardContainer() {
         } else {
             currentTargetType = enemyTargetType;
         }
+    
         if (currentTargetType === 'PANDORA' || currentTargetType === 'HEADSPACE') {
             location = currentTargetType;
         } else {
             location = battleRealm;
         }
-
-        // Handle card-specific interactions
-        if (card.card.category === 'SYM' || card.card.category === 'LANDMARK') {
-            handleStolenCard(card, location, side, false, () => {
-                callback(); // Proceed after handling stolen card
-            });
-        } else if (card.card.category === 'SNIP') {
-            eventManager.publish('snipAccessed', { card, side });
-            if (side === 'PLAYER') {
-                promptPlayerToTrashCard(card, location, side, () => {
-                    callback(); // Proceed after player decision
-                });
-            } else {
-                handleEnemyTrashCard(card, location, side, () => {
-                    callback(); // Proceed after enemy decision
-                });
-            }
-        } else {
-            console.log('handle exposed')
-            handleExposedCard(card, location, side, () => {
-                callback(); // Proceed after exposing card
-            });
-        }
-    }
-
-
-    function displayCardToPlayer(card) {
-        console.log(`Accessed: ${card.card.name}`);
+        await sleep(100);
+        showModal({
+            title: `Accessed: ${card.card.name}`,
+            message: side === 'PLAYER'
+                ? `You have accessed ${card.card.name}.`
+                : `The enemy has accessed ${card.card.name}.`,
+            renderContent: () => (
+                <div>
+                    <CardDisplay entity={card} revealed={true} />
+                </div>
+            ),
+            onConfirm: () => {
+                if (card.card.category === 'SYM' || card.card.category === 'LANDMARK') {
+                    handleStolenCard(card, location, side, false, () => {
+                        callback(); 
+                    });
+                } else if (card.card.category === 'SNIP') {
+                    eventManager.publish('snipAccessed', { card, side });
+                    if (side === 'PLAYER') {
+                        promptPlayerToTrashCard(card, location, side, () => {
+                            callback();
+                        });
+                    } else {
+                        handleEnemyTrashCard(card, location, side, () => {
+                            callback();
+                        });
+                    }
+                } else {
+                    console.log('_________________handle exposed')
+                    // For exposed card or any other category (like a normal ENTITY)
+                    handleExposedCard(card, location, side, () => {
+                        callback(); 
+                    });
+                }
+            },
+            onCancel: () => {
+                // If canceled, just proceed without any changes since no decision is needed
+                callback();
+            },
+        });
     }
 
     const handleStolenCard = (card, location, side, scrap, callback) => {
@@ -2931,130 +2954,129 @@ export function BoardContainer() {
     };
 
 
-    function promptPlayerToTrashCard(card, location, side, callback) {
-        // Display the card and prompt to the player
-        console.log(`You may pay ${card.card.trashCost} to trash ${card.card.name}.`);
-        displayTrashPrompt(card, (playerChoosesToTrash) => {
-            if (playerChoosesToTrash) { // todo
-                // Deduct cost from player resources
-                playerLoseBits(card.card.scrap);
-                handleStolenCard(card, location, side, true, () => {
-                    callback(); // Proceed after handling stolen card
-                });
-                // Implement your resource deduction logic here
-                removeFromRealm(card, card.realm, side);
-
-
-                console.log(`${card.card.name} has been trashed.`);
-            } else {
-                console.log(`You chose not to trash ${card.card.name}.`);
-            }
-            // Proceed to the next action
-            callback();
-        });
-    }
-
-    function handleEnemyTrashCard(card, location, side, callback) {
-        console.log(`Enemy attempts to pay ${card.card.trashCost} to trash ${card.card.name}.`);
-        if (enemyBits >= card.card.trashCost) { // todo display prompt
-            // Deduct cost from player resources
-            enemyLoseBits(card.card.scrap);
-            handleStolenCard(card, location, side, true, () => {
-                callback(); // Proceed after handling stolen card
-            });
-        }
-        // Proceed to the next action
-        callback();
-    };
-
-    function displayTrashPrompt(card, decisionCallback) {
+    async function promptPlayerToTrashCard(card, location, side, callback) { //todo1 check if afford
+        await sleep(100);
         showModal({
             title: `Delete ${card.card.name}?`,
             message: `You may pay ${card.card.scrap} to trash this card.`,
+            renderContent: () => (
+                <div>
+                    <CardDisplay entity={card} revealed={true} />
+                </div>
+            ),
             onConfirm: () => {
-                decisionCallback(true);
+                // Player chooses to trash
+                if(playerBits >= card.card.trashCost) {
+                    playerLoseBits(card.card.scrap);
+                    handleStolenCard(card, location, side, true, () => {
+                        callback();
+                    });
+                } else {
+                    callback();
+                }
             },
             onCancel: () => {
-                decisionCallback(false);
+                // Player chooses not to trash
+                callback();
             },
         });
     }
 
-    function handleTrashDecision(decision) {
-        setTrashPromptVisible(false);
-        if (decisionCallback) {
-            decisionCallback(decision);
-        }
+    async function handleEnemyTrashCard(card, location, side, callback) {
+        // For the enemy, we might also show a modal, but no decision needed from the player
+        await sleep(100);
+        showModal({
+            title: `Enemy Action`,
+            message: `The enemy may pay ${card.card.trashCost} to trash ${card.card.name}.`,
+            renderContent: () => (
+                <div>
+                    <CardDisplay entity={card} revealed={true} />
+                </div>
+            ),
+            onConfirm: () => {
+                if (enemyBits >= card.card.trashCost) {
+                    enemyLoseBits(card.card.scrap);
+                    handleStolenCard(card, location, side, true, () => {
+                        callback();
+                    });
+                } else {
+                    callback();
+                }
+            },
+            onCancel: () => {
+                callback();
+            },
+        });
     }
 
-    function handleExposedCard(card, location, side, callback) {
-        //console.log('expose ', card)
-        console.log('exposed from ', location)
-
-        // Check if the card is already exposed
-        if (!card.exposed) {
-            // Mark the card as exposed
-            card.exposed = true;
-            console.log(`${card.card.name} is now exposed.`);
-
-            // Inflict 2 Overload on the opponent
-            if (side === 'ENEMY') {
-                playerGainOverload(2);
-            } else {
-                enemyGainOverload(2);
-            }
-
-            // Update the card in the relevant array
-            if (location === 'HEADSPACE') {
-                if (side === 'PLAYER') {
-                    console.log('update enemy hand')
-                    setEnemyHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
+    async function handleExposedCard(card, location, side, callback) {
+        console.log('_________________Expose invoked');
+        await sleep(100);
+        showModal({
+            title: `Exposed Card: ${card.card.name}`,
+            message: `You have exposed ${card.card.name}.`,
+            renderContent: () => (
+                <div>
+                    <CardDisplay entity={card} revealed={true} />
+                </div>
+            ),
+            onConfirm: () => {
+                // Proceed with original exposed logic after confirm
+                if (!card.exposed) {
+                    card.exposed = true;
+                    if (side === 'ENEMY') {
+                        playerGainOverload(1);
+                    } else {
+                        enemyGainOverload(1);
+                    }
+    
+                    if (location === 'HEADSPACE') {
+                        if (side === 'PLAYER') {
+                            setEnemyHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
+                        } else {
+                            setPlayerHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
+                        }
+                    } else if (location === 'PANDORA') {
+                        if (side === 'PLAYER') {
+                            setEnemyLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
+                        } else {
+                            setPlayerLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
+                        }
+                    }
                 } else {
-                    console.log('update player hand')
-                    setPlayerHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
+                    // Already exposed, discard
+                    if (side === 'ENEMY') {
+                        playerGainOverload(4);
+                    } else {
+                        enemyGainOverload(4);
+                    }
+    
+                    if (location === 'HEADSPACE') {
+                        if (side === 'PLAYER') {
+                            setEnemyHand(prevHand => prevHand.filter(c => c.id !== card.id));
+                            setEnemyGraveyard(prev => [...prev, card]);
+                        } else {
+                            setPlayerHand(prevHand => prevHand.filter(c => c.id !== card.id));
+                            setPlayerGraveyard(prev => [...prev, card]);
+                        }
+                    } else if (location === 'PANDORA') {
+                        if (side === 'PLAYER') {
+                            setEnemyLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
+                            setEnemyGraveyard(prev => [...prev, card]);
+                        } else {
+                            setPlayerLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
+                            setPlayerGraveyard(prev => [...prev, card]);
+                        }
+                    }
                 }
-            } else if (location === 'PANDORA') {
-                if (side === 'PLAYER') {
-                    setEnemyLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
-                } else {
-                    setPlayerLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
-                }
-            }
-        } else {
-            // Card is already exposed
-            console.log(`${card.card.name} was already exposed and is now discarded.`);
-
-            // Inflict 3 Overload on the opponent
-            if (side === 'ENEMY') {
-                playerGainOverload(3);
-            } else {
-                enemyGainOverload(3);
-            }
-
-            // Remove the card from the player's or enemy's zone and add to graveyard
-            if (location === 'HEADSPACE') {
-                if (side === 'PLAYER') {
-                    setEnemyHand(prevHand => prevHand.filter(c => c.id !== card.id));
-                    setEnemyGraveyard(prevGraveyard => [...prevGraveyard, card]);
-                } else {
-                    setPlayerHand(prevHand => prevHand.filter(c => c.id !== card.id));
-                    setPlayerGraveyard(prevGraveyard => [...prevGraveyard, card]);
-                }
-            } else if (location === 'PANDORA') {
-                if (side === 'PLAYER') {
-                    setEnemyLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
-                    setEnemyGraveyard(prevGraveyard => [...prevGraveyard, card]);
-                } else {
-                    setPlayerLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
-                    setPlayerGraveyard(prevGraveyard => [...prevGraveyard, card]);
-                }
-            }
-        }
-
-        // Execute the callback function
-        if (callback) {
-            callback();
-        }
+    
+                callback();
+            },
+            onCancel: () => {
+                // Even if cancel is clicked, just proceed
+                callback();
+            },
+        });
     }
 
     function applyOverrideDamage(attacker, excessDamage, side, currentRealm) {
@@ -5440,7 +5462,7 @@ export function BoardContainer() {
         },
         'InflictOverloadAndLag': {
             name: 'InflictOverloadAndLag',
-            type: 'onEnter',
+            type: 'onActivate',
             onActivate: function (entity, gameState, side) {
                 // Inflict Overload and Lag on the opponent
                 if (side === 'PLAYER') {
@@ -5455,7 +5477,7 @@ export function BoardContainer() {
         },
         'Gravity': {
             name: 'Gravity',
-            type: 'onEnter',
+            type: 'onActivate',
             onActivate: function (entity, gameState, side) {
                 if (side === 'PLAYER') {
                     playerGainLag(1);
@@ -5526,7 +5548,7 @@ export function BoardContainer() {
         },
         'OnEnterGainActions': {
             name: 'OnEnterGainActions',
-            type: 'onEnter',
+            type: 'onActivate',
             onActivate: function (entity, gameState, side) {
                 const actionsGained = entity.card.abilities.find(a => a.name === 'OnEnterGainActions').actionsGained || 0;
                 if (side === 'PLAYER') {
@@ -6084,7 +6106,6 @@ export function BoardContainer() {
                 battleRealm={battleRealm}
                 trashPromptVisible={trashPromptVisible}
                 currentPromptCard={currentPromptCard}
-                handleTrashDecision={handleTrashDecision}
                 modalVisible={modalVisible}
                 modalProps={modalProps}
             />

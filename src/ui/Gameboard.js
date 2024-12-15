@@ -97,7 +97,6 @@ class Gameboard extends Component {
             onHack,
             trashPromptVisible,
             currentPromptCard,
-            handleTrashDecision,
             modalVisible,
             modalProps,
         } = this.props;

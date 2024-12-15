@@ -87,9 +87,10 @@ class SCard extends Component {
       entity,
       imgSrc,
       onRezPlayerCard,
+      revealed
     } = this.props;
 
-    if (!entity.online && entity.owner === 'ENEMY') {
+    if (!entity.online && entity.owner === 'ENEMY' && !revealed) {
       return (
         <div className={`card-container ${faction}`} onClick={() => onCardSelect(entity, inHand)}>
           <div className="art-container">

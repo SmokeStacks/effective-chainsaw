@@ -500,6 +500,10 @@ p {
   height: 33.3%;
 }
 
+.things-places-container {
+  display: flex;
+}
+
 /* Specific realm styles */
 .solarium {
   background-color: black;

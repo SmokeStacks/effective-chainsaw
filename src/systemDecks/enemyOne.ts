@@ -1,28 +1,7 @@
 import { Card, Category, EffectType, SkillType, Trigger } from '../rules/cards';
 
 const enemyOne: Card[] = [
-    
-    {
-        faction: 'orange-border',
-        id: 118, // Replace with a specific ID if needed
-        category: "SNIP",
-        name: "Quantum Stabilizer",
-        rezCost: 2,
-        soul: 0,
-        ash: 0,
-        scrap: 3,
-        abilities: [
-            {
-                name: "PandoraAccess",
-                type: "static",
-            },
-        ],
-        description: "When you Interface Pandora, Interface 1 additional card.",
-        magi: true,
-        phys: false,
-        tech: true,
-    },
-    {
+        {
         faction: 'orange-border',
         id: 107, // Unique ID
         name: "BluTooth",
@@ -693,7 +672,7 @@ const enemyOne: Card[] = [
         ash: 0,
         HP: 6,
         runes: 4,
-        plot: 1,
+        plot: 5,
         abilities: [{ name: "ForgottenIslandAscend" }],
         description: "Ascend ➔ +10 Bits.",
         magi: true,
