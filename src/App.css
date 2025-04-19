@@ -96,6 +96,14 @@
   border-color: #23d620;
 }
 
+.neutral-border.timer {
+  background: #242323; /* Added #23d620 background */
+}
+
+.neutral-border {
+  border-color: #242323;
+}
+
 .orange-border.timer {
   background: #f75f07; /* Added #23d620 background */
 }
@@ -113,11 +121,11 @@
 }
 
 .gray-border.timer {
-  background: #707070; /* Added #23d620 background */
+  background: #919191; /* Added #23d620 background */
 }
 
 .gray-border {
-  border-color: #707070;
+  border-color: #919191;
 }
 
 .art-container {
@@ -498,6 +506,10 @@ p {
 
 .creatures-container, .places-container, .things-places-container, .things-container {
   height: 33.3%;
+}
+
+.enemy-things-places-container, .player-things-places-container {
+  display: flex;
 }
 
 .things-places-container {

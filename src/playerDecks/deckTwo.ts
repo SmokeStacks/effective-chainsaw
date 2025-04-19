@@ -1,6 +1,6 @@
 import { Card, Category, EffectType, SkillType, Trigger } from '../rules/cards';
 
-const deckTwo: Card[] = [
+const deckTwo: Card[] = [ 
   {
     faction: 'orange-border',
     id: 101,

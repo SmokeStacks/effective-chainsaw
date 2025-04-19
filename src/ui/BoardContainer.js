@@ -75,7 +75,7 @@ export function BoardContainer() {
             };
             libraryInstanceArray.push(cardEntityInstance);
         }
-        shuffle(libraryInstanceArray);
+        //shuffle(libraryInstanceArray);
         return libraryInstanceArray;
     };
 
@@ -724,7 +724,6 @@ export function BoardContainer() {
 
             for (const { realm, name, aspects } of realms) {
                 for (const aspect of aspects) {
-                    console.log('__________________realm people', realm.people)
                     const matchingCreatures = realm.people.filter(
                         creature => creature.card[aspect] && creature.online && creature.readied && !creature.card.defensive
                     );
@@ -1788,16 +1787,19 @@ export function BoardContainer() {
         const totalCosmicValue = soulSelections.reduce((sum, card) => sum + (card.cosmic || 1), 0);
 
         if (totalCosmicValue >= rezCard.card.soul) {
+            let selectionArray = [];
             soulSelections.forEach(card => {
                 // Handle Covenant
                 if (!card.card.covenant) {
-                    handleDeadCard(card.realm, card.id, 'PLAYER');
+                    //handleDeadCard(card.realm, card.id, 'PLAYER');
+                    selectionArray.push({location: card.realm, entityId: card.id})
                 } else {
                     console.log(`${card.card.name} has Covenant and is not destroyed.`);
                 }
                 // Regardless of Covenant, mark the card as having been used for sacrifice
                 //setCardSacrificed(card.realm, card.id, false);
             });
+            handleDeadCards(selectionArray, 'PLAYER');
             setSoulSelections([]);
             setAwaitingSacrifices(false);
         } else {
@@ -2298,10 +2300,10 @@ export function BoardContainer() {
 
         if (unblockedHacking && attackMode === 'PLAYER_HACK') {
             setPlayerInterfaced(true);
-            if (enemyTargetType === 'HEADSPACE') {
+            if (targetType === 'HEADSPACE') {
                 setPlayerInterfacedHeadSpace(true);
             }
-            if (enemyTargetType === 'PANDORA') {
+            if (targetType === 'PANDORA') {
                 setPlayerInterfacedPandora(true);
             }
             eventManager.publish('successfulHack', {
@@ -3343,9 +3345,118 @@ export function BoardContainer() {
         } else {
             console.error(`Card with ID ${entityId} not found in ${location} for side ${side}`);
         }
-
-        setAwaitingSacrifices(false); // Indicate that sacrifices are complete
     }
+
+    function getGlobalEntityById(entityId, side, realmName) {
+        const [realm, _] = getRealmAndSetter(realmName, side);
+    
+        // Search the people array in the given realm for the entity
+        const foundEntity = realm.people.find(card => card.id === entityId);
+        return foundEntity || null;
+    }
+    
+
+    function handleDeadCards(deadList, side) {
+        if (!deadList || deadList.length === 0) return;
+    
+        // We will first gather all entities before removing them from the realms.
+        // This way we can deactivate abilities and handle deathless logic while we still have the entities.
+        const allEntities = [];
+        for (const { location, entityId } of deadList) {
+            const [realm] = getRealmAndSetter(location, side);
+            // Search people, things, and places arrays for the entity
+            let entity = realm.people.find(card => card.id === entityId);
+            if (!entity && realm.things) {
+                entity = realm.things.find(card => card.id === entityId);
+            }
+            if (!entity && realm.places) {
+                entity = realm.places.find(card => card.id === entityId);
+            }
+    
+            if (entity) {
+                allEntities.push({ location, entity });
+            } else {
+                console.error(`Card with ID ${entityId} not found in ${location} for side ${side}`);
+            }
+        }
+    
+        // Deactivate abilities and handle deathless etc. before removal
+        for (const { location, entity } of allEntities) {
+            deactivateAbilities(entity, side);
+            eventManager.publish('entityDied', { entityId: entity.id, realmName: location, owner: side });
+    
+            if (side === 'PLAYER') {
+                playerGainAshes(1);
+            } else {
+                enemyGainAshes(1);
+            }
+    
+            const hasDeathless = entity.deathless > 0;
+            if (hasDeathless) {
+                const resetCard = {
+                    ...entity,
+                    power: entity.card.power || 0,
+                    HP: entity.card.HP || 0,
+                    wounds: 0,
+                    exposed: false,
+                    scored: false,
+                    online: false,
+                    readied: false,
+                    ascended: false,
+                    steps: 0,
+                    freeze: 0,
+                    decay: 0,
+                    venom: 0,
+                    charge: entity.card.charge || 0,
+                    sacrificed: false,
+                    cosmic: entity.card.cosmic || 1,
+                    deathless: entity.deathless || 0,
+                    pounce: entity.pounce || 0,
+                    override: entity.override || 0,
+                    stealth: entity.stealth || 0,
+                    armored: entity.armored || 0,
+                    solo: entity.solo || 0,
+                    statusEffects: {},
+                };
+    
+                if (side === 'PLAYER') {
+                    setPlayerHand(prev => [...prev, resetCard]);
+                } else {
+                    setEnemyHand(prev => [...prev, resetCard]);
+                }
+    
+                console.log(`${entity.card.name} is Deathless and returns to HeadSpace.`);
+            } else {
+                if (side === 'PLAYER') {
+                    setPlayerGraveyard(prev => [...prev, entity]);
+                } else {
+                    setEnemyGraveyard(prev => [...prev, entity]);
+                }
+            }
+        }
+    
+        // Now remove them from their realms after we’ve handled all logic
+        const realmGroups = {};
+        for (const { location, entity } of allEntities) {
+            if (!realmGroups[location]) {
+                realmGroups[location] = [];
+            }
+            realmGroups[location].push(entity.id);
+        }
+    
+        for (const location in realmGroups) {
+            const idsToRemove = realmGroups[location];
+            const [realm, setRealm] = getRealmAndSetter(location, side);
+    
+            setRealm(prevRealm => ({
+                ...prevRealm,
+                people: prevRealm.people.filter(card => !idsToRemove.includes(card.id)),
+                things: prevRealm.things ? prevRealm.things.filter(card => !idsToRemove.includes(card.id)) : prevRealm.things,
+                places: prevRealm.places ? prevRealm.places.filter(card => !idsToRemove.includes(card.id)) : prevRealm.places,
+            }));
+        }
+    }
+    
 
 
 
@@ -3596,7 +3707,7 @@ export function BoardContainer() {
                 (ability) => typeof ability === 'object' && ability.requiresTarget
             );
 
-            ritualAbilities.forEach((ability) => {
+            ritualAbilities.forEach((ability) => { //todo1 test
                 if (ability.requiresTarget) {
                     const abilityDef = abilitiesDefinitions[ability.name];
                     if (abilityDef && abilityDef.targetFilter) {
@@ -6064,6 +6175,8 @@ export function BoardContainer() {
                 playerBurden={playerBurden}
                 playerAshes={playerAshes}
                 playerSurge={playerSurge}
+                playerInterfacedHeadSpace={playerInterfacedHeadSpace}
+                playerInterfacedPandora={playerInterfacedPandora}
                 enemyActions={enemyActions}
                 enemyFate={enemyFate}
                 enemyWounds={enemyWounds}
@@ -6072,6 +6185,8 @@ export function BoardContainer() {
                 enemyBurden={enemyBurden}
                 enemyAshes={enemyAshes}
                 enemySurge={enemySurge}
+                enemyInterfacedHeadSpace={enemyInterfacedHeadSpace}
+                enemyInterfacedPandora={enemyInterfacedPandora}
                 playerSolarium={playerSolarium}
                 playerTheater={playerTheater}
                 playerUnderpass={playerUnderpass}

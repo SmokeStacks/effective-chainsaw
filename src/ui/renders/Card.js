@@ -96,13 +96,13 @@ class Card extends Component {
 
     if(!entity.online && entity.owner === 'ENEMY' && !revealed) {
       return (
-        <div className={`card-container ${faction}`} onClick={() => onCardSelect(entity, inHand)}>
+        <div className={`card-container neutral-border`} onClick={() => onCardSelect(entity, inHand)}>
           <div className="art-container">
             <img className="art" src={unknown} alt='unknown' />
             <div className="overlay-content">
               <div className="top-container">
                 <div className="title-container">
-                  <div className={`name ${faction}`}>Unknown</div>
+                  <div className={`name neutral-border`}>Unknown</div>
                   {online ?
                     <div className="rez">
                       <FeatherIcon className="eye-icon" icon="sun" />
@@ -133,7 +133,7 @@ class Card extends Component {
                   </div>
                 </div>
               </div>
-              <div className={`timer ${faction}`}>
+              <div className={`timer neutral-border`}>
                 <div className="timer-content">
                   {this.renderHiddenSteps(steps, freeze)}
                   <FeatherIcon className="icon timer-icon" icon="clock" />
