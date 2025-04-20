@@ -56,6 +56,8 @@ export type Keyword = 'POUNCE' | 'OVERRIDE' | 'DEVOUR' | 'STREAMING' | 'HASTE' |
 
 export type Subtype = 'JAWbreaker' | 'JAW';
 
+export type RealmName = 'Solarium' | 'Theater' | 'Underpass' | 'Grid' | 'Elysium';
+
 export type Card = {
   faction: string,
   id: number;
@@ -74,7 +76,7 @@ export type Card = {
   scheming?: boolean;
   magi: Boolean;
   phys: Boolean;
-  tech: Boolean
+  tech: Boolean;
   power?: number;
   HP?: number;
   timer?: number;
@@ -102,7 +104,6 @@ export class CardEntity {
   readied: boolean;
   exposed: boolean;
   scored: boolean;
-  realm: RealmName;
 
   constructor(id: string, card: Card) {
     this.id = id;
@@ -113,6 +114,7 @@ export class CardEntity {
     this.readied = false;
     this.exposed = false;
     this.scored = false;
+    // realm will be set when the card is played
   }
 }
 
@@ -180,8 +182,6 @@ export class SharedSlot {
       this.type = typeSpec;
   }
 }
-
-export type RealmName = 'SOLARIUM' | 'THEATER' | 'UNDERPASS' | 'GRID';
 
 export type Roadmap = { // indication of where a card should be played
   realmName: RealmName;
