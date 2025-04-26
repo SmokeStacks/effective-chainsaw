@@ -3,6 +3,27 @@ import { Card, Category, EffectType, SkillType, Trigger } from '../rules/cards';
 const deckTwo: Card[] = [ 
   {
     faction: 'orange-border',
+    id: 124,
+    category: "RITUAL",
+    name: "Multi Threading",
+    rezCost: 1,
+    soul: 0,
+    ash: 0,
+    abilities: [
+      { name: "Duplicate", amount: 1 },
+      {
+        name: "MultiThreadingEffect",
+        type: "onPlay",
+        requiresTarget: true,
+      },
+    ],
+    description: "Duplicate. Draw 2, Boost an entity, and perform a Hack.",
+    magi: false,
+    phys: false,
+    tech: true,
+  },
+  {
+    faction: 'orange-border',
     id: 101,
     name: "SilkWorm",
     category: "ENTITY",
@@ -627,7 +648,7 @@ const deckTwo: Card[] = [
         requiresTarget: true,
       },
     ],
-    description: "Draw 2, Boost an entity, and perform a Hack.",
+    description: "Duplicate. Draw 2, Boost an entity, and perform a Hack.",
     magi: false,
     phys: false,
     tech: true,

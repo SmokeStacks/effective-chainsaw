@@ -781,7 +781,7 @@ const deckTwo: Card[] = [
         requiresTarget: true,
       },
     ],
-    description: "Draw 2, Boost an entity, and perform a Hack.",
+    description: "Duplicate. Draw 2, Boost an entity, and perform a Hack.",
     magi: false,
     phys: false,
     tech: true,
