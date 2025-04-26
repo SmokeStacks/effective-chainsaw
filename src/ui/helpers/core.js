@@ -1,11 +1,21 @@
-function endPlayerTurn() {
-    setSelectedCard(null);
-    setSelectedInHand(false);
-    setDraftSelected(false);
-    setTargetType('none');
-    setPendingRitual(null);
-    setTargetSelection({ enabled: false });
-    setCurrentPlayer('ENEMY');
+import { eventManager } from '../Tools';
+import { gameState, setters } from './state';
+import { 
+    getOppositeSide,
+    getRealmAndSetter,
+    getAllPlayerRealms,
+    getAllEnemyRealms,
+    willEntitySurvive
+} from './utils';
+
+export function endPlayerTurn() {
+    setters.setSelectedCard(null);
+    setters.setSelectedInHand(false);
+    setters.setDraftSelected(false);
+    setters.setTargetType('none');
+    setters.setPendingRitual(null);
+    setters.setTargetSelection({ enabled: false });
+    setters.setCurrentPlayer('ENEMY');
 }
 
 const handleRealmSelect = (realmName) => {
@@ -705,39 +715,35 @@ function enemyGainOverload(num) {
 }
 
 function playerGainOverload(num) {
-    setPlayerOverload(prevOverload => prevOverload + num);
+    setters.setPlayerOverload(prevOverload => prevOverload + num);
 }
 
-function playerGainBits(num) {
+export function playerGainBits(num) {
     let remainingBits = num;
 
-    if (playerOverload > 0) {
-        const newOverload = playerOverload - num;
-
-        remainingBits = Math.max(0, newOverload * -1);
-        setPlayerOverload(Math.max(0, newOverload));
+    if (gameState.playerOverload > 0) {
+        remainingBits = Math.max(0, remainingBits - gameState.playerOverload);
     }
-    setPlayerBits(prevBits => prevBits + remainingBits);
+
+    setters.setPlayerBits(prevBits => prevBits + remainingBits);
 }
 
-function playerLoseBits(num) {
-    setPlayerBits(prevBits => prevBits - num);
+export function playerLoseBits(num) {
+    setters.setPlayerBits(prevBits => prevBits - num);
 }
 
-function enemyGainBits(num) {
+export function enemyGainBits(num) {
     let remainingBits = num;
 
-    if (enemyOverload > 0) {
-        const newOverload = enemyOverload - num;
-
-        remainingBits = Math.max(0, newOverload * -1);
-        setEnemyOverload(Math.max(0, newOverload));
+    if (gameState.enemyOverload > 0) {
+        remainingBits = Math.max(0, remainingBits - gameState.enemyOverload);
     }
-    setEnemyBits(prevBits => prevBits + remainingBits);
+
+    setters.setEnemyBits(prevBits => prevBits + remainingBits);
 }
 
-function enemyLoseBits(num) {
-    setEnemyBits(prevBits => prevBits - num);
+export function enemyLoseBits(num) {
+    setters.setEnemyBits(prevBits => prevBits - num);
 }
 
 function enemyGainActions(num) {
@@ -780,20 +786,18 @@ function enemyLoseAshes(num) {
     setEnemyAshes(prevAshes => prevAshes - num);
 }
 
-function playerGainActions(num) {
+export function playerGainActions(num) {
     let remainingActions = num;
 
-    if (playerLag > 0) {
-        const newLag = playerLag - num;
-
-        remainingActions = Math.max(0, newLag * -1);
-        setPlayerLag(Math.max(0, newLag));
+    if (gameState.playerLag > 0) {
+        remainingActions = Math.max(0, remainingActions - gameState.playerLag);
     }
-    setPlayerActions(prevActions => prevActions + remainingActions);
+
+    setters.setPlayerActions(prevActions => prevActions + remainingActions);
 }
 
-function playerLoseActions(num) {
-    setPlayerActions(prevActions => prevActions - num);
+export function playerLoseActions(num) {
+    setters.setPlayerActions(prevActions => prevActions - num);
 }
 
 function playerGainLag(num) {
@@ -862,13 +866,14 @@ function getEnemyEntities(side, realmName = null) {
     return getFriendlyEntities(enemySide, realmName);
 }
 
-function getAllPlayerRealms() {
-    return [playerSolarium, playerUnderpass, playerGrid, playerTheater];
-}
+// These functions are now imported from utils.js
+// function getAllPlayerRealms() {
+//     return [playerSolarium, playerUnderpass, playerGrid, playerTheater];
+// }
 
-function getAllEnemyRealms() {
-    return [enemySolarium, enemyUnderpass, enemyGrid, enemyTheater];
-}
+// function getAllEnemyRealms() {
+//     return [enemySolarium, enemyUnderpass, enemyGrid, enemyTheater];
+// }
 
 
 function adjustEntityPowerExternal(entity, side) {
@@ -979,6 +984,8 @@ function getRealmAndSetter(realmName, owner) {
                 return [playerUnderpass, setPlayerUnderpass];
             case 'Grid':
                 return [playerGrid, setPlayerGrid];
+            case 'Elysium':
+                return [playerElysium, setPlayerElysium];
             default:
                 throw new Error(`Unknown realm: ${realmName}`);
         }
@@ -992,6 +999,8 @@ function getRealmAndSetter(realmName, owner) {
                 return [enemyUnderpass, setEnemyUnderpass];
             case 'Grid':
                 return [enemyGrid, setEnemyGrid];
+            case 'Elysium':
+                return [enemyElysium, setEnemyElysium];
             default:
                 throw new Error(`Unknown realm: ${realmName}`);
         }

@@ -1,450 +1,491 @@
-import React, { Component, useEffect, useState } from 'react';
-import { flushSync } from 'react-dom';
-
-import {
-    Solarium,
-    Theater,
-    Underpass,
-    Grid,
-    Elysium
-} from './renders/Board';
-import BidInputModal from './BidInputModal';
-import { eventManager } from "./Tools";
-
-import Gameboard from './Gameboard';
-import CardDisplay from './CardDisplay';
-
-import { Realm, SharedSlot } from '../rules/cards.ts'
-import { cardList1 } from '../playerDecks/deckTwo.ts'
-import { draftList } from '../systemDecks/draft.ts'
-import { cardList2 } from '../systemDecks/enemyOne.ts'
-
-import { cardList } from '../rules/binder.ts'
-
-
-import abilitiesDefinitions from '../ui/abilities/glossary.js'
-
-const realmComponents = [
-    Solarium,
-    Theater,
-    Underpass,
-    Grid,
-    Elysium
-];
-
+import React, { useState, useEffect, useCallback } from 'react';
+import { playerGainBits, playerDraw, enemyDraw, startTurn, activateAbilities } from './helpers/core';
+import { enemyLoseBits } from './helpers/enemy';
+import { handleSacrificeConfirmation } from './helpers/sacrifice';
+import { initializeSetters } from './helpers/state';
 
 export function BoardContainer() {
 
-
-    const [playerLibrary, setPlayerLibrary] = useState(createLibrary());
-    const [draft, setDraft] = useState(createDraft());
-    const [playerHand, setPlayerHand] = useState([]);
-    const [playerGraveyard, setPlayerGraveyard] = useState([]);
-    const [playerBits, setPlayerBits] = useState(0);
-    const [playerActions, setPlayerActions] = useState(0);
-    const [playerAshes, setPlayerAshes] = useState(0);
-    const [playerFate, setPlayerFate] = useState(0);
-    const [playerOverload, setPlayerOverload] = useState(0);
-    const [playerWounds, setPlayerWounds] = useState(0);
-    const [playerBurden, setPlayerBurden] = useState(0);
-    const [playerSurge, setPlayerSurge] = useState(0);
-    const [playerLag, setPlayerLag] = useState(0);
-    const [focus, setFocus] = useState('');
-    const [awaitingFocus, setAwaitingFocus] = useState(true);
-
-    const [playerPandoraAccess, setPlayerPandoraAccess] = useState(1);
-    const [playerHeadSpaceAccess, setPlayerHeadSpaceAccess] = useState(1);
-    const [playerGlitchyAmount, setPlayerGlitchyAmount] = useState(0);
-    const [playerDividendAmount, setPlayerDividendAmount] = useState(0);
-    const [enemyGlitchyAmount, setEnemyGlitchyAmount] = useState(0);
-    const [enemyDividendAmount, setEnemyDividendAmount] = useState(2);
-
-
-    const [soulSelections, setSoulSelections] = useState([]);
-    const [awaitingSacrifices, setAwaitingSacrifices] = useState(false);
-    const [rezCard, setRezCard] = useState(null);
-
-    const [pendingManualAbility, setPendingManualAbility] = useState(null); // todo
-    const [selectionMode, setSelectionMode] = useState('NONE');
-    const [pendingAbilityTarget, setPendingAbilityTarget] = useState(null);
-    const [pendingAbility, setPendingAbility] = useState(null);
-    const [awaitingImpostor, setAwaitingImpostor] = useState(false);
-    const [impostorRealm, setImpostorRealm] = useState(null);
-    const [pendingRitual, setPendingRitual] = useState(null);
-    const [targetSelection, setTargetSelection] = useState({
-        enabled: false,
-        side: null,
-        filter: null,
-        onSelect: null,
-        onCancel: null,
-    });
-    const [bidInput, setBidInput] = useState(0);
-
-    const [enemyLibrary, setEnemyLibrary] = useState(createEnemyLibrary());
-    const [enemyHand, setEnemyHand] = useState([]);
-    const [enemyGraveyard, setEnemyGraveyard] = useState([]);
-    const [priorityLeft, setPriorityLeft] = useState(true);
-    const [enemyBits, setEnemyBits] = useState(0);
-    const [enemyOverload, setEnemyOverload] = useState(0);
-    const [enemyActions, setEnemyActions] = useState(0);
-    const [enemyAshes, setEnemyAshes] = useState(0);
-    const [enemyFate, setEnemyFate] = useState(0);
-    const [enemyWounds, setEnemyWounds] = useState(0);
-    const [enemyBurden, setEnemyBurden] = useState(0);
-    const [enemySurge, setEnemySurge] = useState(0);
-    const [enemyLag, setEnemyLag] = useState(0);
-
-    const [turnNumber, setTurnNumber] = useState(0);
-    const [playerFocus, setPlayerFocus] = useState(0);
-
-    const [isDominationPhase, setIsDominationPhase] = useState(false);
-    const [playerBid, setPlayerBid] = useState(0);
-    const [playerBidInput, setPlayerBidInput] = useState('');
-
-    const [enemyPandoraAccess, setEnemyPandoraAccess] = useState(1);
-    const [enemyHeadSpaceAccess, setEnemyHeadSpaceAccess] = useState(1);
-
-    const [playerBattleSlots, setPlayerBattleSlots] = useState(Array(6).fill(null));
-    const [enemyBattleSlots, setEnemyBattleSlots] = useState(Array(6).fill(null));
-
-    const [selectedCard, setSelectedCard] = useState(null);
-    const [battleSelectedCard, setBattleSelectedCard] = useState(null);
-    const [selectedInHand, setSelectedInHand] = useState(false);
-    const [draftSelected, setDraftSelected] = useState(false);
-    const [selectedRealm, setSelectedRealm] = useState(null);
-
-
-    const [targetType, setTargetType] = useState('none');
-    const [playerTargetSelection, setPlayerTargetSelection] = useState(null);
-    const [enemyTargetSelection, setEnemyTargetSelection] = useState(null);
-    const [enemyTargetType, setEnemyTargetType] = useState('none');
-
-    const [modalVisible, setModalVisible] = useState(false);
-    const [modalProps, setModalProps] = useState({
-        title: '',
-        message: '',
-        renderContent: null,
-        onConfirm: () => { },
-        onCancel: () => { },
+    // Player state
+    const [playerState, setPlayerState] = useState({
+        library: [],
+        hand: [],
+        graveyard: [],
+        actions: 3,
+        bits: 0,
+        ashes: 0,
+        fate: 0,
+        wounds: 0,
+        burden: 0,
+        overload: 0
     });
 
-    const [trashPromptVisible, setTrashPromptVisible] = useState(false);
-    const [currentPromptCard, setCurrentPromptCard] = useState(null);
-    const [decisionCallback, setDecisionCallback] = useState(null)
+    // Enemy state
+    const [enemyState, setEnemyState] = useState({
+        library: [],
+        hand: [],
+        graveyard: [],
+        actions: 3,
+        bits: 0,
+        ashes: 0,
+        fate: 0,
+        wounds: 0,
+        burden: 0,
+        overload: 0,
+        surge: 0
+    });
 
-    const [currentPlayer, setCurrentPlayer] = useState(null);
-    const [gameState, setGameState] = useState('NORMAL');
-    const [battleRealm, setBattleRealm] = useState(null);
-    const [attackMode, setAttackMode] = useState('NONE');
-    const [gameMode, setGameMode] = useState('BEGIN');
+    // Realm state
+    const [realms, setRealms] = useState({
+        player: {
+            solarium: { name: 'Solarium', people: [], places: [], things: [] },
+            theater: { name: 'Theater', people: [], places: [], things: [] },
+            underpass: { name: 'Underpass', people: [], places: [], things: [] },
+            grid: { name: 'Grid', people: [], places: [], things: [] },
+            elysium: { name: 'Elysium', people: [], places: [], things: [] }
+        },
+        enemy: {
+            solarium: { name: 'Solarium', people: [], places: [], things: [] },
+            theater: { name: 'Theater', people: [], places: [], things: [] },
+            underpass: { name: 'Underpass', people: [], places: [], things: [] },
+            grid: { name: 'Grid', people: [], places: [], things: [] },
+            elysium: { name: 'Elysium', people: [], places: [], things: [] }
+        }
+    });
 
-    const [attackPlanned, setAttackPlanned] = useState(false);
-    const [attackCount, setAttackCount] = useState(0);
+    // Game state
+    const [gameState, setGameState] = useState({
+        mode: 'NONE',
+        attackMode: false,
+        priorityLeft: true,
+        awaitingTrash: false,
+        awaitingSacrifices: false,
+        battleRealm: null,
+        currentPlayer: 'PLAYER'
+    });
 
-    const [playerDriftCount, setPlayerDriftCount] = useState(0);
-    const [enemyDriftCount, setEnemyDriftCount] = useState(0);
-    const [playerFirstAttack, setPlayerFirstAttack] = useState(true);
-    const [enemyFirstAttack, setEnemyFirstAttack] = useState(true);
-    const [playerInterfacedHeadSpace, setPlayerInterfacedHeadSpace] = useState(false);
-    const [playerInterfacedPandora, setPlayerInterfacedPandora] = useState(false);
-    const [enemyInterfacedHeadSpace, setEnemyInterfacedHeadSpace] = useState(false);
-    const [enemyInterfacedPandora, setEnemyInterfacedPandora] = useState(false);
-    const [playerInterfaced, setPlayerInterfaced] = useState(false);
-    const [enemyInterfaced, setEnemyInterfaced] = useState(false);
+    // UI state
+    const [uiState, setUiState] = useState({
+        trashPromptVisible: false,
+        currentPromptCard: null,
+        modalVisible: false,
+        modalProps: {},
+        playerBattleSlots: Array(6).fill(null),
+        enemyBattleSlots: Array(6).fill(null),
+        selectedCard: null,
+        battleSelectedCard: null,
+        selectedInHand: false,
+        focus: false,
+        awaitingFocus: false
+    });
 
-    const [playerSolarium, setPlayerSolarium] = useState({ name: 'Solarium', people: [], places: [], things: [] });
-    const [playerTheater, setPlayerTheater] = useState({ name: 'Theater', people: [], places: [], things: [] });
-    const [playerUnderpass, setPlayerUnderpass] = useState({ name: 'Underpass', people: [], places: [], things: [] });
-    const [playerGrid, setPlayerGrid] = useState({ name: 'Grid', people: [], places: [], things: [] });
-    const [playerElysium, setPlayerElysium] = useState({ name: 'Elysium', people: [], places: [], things: [] });
-
-    const [enemySolarium, setEnemySolarium] = useState({ name: 'Solarium', people: [], places: [], things: [] });
-    const [enemyTheater, setEnemyTheater] = useState({ name: 'Theater', people: [], places: [], things: [] });
-    const [enemyUnderpass, setEnemyUnderpass] = useState({ name: 'Underpass', people: [], places: [], things: [] });
-    const [enemyGrid, setEnemyGrid] = useState({ name: 'Grid', people: [], places: [], things: [] });
-    const [enemyElysium, setEnemyElysium] = useState({ name: 'Elysium', people: [], places: [], things: [] });
-
-    const [playerEntitiesDiedThisTurn, setPlayerEntitiesDiedThisTurn] = useState(0);
-    const [enemyEntitiesDiedThisTurn, setEnemyEntitiesDiedThisTurn] = useState(0);
-    const [recruiterCount, setRecruiterCount] = useState(0);
-    const [enemyRecruiterCount, setEnemyRecruiterCount] = useState(0); // todo
-
-    function showModal({ title, message, renderContent, onConfirm, onCancel }) {
-        setModalProps({
-            title,
-            message,
-            renderContent,
-            onConfirm: () => {
-                // Call the user's onConfirm callback before closing
-                if (onConfirm && typeof onConfirm === 'function') {
-                    onConfirm();
-                }
-                setModalVisible(false);
+    // Interface access state
+    const [interfaceState, setInterfaceState] = useState({
+        player: {
+            headSpace: {
+                interfaced: false,
+                access: false
             },
-            onCancel: () => {
-                // Call the user's onCancel callback before closing
-                if (onCancel && typeof onCancel === 'function') {
-                    onCancel();
-                }
-                setModalVisible(false);
+            pandora: {
+                interfaced: false,
+                access: false
+            }
+        },
+        enemy: {
+            headSpace: {
+                interfaced: false,
+                access: false
             },
+            pandora: {
+                interfaced: false,
+                access: false
+            }
+        }
+    });
+
+    // Initialize global setters
+    useEffect(() => {
+        initializeSetters({
+            setPlayerState,
+            setEnemyState,
+            setRealms,
+            setGameState,
+            setUiState,
+            setInterfaceState
         });
-    
-        setModalVisible(true);
-    }
-    
+    }, []);
 
+    // Handle burden effects
+    useEffect(() => {
+        if (playerState.burden >= 10) {
+            setGameState(prev => ({ ...prev, mode: 'GAME_OVER' }));
+        }
+    }, [playerState.burden]);
 
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    // Handle player realm updates
+    useEffect(() => {
+        if (playerState.solarium) {
+            setRealms(prev => ({
+                ...prev,
+                player: {
+                    ...prev.player,
+                    solarium: playerState.solarium
+                }
+            }));
+        }
+        if (playerState.theater) {
+            setRealms(prev => ({
+                ...prev,
+                player: {
+                    ...prev.player,
+                    theater: playerState.theater
+                }
+            }));
+        }
+        if (playerState.underpass) {
+            setRealms(prev => ({
+                ...prev,
+                player: {
+                    ...prev.player,
+                    underpass: playerState.underpass
+                }
+            }));
+        }
+        if (playerState.grid) {
+            setRealms(prev => ({
+                ...prev,
+                player: {
+                    ...prev.player,
+                    grid: playerState.grid
+                }
+            }));
+        }
+        if (playerState.elysium) {
+            setRealms(prev => ({
+                ...prev,
+                player: {
+                    ...prev.player,
+                    elysium: playerState.elysium
+                }
+            }));
+        }
+    }, [playerState]);
+
+    // Focus effects
+    useEffect(() => {
+        if (uiState.focus) {
+            setUiState(prev => ({
+                ...prev,
+                focus: false,
+                awaitingFocus: false
+            }));
+        }
+    }, [uiState.focus]);
+
+    function handleDrawButton() {
+        if (playerState.bits >= 1) {
+            setPlayerState(prev => ({ ...prev, bits: prev.bits - 1 }));
+        }
+        setGameState(prev => ({ ...prev, currentPlayer: 'ENEMY' }));
     }
 
     useEffect(() => {
-        if (
-            playerActions <= 0 &&
-            enemyActions <= 0 &&
-            gameState === 'NORMAL' &&
-            gameMode !== 'BEGIN' &&
-            attackMode === 'NONE'
+        if (playerState.actions <= 0 &&
+            enemyState.actions <= 0 &&
+            gameState.mode === 'NORMAL' &&
+            gameState.mode !== 'BEGIN' &&
+            !gameState.attackMode
         ) {
-            handleDominationPhase();
+            // Handle domination phase logic
+            setGameState(prev => ({ ...prev, mode: 'DOMINATION' }));
         }
-    }, [playerActions, enemyActions, gameState]);
+    }, [playerState.actions, enemyState.actions, gameState.mode, gameState.attackMode]);
 
-
-
-
-
-
-
-
-
-    // When attack is resolved
     useEffect(() => {
-        if (gameState === 'ATTACK_RESOLVED') {
-            if (currentPlayer === 'ENEMY') {
-                setCurrentPlayer('PLAYER');
+        if (gameState.mode === 'ATTACK_RESOLVED') {
+            if (gameState.currentPlayer === 'PLAYER') {
+                if (enemyState.bits >= 1) {
+                    enemyLoseBits(1);
+                }
+            } else {
+                setGameState(prev => ({ ...prev, currentPlayer: 'ENEMY' }));
             }
-            else {
-                setCurrentPlayer('ENEMY');
-            }
-            setGameState('NORMAL');
+            setGameState(prev => ({ ...prev, mode: 'NORMAL' }));
         }
-    }, [gameState]);
+    }, [gameState.mode, gameState.currentPlayer, enemyState.bits]);
 
     // Start the game or turn
     useEffect(() => {
-        if (gameMode === 'BEGIN') {
-            console.log('begin game')
-            playerGainBits(3);
-            playerDraw(3);
-            enemyDraw(3);
-            setGameMode('NONE');
-            startTurn(priorityLeft);
+        if (gameState.mode === 'BEGIN') {
+            if (gameState.attackMode) {
+                console.log('begin game')
+                playerGainBits(1);
+                playerDraw();
+                enemyDraw(3);
+                setGameState(prev => ({ ...prev, mode: 'NONE' }));
+                startTurn(gameState.priorityLeft);
+            }
         }
-    }, [gameMode]);
-
-    // Enemy action continues if player has no actions
-    useEffect(() => {
-        if (currentPlayer === 'ENEMY' && enemyActions > 0 && gameState === 'NORMAL') {
-            console.log('dispatch action')
-            console.log('currentPlayer', currentPlayer)
-            enemyPerformAction();
-        }
-    }, [currentPlayer, enemyActions, gameState]);
-
+    }, [gameState.mode, gameState.attackMode, gameState.priorityLeft]);
 
     useEffect(() => {
-        if (!awaitingSacrifices && rezCard) {
-            console.log('rezzing card');
-            let activationCost = calculateActivationCost(rezCard.card, 'PLAYER');
-            console.log('rez cost ', activationCost);
-            if (activationCost) {
-                console.log('lost bits');
-                playerLoseBits(activationCost);
+        if (gameState.mode === 'MULLIGAN') {
+            if (gameState.priorityLeft) {
+                // Handle mulligan phase
             }
-            if (rezCard.card.ash) {
-                console.log('lost ash');
-                playerLoseAshes(rezCard.card.ash);
+        }
+    }, [gameState.mode, gameState.priorityLeft]);
+
+    useEffect(() => {
+        if (gameState.currentPlayer === 'ENEMY' && enemyState.actions > 0) {
+            if (enemyState.bits >= 2) {
+                setGameState(prev => ({ ...prev, currentPlayer: 'PLAYER' }));
             }
+        }
+    }, [gameState.currentPlayer, enemyState.bits, enemyState.actions]);
 
-            setRezCard(null);
-            activateAbilities(rezCard, 'PLAYER');
-
-            switch (rezCard.realm) {
+    useEffect(() => {
+        if (gameState.awaitingSacrifices && gameState.rezCard) {
+            const soulsAvailable = gameState.rezCard.card.souls || 0;
+            if (soulsAvailable >= gameState.rezCard.card.soul) {
+                setGameState(prev => ({ ...prev, awaitingSacrifices: false }));
+            }
+            
+            // Update realm state based on card type
+            switch (gameState.rezCard.realm) {
                 case 'Solarium':
-                    if (rezCard.card.category === 'ENTITY') {
-                        setPlayerSolarium(prevRealm => ({
-                            ...prevRealm,
-                            people: prevRealm.people.map(c =>
-                                c.id === rezCard.id ? { ...c, online: true } : c
-                            ),
+                    if (gameState.rezCard.card.category === 'ENTITY') {
+                        setRealms(prev => ({
+                            ...prev,
+                            player: {
+                                ...prev.player,
+                                solarium: {
+                                    ...prev.player.solarium,
+                                    people: prev.player.solarium.people.map(c =>
+                                        c.id === gameState.rezCard.id ? { ...c, online: true } : c
+                                    ),
+                                }
+                            }
                         }));
-                    } else if (rezCard.card.category === 'SNIP') {
-                        setPlayerSolarium(prevRealm => ({
-                            ...prevRealm,
-                            things: prevRealm.things.map(c =>
-                                c.id === rezCard.id ? { ...c, online: true } : c
-                            ),
+                    } else if (gameState.rezCard.card.category === 'SNIP') {
+                        setRealms(prev => ({
+                            ...prev,
+                            player: {
+                                ...prev.player,
+                                solarium: {
+                                    ...prev.player.solarium,
+                                    things: prev.player.solarium.things.map(c =>
+                                        c.id === gameState.rezCard.id ? { ...c, online: true } : c
+                                    ),
+                                }
+                            }
                         }));
                     }
                     break;
                 case 'Theater':
-                    if (rezCard.card.category === 'ENTITY') {
-                        setPlayerTheater(prevRealm => ({
-                            ...prevRealm,
-                            people: prevRealm.people.map(c =>
-                                c.id === rezCard.id ? { ...c, online: true } : c
-                            ),
+                    if (gameState.rezCard.card.category === 'ENTITY') {
+                        setRealms(prev => ({
+                            ...prev,
+                            player: {
+                                ...prev.player,
+                                theater: {
+                                    ...prev.player.theater,
+                                    people: prev.player.theater.people.map(c =>
+                                        c.id === gameState.rezCard.id ? { ...c, online: true } : c
+                                    ),
+                                }
+                            }
                         }));
-                    } else if (rezCard.card.category === 'SNIP') {
-                        setPlayerTheater(prevRealm => ({
-                            ...prevRealm,
-                            things: prevRealm.things.map(c =>
-                                c.id === rezCard.id ? { ...c, online: true } : c
-                            ),
+                    } else if (gameState.rezCard.card.category === 'SNIP') {
+                        setRealms(prev => ({
+                            ...prev,
+                            player: {
+                                ...prev.player,
+                                theater: {
+                                    ...prev.player.theater,
+                                    things: prev.player.theater.things.map(c =>
+                                        c.id === gameState.rezCard.id ? { ...c, online: true } : c
+                                    ),
+                                }
+                            }
                         }));
                     }
                     break;
                 case 'Underpass':
-                    if (rezCard.card.category === 'ENTITY') {
-                        setPlayerUnderpass(prevRealm => ({
-                            ...prevRealm,
-                            people: prevRealm.people.map(c =>
-                                c.id === rezCard.id ? { ...c, online: true } : c
-                            ),
+                    if (gameState.rezCard.card.category === 'ENTITY') {
+                        setRealms(prev => ({
+                            ...prev,
+                            player: {
+                                ...prev.player,
+                                underpass: {
+                                    ...prev.player.underpass,
+                                    people: prev.player.underpass.people.map(c =>
+                                        c.id === gameState.rezCard.id ? { ...c, online: true } : c
+                                    ),
+                                }
+                            }
                         }));
-                    } else if (rezCard.card.category === 'SNIP') {
-                        setPlayerUnderpass(prevRealm => ({
-                            ...prevRealm,
-                            things: prevRealm.things.map(c =>
-                                c.id === rezCard.id ? { ...c, online: true } : c
-                            ),
+                    } else if (gameState.rezCard.card.category === 'SNIP') {
+                        setRealms(prev => ({
+                            ...prev,
+                            player: {
+                                ...prev.player,
+                                underpass: {
+                                    ...prev.player.underpass,
+                                    things: prev.player.underpass.things.map(c =>
+                                        c.id === gameState.rezCard.id ? { ...c, online: true } : c
+                                    ),
+                                }
+                            }
                         }));
                     }
                     break;
                 case 'Grid':
-                    if (rezCard.card.category === 'ENTITY') {
-                        setPlayerGrid(prevRealm => ({
-                            ...prevRealm,
-                            people: prevRealm.people.map(c =>
-                                c.id === rezCard.id ? { ...c, online: true } : c
-                            ),
+                    if (gameState.rezCard.card.category === 'ENTITY') {
+                        setRealms(prev => ({
+                            ...prev,
+                            player: {
+                                ...prev.player,
+                                grid: {
+                                    ...prev.player.grid,
+                                    people: prev.player.grid.people.map(c =>
+                                        c.id === gameState.rezCard.id ? { ...c, online: true } : c
+                                    ),
+                                }
+                            }
                         }));
-                    } else if (rezCard.card.category === 'SNIP') {
-                        setPlayerGrid(prevRealm => ({
-                            ...prevRealm,
-                            things: prevRealm.things.map(c =>
-                                c.id === rezCard.id ? { ...c, online: true } : c
-                            ),
+                    } else if (gameState.rezCard.card.category === 'SNIP') {
+                        setRealms(prev => ({
+                            ...prev,
+                            player: {
+                                ...prev.player,
+                                grid: {
+                                    ...prev.player.grid,
+                                    things: prev.player.grid.things.map(c =>
+                                        c.id === gameState.rezCard.id ? { ...c, online: true } : c
+                                    ),
+                                }
+                            }
+                        }));
+                    }
+                    break;
+                case 'Elysium':
+                    if (gameState.rezCard.card.category === 'ENTITY') {
+                        setRealms(prev => ({
+                            ...prev,
+                            player: {
+                                ...prev.player,
+                                elysium: {
+                                    ...prev.player.elysium,
+                                    people: prev.player.elysium.people.map(c =>
+                                        c.id === gameState.rezCard.id ? { ...c, online: true } : c
+                                    ),
+                                }
+                            }
+                        }));
+                    } else if (gameState.rezCard.card.category === 'SNIP') {
+                        setRealms(prev => ({
+                            ...prev,
+                            player: {
+                                ...prev.player,
+                                elysium: {
+                                    ...prev.player.elysium,
+                                    things: prev.player.elysium.things.map(c =>
+                                        c.id === gameState.rezCard.id ? { ...c, online: true } : c
+                                    ),
+                                }
+                            }
                         }));
                     }
                     break;
                 default:
-                    console.error(`Unknown realm: ${rezCard.realm}`);
+                    console.error(`Unknown realm: ${gameState.rezCard.realm}`);
             }
+            
+            setGameState(prev => ({ ...prev, rezCard: null }));
+            activateAbilities(gameState.rezCard, 'PLAYER');
         }
-    }, [awaitingSacrifices, rezCard]);
+    }, [gameState, setRealms]);
 
 
 
-
-    
-    // function createFleshHiveListener(ownerSide) {
-    //     function onEntityDeath(eventData) {
-    //         const { entity, side } = eventData;
-    //         if (entity.card.abilities.includes('Decay')) {
-    //             if (ownerSide === 'PLAYER') {
-    //                 playerGainFate(1);
-    //                 playerGainOverload(2);
-    //             } else {
-    //                 enemyGainFate(1);
-    //                 enemyGainOverload(2);
-    //             }
-    //         }
-    //     }
-
-    //     // Subscribe to the 'entityDied' event
-    //     eventManager.subscribe('entityDied', onEntityDeath);
-
-    //     // Return a function to unsubscribe when Flesh Hive leaves play
-    //     return function removeFleshHiveListener() {
-    //         eventManager.unsubscribe('entityDied', onEntityDeath);
-    //     };
-    // }
+    const handleRezPlayerCard = useCallback((entity) => {
+        if (entity) {
+            setGameState(prev => ({ 
+                ...prev, 
+                rezCard: null,
+                awaitingSacrifices: false
+            }));
+        }
+    }, []);
 
     return (
-        <div className='game-container'>
-            <Gameboard
-                realmComponents={realmComponents}
-                onRealmSelect={handleRealmSelect}
-                onServerSelect={handleServerSelect}
-                playerOneLibrary={playerLibrary}
-                playerOneHand={playerHand}
-                playerBoost={handleBoostButton}
-                playerDraw={handleDrawButton}
-                playerDraft={handleDraftButton}
-                playerMine={handlePlayerMine}
-                playerDevelop={handleDevelopButton}
-                playerDetox={performDetox}
-                onAbilityClick={handleAbilityClick}
-                playerActions={playerActions}
-                playerFate={playerFate}
-                playerWounds={playerWounds}
-                playerBits={playerBits}
-                playerOverload={playerOverload}
-                playerBurden={playerBurden}
-                playerAshes={playerAshes}
-                playerSurge={playerSurge}
-                playerInterfacedHeadSpace={playerInterfacedHeadSpace}
-                playerInterfacedPandora={playerInterfacedPandora}
-                enemyActions={enemyActions}
-                enemyFate={enemyFate}
-                enemyWounds={enemyWounds}
-                enemyBits={enemyBits}
-                enemyOverload={enemyOverload}
-                enemyBurden={enemyBurden}
-                enemyAshes={enemyAshes}
-                enemySurge={enemySurge}
-                enemyInterfacedHeadSpace={enemyInterfacedHeadSpace}
-                enemyInterfacedPandora={enemyInterfacedPandora}
-                playerSolarium={playerSolarium}
-                playerTheater={playerTheater}
-                playerUnderpass={playerUnderpass}
-                playerGrid={playerGrid}
-                playerElysium={playerElysium}
-                onCardSelect={handleCardSelect}
-                onRealmCardSelect={handleRealmCardSelect}
-                onFocusSelect={handleFocusSelect}
-                focus={focus}
-                awaitingFocus={awaitingFocus}
-                awaitingImpostor={awaitingImpostor}
-                onQuest={handleQuest}
-                onRaid={handleRaid}
-                onHack={handleHack}
-                playerBattleSlots={playerBattleSlots}
-                enemyBattleSlots={enemyBattleSlots}
-                onSlotSelect={handleEmptySlotSelect}
-                onBattleCardSelect={handleBattleCardSelect}
-                onConfirmDefenseSelection={handleConfirmDefenseSelection}
-                onPlayerBattle={enemyPlanDefense}
-                attackMode={attackMode}
-                onRezPlayerCard={handleRezPlayerCard}
-                onSacrificeConfirmation={handleSacrificeConfirmation}
-                awaitingSacrifices={awaitingSacrifices}
-                enemyHand={enemyHand}
-                gameState={gameState}
-                enemySolarium={enemySolarium}
-                enemyTheater={enemyTheater}
-                enemyUnderpass={enemyUnderpass}
-                enemyGrid={enemyGrid}
-                enemyElysium={enemyElysium}
-                battleRealm={battleRealm}
-                trashPromptVisible={trashPromptVisible}
-                currentPromptCard={currentPromptCard}
-                modalVisible={modalVisible}
-                modalProps={modalProps}
-            />
+        <div className="board-container">
+            <div className="player-stats">
+                <div>Library: {playerState.library.length}</div>
+                <div>Hand: {playerState.hand.length}</div>
+                <div>Graveyard: {playerState.graveyard.length}</div>
+                <div>Actions: {playerState.actions}</div>
+                <div>Fate: {playerState.fate}</div>
+                <div>Wounds: {playerState.wounds}</div>
+                <div>Bits: {playerState.bits}</div>
+                <div>Overload: {playerState.overload}</div>
+                <div>Burden: {playerState.burden}</div>
+                <div>Ashes: {playerState.ashes}</div>
+            </div>
+
+            <div className="enemy-stats">
+                <div>Actions: {enemyState.actions}</div>
+                <div>Fate: {enemyState.fate}</div>
+                <div>Wounds: {enemyState.wounds}</div>
+                <div>Bits: {enemyState.bits}</div>
+                <div>Overload: {enemyState.overload}</div>
+                <div>Burden: {enemyState.burden}</div>
+                <div>Ashes: {enemyState.ashes}</div>
+                <div>Surge: {enemyState.surge}</div>
+            </div>
+
+            <div className="player-realms">
+                <div>Solarium: {realms.player.solarium ? realms.player.solarium.length : 0}</div>
+                <div>Theater: {realms.player.theater ? realms.player.theater.length : 0}</div>
+                <div>Underpass: {realms.player.underpass ? realms.player.underpass.length : 0}</div>
+                <div>Grid: {realms.player.grid ? realms.player.grid.length : 0}</div>
+                <div>Elysium: {realms.player.elysium ? realms.player.elysium.length : 0}</div>
+            </div>
+
+            <div className="enemy-realms">
+                <div>Hand: {enemyState.hand ? enemyState.hand.length : 0}</div>
+                <div>Solarium: {realms.enemy.solarium ? realms.enemy.solarium.length : 0}</div>
+                <div>Theater: {realms.enemy.theater ? realms.enemy.theater.length : 0}</div>
+                <div>Underpass: {realms.enemy.underpass ? realms.enemy.underpass.length : 0}</div>
+                <div>Grid: {realms.enemy.grid ? realms.enemy.grid.length : 0}</div>
+                <div>Elysium: {realms.enemy.elysium ? realms.enemy.elysium.length : 0}</div>
+            </div>
+
+            <div className="interface-status">
+                <div>Player HeadSpace: {interfaceState.player.headSpace ? 'Yes' : 'No'}</div>
+                <div>Player Pandora: {interfaceState.player.pandora ? 'Yes' : 'No'}</div>
+                <div>Enemy HeadSpace: {interfaceState.enemy.headSpace ? 'Yes' : 'No'}</div>
+                <div>Enemy Pandora: {interfaceState.enemy.pandora ? 'Yes' : 'No'}</div>
+            </div>
+
+            <div className="selected-info">
+                <div>Selected Card: {uiState.selectedCard ? uiState.selectedCard.name : 'None'}</div>
+                <div>Selected in Hand: {uiState.selectedInHand ? 'Yes' : 'No'}</div>
+            </div>
+
+            <button onClick={handleDrawButton}>Draw</button>
+
+            <div className="game-actions">
+                <button onClick={handleRezPlayerCard}>Rez Card</button>
+                <button onClick={handleSacrificeConfirmation}>Confirm Sacrifice</button>
+            </div>
+
+            {uiState.modalVisible && (
+                <div className="modal">
+                    {/* Modal content */}
+                </div>
+            )}
         </div>
     );
 }
