@@ -1,4 +1,17 @@
-function handleDamage(location, entityId, damageAmount, owner) {
+import { 
+    playerBattleSlots, enemyBattleSlots,
+    setPlayerBattleSlots, setEnemyBattleSlots,
+    setPlayerGraveyard, setEnemyGraveyard,
+    playerGainFate, enemyGainFate,
+    playerGainAshes, enemyGainAshes
+} from './state';
+
+import { deactivateAbilities } from './abilities';
+
+import { getRealmAndSetter, getOppositeSide } from './utils';
+import { eventManager } from './events';
+
+export function handleDamage(location, entityId, damageAmount, owner) {
     let cardToWound;
     let setRealmOrBattleSlots;
     let damageDealt = 0;
@@ -89,7 +102,7 @@ function handleDamage(location, entityId, damageAmount, owner) {
 
 
 
-function handleDeadCard(location, entityId, side) {
+export function handleDeadCard(location, entityId, side) {
     let cardToRemove;
     console.log("handleDeadCard called with:", { location, entityId, side })
 
@@ -226,7 +239,7 @@ function handleDeadCard(location, entityId, side) {
 
 
 
-function handleDeadCards(deadList, side) {
+export function handleDeadCards(deadList, side) {
     if (!deadList || deadList.length === 0) return;
 
     // We will first gather all entities before removing them from the realms.
@@ -330,7 +343,7 @@ function handleDeadCards(deadList, side) {
 
 
 
-function handleDestroyedThing(location, entityId, side, runes = 0) {
+export function handleDestroyedThing(location, entityId, side, runes = 0) {
     const [realm, setRealm] = getRealmAndSetter(location, side);
 
     // Find the thing to remove
@@ -379,7 +392,7 @@ function handleDestroyedThing(location, entityId, side, runes = 0) {
 }
 
 
-function handleDestroyedPlace(location, entityId, side, runes = 0) {
+export function handleDestroyedPlace(location, entityId, side, runes = 0) {
 
     const [realm, setRealm] = getRealmAndSetter(location, side);
 

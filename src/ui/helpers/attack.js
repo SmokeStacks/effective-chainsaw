@@ -1,15 +1,22 @@
-const handleQuest = () => {
-    setAttackMode('PLAYER_QUEST')
+import { setAttackMode } from './state';
+import { playerLoseActions } from './player';
+import { eventManager } from '../Tools';
+
+export const handleQuest = () => {
+    setAttackMode('PLAYER_QUEST');
     playerLoseActions(1);
+    eventManager.publish('questStarted', { type: 'QUEST' });
 };
 
-const handleRaid = () => {
-    setAttackMode('PLAYER_RAID')
+export const handleRaid = () => {
+    setAttackMode('PLAYER_RAID');
     playerLoseActions(1);
+    eventManager.publish('raidStarted', { type: 'RAID' });
 };
 
-const handleHack = () => {
-    console.log('handle hack')
-    setAttackMode('PLAYER_HACK')
+export const handleHack = () => {
+    setAttackMode('PLAYER_HACK');
     playerLoseActions(1);
+    eventManager.publish('hackStarted', { type: 'HACK' });
+    console.log('Starting hack attack');
 };

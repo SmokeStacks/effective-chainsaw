@@ -1,4 +1,17 @@
-    function handleDevelopCard(cardEntity) {
+import { eventManager } from '../Tools';
+import { abilitiesDefinitions } from '../data/abilities';
+import {
+    setAttackMode,
+    setPlayerElysium,
+    setEnemyElysium,
+    playerGainFate,
+    enemyGainFate,
+    gameState,
+} from './state';
+import { updateEntityInRealm } from './utils';
+import { getRealmAndSetter } from './utils';
+
+export function handleDevelopCard(cardEntity) {
         setAttackMode('NONE');
 
         // Check if the card can be developed
@@ -41,7 +54,7 @@
     }
 
 
-    function applyBoost(entity, boostAmount, side) {
+export function applyBoost(entity, boostAmount, side) {
         console.log(`Applying ${boostAmount} Boost to ${entity.card.name}`);
         if (entity.freeze > 0) {
             const freezeReduction = Math.min(boostAmount, entity.freeze);
@@ -59,7 +72,7 @@
     }
 
 
-    function gainSteps(entity, steps, side) {
+export function gainSteps(entity, steps, side) {
         const newSteps = (entity.steps || 0) + steps;
         let readied = entity.readied;
         console.log(`${entity.card.name} gains ${steps} Steps.`);
@@ -75,7 +88,7 @@
 
 
 
-    function handleAscension(cardEntity, side) {
+export function handleAscension(cardEntity, side) {
         const realmName = cardEntity.realm;
         const [realm, setRealm] = getRealmAndSetter(realmName, side);
         let cardFound = false;
@@ -143,7 +156,7 @@
 
 
 
-    function triggerAscendAbilities(entity, side) {
+export function triggerAscendAbilities(entity, side) {
         entity.card.abilities.forEach((ability) => {
             const abilityDef = abilitiesDefinitions[ability.name]; // Access using ability.name
             if (abilityDef && abilityDef.type === "onAscend" && abilityDef.onAscend) {
@@ -153,7 +166,7 @@
         });
     }
 
-    async function activateAscendedAbilities(cardEntity, side) {
+export async function activateAscendedAbilities(cardEntity, side) {
         console.log('_____________________________activate ascended abilities', cardEntity);
 
         // Filter abilities to find those with type 'ascended'
@@ -197,99 +210,42 @@
         return ascendedAbilities.map(ability => ability.name); // Optionally return activated abilities
     }
 
-
-
-
-
-
-    function handleBoostCard(cardEntity) {
-        const { id, realm } = cardEntity;
-        setAttackMode('NONE')
-        const realmSetter = realm.charAt(0).toUpperCase() + realm.slice(1).toLowerCase(); // Convert to proper case
-
-        let isReady = false;
-        let newSteps = cardEntity.steps
-        if (cardEntity.freeze > 0) {
-            cardEntity.freeze -= 1;
-            console.log(`${cardEntity.card.name} reduces Freeze by 1. Remaining Freeze: ${cardEntity.freeze}`);
-        } else {
-            newSteps++;
-        }
-        if (cardEntity.card.timer && newSteps >= cardEntity.card.timer) {
-            isReady = true;
-        }
-
-        switch (realmSetter) {
-            case 'Solarium':
-                setPlayerSolarium(prevRealm => {
-                    return {
-                        ...prevRealm,
-                        people: prevRealm.people.map(card => {
-                            if (card.id === id) {
-                                return {
-                                    ...card,
-                                    steps: (card.steps || 0) + 1,
-                                    readied: isReady
-                                };
-                            }
-                            return card;
-                        })
-                    };
-                });
-                break;
-            case 'Theater':
-                setPlayerTheater(prevRealm => {
-                    return {
-                        ...prevRealm,
-                        people: prevRealm.people.map(card => {
-                            if (card.id === id) {
-                                return {
-                                    ...card,
-                                    steps: (card.steps || 0) + 1,
-                                    readied: isReady
-                                };
-                            }
-                            return card;
-                        })
-                    };
-                });
-                break;
-            case 'Underpass':
-                setPlayerUnderpass(prevRealm => {
-                    return {
-                        ...prevRealm,
-                        people: prevRealm.people.map(card => {
-                            if (card.id === id) {
-                                return {
-                                    ...card,
-                                    steps: (card.steps || 0) + 1,
-                                    readied: isReady
-                                };
-                            }
-                            return card;
-                        })
-                    };
-                });
-                break;
-            case 'Grid':
-                setPlayerGrid(prevRealm => {
-                    return {
-                        ...prevRealm,
-                        people: prevRealm.people.map(card => {
-                            if (card.id === id) {
-                                return {
-                                    ...card,
-                                    steps: (card.steps || 0) + 1,
-                                    readied: isReady
-                                };
-                            }
-                            return card;
-                        })
-                    };
-                });
-                break;
-
-            default:
-                console.error('Invalid realm:', realm);
-        }
+export function handleBoostCard(cardEntity) {
+    if (!cardEntity || !cardEntity.card) {
+        console.error('Invalid card entity provided to handleBoostCard');
+        return;
     }
+
+    setAttackMode('NONE');
+
+    let newSteps = cardEntity.steps || 0;
+    let newFreeze = cardEntity.freeze || 0;
+
+    // Handle freeze reduction or step gain
+    if (newFreeze > 0) {
+        newFreeze -= 1;
+        console.log(`${cardEntity.card.name} reduces Freeze by 1. Remaining Freeze: ${newFreeze}`);
+    } else {
+        newSteps += 1;
+        console.log(`${cardEntity.card.name} gains 1 step. Total steps: ${newSteps}`);
+    }
+
+    // Check if card should be readied
+    const isReady = cardEntity.card.timer && newSteps >= cardEntity.card.timer;
+
+    // Update the entity in its realm
+    updateEntityInRealm(
+        cardEntity,
+        {
+            steps: newSteps,
+            freeze: newFreeze,
+            readied: isReady
+        },
+        'PLAYER'
+    );
+
+    // Emit event for readied status change if needed
+    if (isReady && !cardEntity.readied) {
+        eventManager.publish('cardReadied', { cardEntity });
+    }
+}

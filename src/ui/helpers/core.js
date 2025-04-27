@@ -1,12 +1,116 @@
 import { eventManager } from '../Tools';
-import { gameState, setters } from './state';
+import { handleDamage } from './damage';
+import { handleDominationPhase } from './domination';
 import { 
     getOppositeSide,
     getRealmAndSetter,
     getAllPlayerRealms,
     getAllEnemyRealms,
-    willEntitySurvive
+    calculateSoulsAvailable,
+    removeEffect
 } from './utils';
+import { handleRezPlayerCard } from './rez';
+import { getAbilityDefinition } from './abilities';
+import { abilitiesDefinitions } from '../data/abilities';
+import { handleAscension } from './ascension';
+import { 
+    playerBattleSlots,
+    enemyBattleSlots,
+    battleSelectedCard,
+    recruiterCount,
+    priorityLeft,
+    pendingRitual,
+    enemyRezCards,
+    enemyPlanAttack
+} from './battle';
+import {
+    setAwaitingFocus,
+    setFocus,
+    setTurnNumber,
+    setPlayerInterfacedHeadSpace,
+    setPlayerInterfacedPandora,
+    setEnemyInterfacedHeadSpace,
+    setEnemyInterfacedPandora,
+    setPlayerElysium,
+    setEnemyElysium,
+    playerDriftCount,
+    playerGlitchyAmount,
+    enemyGlitchyAmount,
+    enemyDriftCount,
+    enemyDividendAmount,
+    playerDividendAmount,
+    setPlayerFirstAttack,
+    setEnemyFirstAttack,
+    setPriorityLeft
+} from './state';
+import {
+    gameState,
+    setters,
+    selectedCard,
+    selectedInHand,
+    draftSelected,
+    draft,
+    playerBits,
+    playerAshes,
+    playerBurden,
+    playerWounds,
+    enemyWounds,
+    enemyLag,
+    playerActions,
+    enemyActions,
+    playerSolarium,
+    playerTheater,
+    playerUnderpass,
+    playerGrid,
+    enemySolarium,
+    enemyTheater,
+    enemyUnderpass,
+    enemyGrid,
+    enemyHand,
+    setSelectedCard,
+    setDraftSelected,
+    setSelectedInHand,
+    setTargetType,
+    setPendingRitual,
+    setTargetSelection,
+    setBattleSelectedCard,
+    setBattleRealm,
+    setAwaitingImpostor,
+    setImpostorRealm,
+    setPlayerSolarium,
+    setPlayerTheater,
+    setPlayerUnderpass,
+    setPlayerGrid,
+    setEnemySolarium,
+    setEnemyTheater,
+    setEnemyUnderpass,
+    setEnemyGrid,
+    setPlayerWounds,
+    setEnemyWounds,
+    setPlayerBurden,
+    setEnemyBurden,
+    setPlayerFate,
+    setEnemyFate,
+    setPlayerOverload,
+    setEnemyOverload,
+    setPlayerLag,
+    setEnemyLag,
+    setPlayerAshes,
+    setEnemyAshes,
+    setPlayerSurge,
+    setEnemySurge,
+    setPlayerEntitiesDiedThisTurn,
+    setEnemyEntitiesDiedThisTurn,
+    setPlayerHand,
+    setEnemyHand,
+    setPlayerLibrary,
+    setEnemyLibrary,
+    setPlayerActions,
+    setEnemyActions,
+    setDraft,
+    setCurrentPlayer,
+    setAttackMode
+} from './state';
 
 export function endPlayerTurn() {
     setters.setSelectedCard(null);
@@ -18,11 +122,11 @@ export function endPlayerTurn() {
     setters.setCurrentPlayer('ENEMY');
 }
 
-const handleRealmSelect = (realmName) => {
+export const handleRealmSelect = (realmName) => {
     console.log('selectedCard', selectedCard)
     if (!selectedCard) return;
-    if (!selectedCard.card[focus]) {
-        console.log('Focus does not match ', focus);
+    if (!selectedCard.card.focus) {
+        console.log('Card has no focus');
         return;
     }
     const soulsAvailable = calculateSoulsAvailable(selectedCard.id);
@@ -37,7 +141,7 @@ const handleRealmSelect = (realmName) => {
 
     if (category === 'RITUAL') {
         // First handle any non-targeting abilities like Duplicate
-        const nonTargetAbilities = selectedCard.card.abilities.filter(
+        selectedCard.card.abilities.forEach(
             ability => typeof ability === 'string' || !ability.requiresTarget
         );
 
@@ -431,7 +535,7 @@ function enemyPlayCard() {
     }
 
     if (realmToPlayIn) {
-        let updatedCard = { ...cardToPlay, realm: realmToPlayIn, owner: 'ENEMY' };
+        const updatedCard = { ...cardToPlay, realm: realmToPlayIn, owner: 'ENEMY' };
 
         switch (category) {
             case 'ENTITY':
@@ -461,26 +565,8 @@ function enemyPlayCard() {
                         }));
                         break;
                     default:
-                        console.log('card not placed')
-                }
-                break;
-            case 'LANDMARK':
-            case 'LOCATION':
-                switch (realmToPlayIn) {
-                    case 'Theater':
-                        setEnemyTheater(prevRealm => ({
-                            ...prevRealm,
-                            places: [...prevRealm.places, updatedCard]
-                        }));
+                        console.log('Unknown realm:', realmToPlayIn);
                         break;
-                    case 'Underpass':
-                        setEnemyUnderpass(prevRealm => ({
-                            ...prevRealm,
-                            places: [...prevRealm.places, updatedCard]
-                        }));
-                        break;
-                    default:
-                        console.log('card not placed')
                 }
                 break;
             case 'SYM':
@@ -499,31 +585,33 @@ function enemyPlayCard() {
                         }));
                         break;
                     default:
-                        console.log('card not placed')
+                        console.log('Unknown realm:', realmToPlayIn);
+                        break;
                 }
                 break;
             default:
-                console.log('card not placed')
+                console.log('Unknown category:', category);
+                break;
         }
 
+        // Trigger any on-play effects
+        if (cardToPlay.abilities) {
+            cardToPlay.abilities.forEach(ability => {
+                const abilityDef = getAbilityDefinition(ability);
+                if (abilityDef && abilityDef.onPlay) {
+                    abilityDef.onPlay(updatedCard, null, 'ENEMY');
+                }
+            });
+        }
+
+        // Remove the card from the enemy's hand
         setEnemyHand(prevHand => prevHand.filter(card => card.id !== cardToPlay.id));
-
-        // Automatically activate landmarks and locations
-        if (category === 'LANDMARK' || category === 'LOCATION') {
-            handleRezEnemyCard(updatedCard);
-        }
     } else {
-        console.log('No realm to play in')
+        console.log('No realm to play in');
     }
 }
 
-// New function to handle enemy card activation
-function handleRezEnemyCard(card) {
-    // Always activate for free since it's an enemy card
-    activateAbilities(card, 'ENEMY');
-}
-
-function performDetox(side) {
+export function performDetox(side) {
     if (side === 'PLAYER' && playerActions >= 3) {
         setPlayerActions(prev => prev - 3);
         detoxEntities(side);
@@ -531,7 +619,7 @@ function performDetox(side) {
         setEnemyActions(prev => prev - 3);
         detoxEntities(side);
     } else {
-        console.log('Not enough actions to perform Detox.');
+        console.log('Not enough actions to detox');
     }
 }
 
@@ -575,16 +663,13 @@ function detoxEntities(side) { // todo apply effect
     console.log(`${side === 'PLAYER' ? 'Player' : 'Enemy'} performed Detox.`);
 }
 
-
-
-
-function handleBoostButton() {
+export const handleBoostButton = () => {
     playerLoseActions(1);
     playerLoseBits(1);
     setAttackMode('BOOST')
 }
 
-function handleDevelopButton() {
+export const handleDevelopButton = () => {
     if (playerActions < 1 || playerBits < 1) {
         console.log('Not enough resources to develop a card.');
         return;
@@ -595,13 +680,13 @@ function handleDevelopButton() {
     console.log('Select a card to develop.');
 }
 
-function handleDrawButton() {
+export const handleDrawButton = () => {
     playerDraw(1);
     playerLoseActions(1);
     setCurrentPlayer('ENEMY');
 }
 
-function handleDraftButton() {
+export const handleDraftButton = () => {
     playerDraft();
 }
 
@@ -636,21 +721,20 @@ const playerDraft = () => {
     setSelectedInHand(true);
 };
 
-function handlePlayerMine() {
+export const handlePlayerMine = () => {
     playerGainBits(1);
     playerLoseActions(1);
     setCurrentPlayer('ENEMY');
 }
-
-function playerGainBurden(num) {
+export function playerGainBurden(num) {
     setPlayerBurden(prevBurden => prevBurden + num);
 }
 
-function playerLoseBurden(num) {
+export function playerLoseBurden(num) {
     setPlayerBurden(prevBurden => prevBurden - num);
 }
 
-function playerGainFate(num) {
+export function playerGainFate(num) {
     let remainingPoints = num;
 
     if (playerBurden > 0) {
@@ -664,11 +748,11 @@ function playerGainFate(num) {
     }
 }
 
-function playerLoseFate(num) {
+export function playerLoseFate(num) {
     setPlayerBurden(prevFate => prevFate - num);
 }
 
-function enemyGainFate(num) {
+export function enemyGainFate(num) {
     let remainingPoints = num;
 
     if (playerBurden > 0) {
@@ -682,39 +766,39 @@ function enemyGainFate(num) {
     }
 }
 
-function enemyLoseFate(num) {
+export function enemyLoseFate(num) {
     setEnemyFate(prevFate => prevFate - num);
 }
 
-function playerGainWounds(num) {
+export function playerGainWounds(num) {
     setPlayerWounds(prevWounds => prevWounds + num);
 }
 
-function playerLoseWounds(num) {
+export function playerLoseWounds(num) {
     setPlayerWounds(prevWounds => prevWounds - num);
 }
 
-function enemyGainBurden(num) {
+export function enemyGainBurden(num) {
     setEnemyBurden(prevBurden => prevBurden + num);
 }
 
-function enemyLoseBurden(num) {
+export function enemyLoseBurden(num) {
     setEnemyBurden(prevBurden => prevBurden - num);
 }
 
-function enemyGainWounds(num) {
+export function enemyGainWounds(num) {
     setEnemyWounds(prevWounds => prevWounds + num);
 }
 
-function enemyLoseWounds(num) {
+export function enemyLoseWounds(num) {
     setEnemyWounds(prevWounds => prevWounds - num);
 }
 
-function enemyGainOverload(num) {
+export function enemyGainOverload(num) {
     setEnemyOverload(prevOverload => prevOverload + num);
 }
 
-function playerGainOverload(num) {
+export function playerGainOverload(num) {
     setters.setPlayerOverload(prevOverload => prevOverload + num);
 }
 
@@ -762,27 +846,27 @@ function enemyLoseActions(num) {
     setEnemyActions(prevActions => Math.max(0, prevActions - num));
 }
 
-function playerGainAshes(num) {
+export function playerGainAshes(num) {
     setPlayerAshes(prevAshes => prevAshes + num);
 }
 
-function enemyGainAshes(num) {
+export function enemyGainAshes(num) {
     setEnemyAshes(prevAshes => prevAshes + num);
 }
 
-function playerGainSurge(num) {
+export function playerGainSurge(num) {
     setPlayerSurge(prev => prev + num);
 }
 
-function enemyGainSurge(num) {
+export function enemyGainSurge(num) {
     setEnemySurge(prev => prev + num);
 }
 
-function playerLoseAshes(num) {
+export function playerLoseAshes(num) {
     setPlayerAshes(prevAshes => prevAshes - num);
 }
 
-function enemyLoseAshes(num) {
+export function enemyLoseAshes(num) {
     setEnemyAshes(prevAshes => prevAshes - num);
 }
 
@@ -800,19 +884,19 @@ export function playerLoseActions(num) {
     setters.setPlayerActions(prevActions => prevActions - num);
 }
 
-function playerGainLag(num) {
+export function playerGainLag(num) {
     setPlayerLag(prevLag => prevLag + num);
 }
 
-function enemyGainLag(num) {
+export function enemyGainLag(num) {
     setEnemyLag(prevLag => prevLag + num);
 }
 
-function playerLoseLag(num) {
+export function playerLoseLag(num) {
     setPlayerLag(prevLag => prevLag - num);
 }
 
-function enemyLoseLag(num) {
+export function enemyLoseLag(num) {
     setEnemyLag(prevLag => prevLag - num);
 }
 
@@ -861,7 +945,7 @@ function getFriendlyEntities(side, realmName = null) {
     return entities;
 }
 
-function getEnemyEntities(side, realmName = null) {
+export function getEnemyEntities(side, realmName = null) {
     const enemySide = getOppositeSide(side);
     return getFriendlyEntities(enemySide, realmName);
 }
@@ -876,7 +960,7 @@ function getEnemyEntities(side, realmName = null) {
 // }
 
 
-function adjustEntityPowerExternal(entity, side) {
+export function adjustEntityPowerExternal(entity, side) {
     const realmName = entity.realm;
     const [realm] = getRealmAndSetter(realmName, side);
 
@@ -969,63 +1053,29 @@ function processEndOfTurnEffects() {
         setRealm({
             ...realm,
             people: newPeople,
+            places: realm.places,
+            things: realm.things
         });
     });
 }
 
-function getRealmAndSetter(realmName, owner) {
-    if (owner === 'PLAYER') {
-        switch (realmName) {
-            case 'Solarium':
-                return [playerSolarium, setPlayerSolarium];
-            case 'Theater':
-                return [playerTheater, setPlayerTheater];
-            case 'Underpass':
-                return [playerUnderpass, setPlayerUnderpass];
-            case 'Grid':
-                return [playerGrid, setPlayerGrid];
-            case 'Elysium':
-                return [playerElysium, setPlayerElysium];
-            default:
-                throw new Error(`Unknown realm: ${realmName}`);
-        }
-    } else if (owner === 'ENEMY') {
-        switch (realmName) {
-            case 'Solarium':
-                return [enemySolarium, setEnemySolarium];
-            case 'Theater':
-                return [enemyTheater, setEnemyTheater];
-            case 'Underpass':
-                return [enemyUnderpass, setEnemyUnderpass];
-            case 'Grid':
-                return [enemyGrid, setEnemyGrid];
-            case 'Elysium':
-                return [enemyElysium, setEnemyElysium];
-            default:
-                throw new Error(`Unknown realm: ${realmName}`);
-        }
-    } else {
-        throw new Error(`Unknown owner: ${owner}`);
-    }
-}
-
-async function enemyPerformAction() {
-    console.log('enemy perform action', enemyActions)
+export function enemyPerformAction() {
+    console.log('enemy perform action', enemyActions);
     if (enemyActions > 0) {
-        await enemyRezCards();
-        const attackPlanned = enemyPlanAttack();
-        if (attackPlanned) {
-            enemyLoseActions(1);
-            return;
-        } else if (enemyHand.length > 0) { // todo check if playable
-            enemyPlayCard();
-            enemyLoseActions(1);
-            setCurrentPlayer('PLAYER');
-        } else {
-            enemyDraw(1);
-            enemyLoseActions(1);
-            setCurrentPlayer('PLAYER');
-        }
+        enemyRezCards().then(() => {
+            enemyPlanAttack().then(attackPlanned => {
+                if (attackPlanned) {
+                    enemyLoseActions(1);
+                    return;
+                }
+                if (enemyHand.length > 0) {
+                    enemyPlayCard();
+                    enemyLoseActions(1);
+                } else {
+                    setCurrentPlayer('PLAYER');
+                }
+            });
+        });
     } else {
         setCurrentPlayer('PLAYER');
     }
@@ -1135,323 +1185,114 @@ function startTurn(currentPriorityLeft) {
     enemyAdvanceCards();
 }
 
-function endTurn() {
+export function endTurn() {
     console.log('end turn');
     processEndOfTurnEffects();
     const newPriorityLeft = !priorityLeft;
     setPriorityLeft(newPriorityLeft);
-    startTurn(newPriorityLeft);
-}
-
-function getPlayerRealmByName(realmName) {
-    switch (realmName) {
-        case 'Solarium':
-            return playerSolarium;
-        case 'Theater':
-            return playerTheater;
-        case 'Underpass':
-            return playerUnderpass;
-        case 'Grid':
-            return playerGrid;
-        default:
-            return null;
-    }
-}
-
-function getSetPlayerRealm(realmName) {
-    switch (realmName) {
-        case 'Solarium':
-            return setPlayerSolarium;
-        case 'Theater':
-            return setPlayerTheater;
-        case 'Underpass':
-            return setPlayerUnderpass;
-        case 'Grid':
-            return setPlayerGrid;
-        default:
-            return null;
-    }
-}
-
-// Define functions to get the enemy's realm and its setter by name
-function getEnemyRealmByName(realmName) {
-    switch (realmName) {
-        case 'Solarium':
-            return enemySolarium;
-        case 'Theater':
-            return enemyTheater;
-        case 'Underpass':
-            return enemyUnderpass;
-        case 'Grid':
-            return enemyGrid;
-        default:
-            return null;
-    }
-}
-
-function getSetEnemyRealm(realmName) {
-    switch (realmName) {
-        case 'Solarium':
-            return setEnemySolarium;
-        case 'Theater':
-            return setEnemyTheater;
-        case 'Underpass':
-            return setEnemyUnderpass;
-        case 'Grid':
-            return setEnemyGrid;
-        default:
-            return null;
-    }
-}
-
-// Function to determine the array name based on the card's category
-function getArrayNameForCategory(category) {
-    switch (category) {
-        case 'ENTITY':
-            return 'people';
-        case 'LOCATION':
-        case 'LANDMARK':
-            return 'places';
-        case 'SNIP':
-        case 'SYM':
-        case 'THING':
-            return 'things';
-        default:
-            console.error('Unknown card category:', category);
-            return 'things'; // Default to 'things' if unknown
-    }
-}
-
-function updateEntityInRealm(entity, updatedProperties, side) {
-    const realmName = entity.realm;
-    const [realm, setRealm] = getRealmAndSetter(realmName, side);
-    const arrays = ['people', 'places', 'things'];
-    let entityFound = false;
-
-    arrays.forEach(arrayName => {
-        if (realm[arrayName].some(card => card.id === entity.id)) {
-            setRealm(prevRealm => ({
-                ...prevRealm,
-                [arrayName]: prevRealm[arrayName].map(card => {
-                    if (card.id === entity.id) {
-                        return {
-                            ...card,
-                            ...updatedProperties,
-                        };
-                    }
-                    return card;
-                }),
-            }));
-            entityFound = true;
-        }
+    handleDominationPhase().then(() => {
+        startTurn(newPriorityLeft);
     });
-
-    if (!entityFound) {
-        console.error(`Entity ${entity.card.name} not found in realm ${realmName}.`);
-    }
 }
 
+export const returnToOriginalRealm = (cardEntity, side) => {
+    const { setPlayerBattleSlots, setEnemyBattleSlots } = require('./battle');
+    const realm = cardEntity.realm;
+    const updatedCardEntity = { ...cardEntity };
 
+    const updateRealm = (setRealmFunc) => {
+        console.log('Returning card to original realm:', updatedCardEntity);
+        setRealmFunc(prev => ({ ...prev, people: [...prev.people, updatedCardEntity] }));
+    };
 
-
-
-function updateCardInRealm(cardEntity, side) {
-    const realmName = cardEntity.realm;
-    const [realm, setRealm] = getRealmAndSetter(realmName, side);
-
-    // Update the card in the appropriate array
-    if (realm.people.some(card => card.id === cardEntity.id)) {
-        setRealm({
-            ...realm,
-            people: realm.people.map(card => (card.id === cardEntity.id ? cardEntity : card)),
+    const updateBattleSlots = (setBattleSlotsFunc) => {
+        setBattleSlotsFunc(prev => {
+            const newSlots = [...prev];
+            const cardIndex = newSlots.findIndex(card => card === cardEntity);
+            if (cardIndex !== -1) newSlots[cardIndex] = null;
+            return newSlots;
         });
-    } else if (realm.places.some(card => card.id === cardEntity.id)) {
-        setRealm({
-            ...realm,
-            places: realm.places.map(card => (card.id === cardEntity.id ? cardEntity : card)),
-        });
-    } else if (realm.things.some(card => card.id === cardEntity.id)) {
-        setRealm({
-            ...realm,
-            things: realm.things.map(card => (card.id === cardEntity.id ? cardEntity : card)),
-        });
+    };
+
+    if (side === 'PLAYER') {
+        updateBattleSlots(setPlayerBattleSlots);
+        switch (realm) {
+            case 'Solarium': updateRealm(setPlayerSolarium); break;
+            case 'Theater': updateRealm(setPlayerTheater); break;
+            case 'Underpass': updateRealm(setPlayerUnderpass); break;
+            case 'Grid': updateRealm(setPlayerGrid); break;
+            default: console.error('Unknown realm:', realm); break;
+        }
     } else {
-        console.error(`Card ${cardEntity.card.name} not found in realm ${realmName}.`);
-    }
-}
-
-    const returnToOriginalRealm = (cardEntity, side) => {
-        const realm = cardEntity.realm;
-        const updatedCardEntity = { ...cardEntity }; // todo
-
-        const updateRealm = (setRealmFunc) => {
-            console.log('updatedCardEntity', updatedCardEntity)
-            setRealmFunc(prev => ({ ...prev, people: [...prev.people, updatedCardEntity] }));
-        };
-
-        const updateBattleSlots = (setBattleSlotsFunc) => {
-            setBattleSlotsFunc(prev => {
-                const newSlots = [...prev];
-                const cardIndex = newSlots.findIndex(card => card === cardEntity);
-                if (cardIndex !== -1) newSlots[cardIndex] = null;
-                return newSlots;
-            });
-        };
-
-        if (side === 'PLAYER') {
-            updateBattleSlots(setPlayerBattleSlots);
-            switch (realm) {
-                case 'Solarium': updateRealm(setPlayerSolarium); break;
-                case 'Theater': updateRealm(setPlayerTheater); break;
-                case 'Underpass': updateRealm(setPlayerUnderpass); break;
-                case 'Grid': updateRealm(setPlayerGrid); break;
-            }
-        } else {
-            updateBattleSlots(setEnemyBattleSlots);
-            switch (realm) {
-                case 'Solarium': updateRealm(setEnemySolarium); break;
-                case 'Theater': updateRealm(setEnemyTheater); break;
-                case 'Underpass': updateRealm(setEnemyUnderpass); break;
-                case 'Grid': updateRealm(setEnemyGrid); break;
-            }
+        updateBattleSlots(setEnemyBattleSlots);
+        switch (realm) {
+            case 'Solarium': updateRealm(setEnemySolarium); break;
+            case 'Theater': updateRealm(setEnemyTheater); break;
+            case 'Underpass': updateRealm(setEnemyUnderpass); break;
+            case 'Grid': updateRealm(setEnemyGrid); break;
+            default: console.error('Unknown realm:', realm); break;
         }
-    };
+    }
+};
 
+export const removeFromRealm = (realmName, entityId, category) => {
+    const [realm, setRealm] = getRealmAndSetter(realmName);
+    
+    if (!realm || !setRealm) {
+        console.error(`Invalid realm name: ${realmName}`);
+        return;
+    }
 
-    const removeFromRealm = (cardEntity, realm, side) => {
-        const updateRealm = (setRealmFunction, realmName) => {
-            setRealmFunction(prev => {
-                let updated = { ...prev };
-                let removed = false;
-                Object.keys(updated).forEach(key => {
-                    if (Array.isArray(updated[key])) {
-                        const originalLength = updated[key].length;
-                        updated[key] = updated[key].filter(c => c.id !== cardEntity.id);
-                        if (updated[key].length !== originalLength) {
-                            removed = true;
-                            console.log(`Removed entity ID ${cardEntity.id} from ${key} in ${realmName} realm.`);
-                        }
-                    }
-                });
+    setRealm(prev => {
+        let updated = { ...prev };
+        let removed = false;
 
-                if (!removed) {
-                    console.warn(`Entity with ID ${cardEntity.id} not found in any array within ${realmName} realm.`);
+        // Handle based on category
+        switch (category) {
+            case 'PEOPLE':
+                if (Array.isArray(updated.people)) {
+                    const originalLength = updated.people.length;
+                    updated.people = updated.people.filter(c => c.id !== entityId);
+                    removed = updated.people.length !== originalLength;
                 }
-
-                return updated;
-            });
-        };
-
-        if (side === 'PLAYER') {
-            switch (realm) {
-                case 'Solarium':
-                    updateRealm(setPlayerSolarium, 'Solarium');
-                    break;
-                case 'Theater':
-                    updateRealm(setPlayerTheater, 'Theater');
-                    break;
-                case 'Underpass':
-                    updateRealm(setPlayerUnderpass, 'Underpass');
-                    break;
-                case 'Grid':
-                    updateRealm(setPlayerGrid, 'Grid');
-                    break;
-                default:
-                    console.error('Invalid realm: ' + realm);
-            }
-        } else if (side === 'ENEMY') {
-            switch (realm) {
-                case 'Solarium':
-                    updateRealm(setEnemySolarium, 'Solarium');
-                    break;
-                case 'Theater':
-                    updateRealm(setEnemyTheater, 'Theater');
-                    break;
-                case 'Underpass':
-                    updateRealm(setEnemyUnderpass, 'Underpass');
-                    break;
-                case 'Grid':
-                    updateRealm(setEnemyGrid, 'Grid');
-                    break;
-                default:
-                    console.error('Invalid realm: ' + realm);
-            }
-        } else {
-            console.error('Invalid side: ' + side);
-        }
-    };
-
-    function getOppositeSide(side) {
-        return side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
-    }
-
-    function willEntitySurvive(entity, incomingDamage) {
-        const currentWounds = entity.wounds || 0;
-        const totalDamage = currentWounds + incomingDamage;
-        return totalDamage < entity.card.HP;
-    }
-
-    const handlePlaceDamage = (location, id, num, side) => {
-        let cardToWound;
-        let setRealmFunction;
-        let currentRealm;
-
-        // Determine the correct realm and setter based on location and side
-        switch (location) {
-            case 'Theater':
-                currentRealm = side === 'PLAYER' ? playerTheater : enemyTheater;
-                setRealmFunction = side === 'PLAYER' ? setPlayerTheater : setEnemyTheater;
                 break;
-            case 'Underpass':
-                currentRealm = side === 'PLAYER' ? playerUnderpass : enemyUnderpass;
-                setRealmFunction = side === 'PLAYER' ? setPlayerUnderpass : setEnemyUnderpass;
+            case 'PLACES':
+                if (Array.isArray(updated.places)) {
+                    const originalLength = updated.places.length;
+                    updated.places = updated.places.filter(c => c.id !== entityId);
+                    removed = updated.places.length !== originalLength;
+                }
+                break;
+            case 'THINGS':
+                if (Array.isArray(updated.things)) {
+                    const originalLength = updated.things.length;
+                    updated.things = updated.things.filter(c => c.id !== entityId);
+                    removed = updated.things.length !== originalLength;
+                }
                 break;
             default:
-                console.error('Invalid location');
-                return;
+                console.error(`Invalid category: ${category}`);
         }
 
-        // Find the card to wound
-        cardToWound = currentRealm.places.find(cardEntity => cardEntity.id === id);
-
-        // If card is not found, log and return
-        if (!cardToWound) {
-            console.log(`Card with id ${id} in ${location} is already destroyed`);
-            return;
-        }
-
-        // Calculate new wounds
-        const newWounds = cardToWound.wounds + num;
-
-        // Handle card destruction
-        if (newWounds >= cardToWound.card.HP) {
-            handleDestroyedPlace(
-                location,
-                cardToWound.id,
-                side,
-                cardToWound.card.runes || 0
-            );
+        if (removed) {
+            console.log(`Removed entity ID ${entityId} from ${category} in ${realmName} realm`);
         } else {
-            // Update the realm with new wounds
-            setRealmFunction(prevRealm => ({
-                ...prevRealm,
-                places: prevRealm.places.map(card =>
-                    card.id === id
-                        ? { ...card, wounds: newWounds }
-                        : card
-                )
-            }));
+            console.warn(`Entity with ID ${entityId} not found in ${category} within ${realmName} realm`);
         }
+
+        return updated;
+    });
+};
+
+function getGlobalEntityById(entityId, side, realmName) {
+    const [realm] = getRealmAndSetter(realmName, side);
+
+    if (!realm) {
+        console.error(`Invalid realm: ${realmName}`);
+        return null;
     }
 
-    function getGlobalEntityById(entityId, side, realmName) {
-        const [realm, _] = getRealmAndSetter(realmName, side);
-    
-        // Search the people array in the given realm for the entity
-        const foundEntity = realm.people.find(card => card.id === entityId);
-        return foundEntity || null;
-    }
-
-
-
-
+    // Search the people array in the given realm for the entity
+    const foundEntity = realm.people.find(card => card.id === entityId);
+    return foundEntity || null;
+}

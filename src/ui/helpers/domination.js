@@ -1,4 +1,32 @@
-async function handleDominationPhase() {
+import { eventManager } from '../Tools';
+import { showModal } from '../components/Modal';
+import { BidInputModal } from '../components/BidInputModal';
+import {
+    playerSolarium,
+    playerTheater,
+    playerUnderpass,
+    playerGrid,
+    enemySolarium,
+    enemyTheater,
+    enemyUnderpass,
+    enemyGrid,
+    playerSurge,
+    enemySurge,
+    enemyBits,
+    focus,
+    turnNumber,
+    setPlayerBits,
+    setEnemyBits,
+    setPlayerFate,
+    setEnemyFate,
+    setPlayerBurden,
+    setEnemyBurden,
+    setPlayerActions,
+    setEnemyActions
+} from './state';
+import { enemySacrificeEntity, playerSacrificeEntity } from './sacrifice';
+
+export async function handleDominationPhase() {
     if (turnNumber >= 2) {
         // Calculate scores
         const playerScore = calculateDominationScore('PLAYER');
@@ -51,7 +79,7 @@ async function handleDominationPhase() {
 
 
 
-function calculateDominationScore(side) {
+export function calculateDominationScore(side) {
     const realms = side === 'PLAYER'
         ? [playerSolarium, playerTheater, playerUnderpass, playerGrid]
         : [enemySolarium, enemyTheater, enemyUnderpass, enemyGrid];
@@ -68,7 +96,7 @@ function calculateDominationScore(side) {
     return totalPower + surge;
 }
 
-function promptPlayerBid(maxBid) {
+export function promptPlayerBid(maxBid) {
     return new Promise((resolve) => {
         displayBidPrompt(maxBid, (playerBid) => {
             const validBid = Math.max(0, Math.min(playerBid, maxBid));
@@ -78,7 +106,7 @@ function promptPlayerBid(maxBid) {
 }
 
 
-function determineEnemyBid(enemyScore, playerScore, enemyBits, playerBits) {
+export function determineEnemyBid(enemyScore, playerScore, enemyBits, playerBits) {
     console.log('enemyScore', enemyScore);
     console.log('playerScore', playerScore);
     console.log('enemyBits', enemyBits);
@@ -136,7 +164,7 @@ function determineEnemyBid(enemyScore, playerScore, enemyBits, playerBits) {
 
 
 
-function applyDominationReward(winnerSide) {
+export function applyDominationReward(winnerSide) {
     if (focus === 'magi') {
         if (winnerSide === 'PLAYER') {
             setPlayerFate(prev => prev + 1);
@@ -164,7 +192,7 @@ function applyDominationReward(winnerSide) {
     }
 }
 
-    function displayBidPrompt(maxBid, decisionCallback) {
+export function displayBidPrompt(maxBid, decisionCallback) {
         showModal({
             title: 'Domination Phase',
             message: `Enter the amount of Bits to spend (0 to ${maxBid}):`,

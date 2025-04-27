@@ -1,5 +1,13 @@
+import { handleDeadCard, handleDeadCards } from './damage';
+import { showModal, setModalVisible } from './modal';
+import { 
+    enemySolarium, enemyTheater, enemyUnderpass, enemyGrid,
+    playerSolarium, playerTheater, playerUnderpass, playerGrid,
+    soulSelections, rezCard, setSoulSelections, setAwaitingSacrifices,
+    getRealmAndSetter
+} from './state';
 
-function enemySacrificeEntity() {
+export function enemySacrificeEntity() {
 
     const realms = [enemySolarium, enemyTheater, enemyUnderpass, enemyGrid];
     const entities = realms.flatMap(realm => realm.people);
@@ -13,7 +21,7 @@ function enemySacrificeEntity() {
     }
 }
 
-function playerSacrificeEntity() {
+export function playerSacrificeEntity() {
     // Similar logic for the player
     const realms = [playerSolarium, playerTheater, playerUnderpass, playerGrid];
     const entities = realms.flatMap(realm => realm.people);
@@ -27,7 +35,7 @@ function playerSacrificeEntity() {
     }
 }
 
-function promptPlayerToSacrifice(entities) {
+export function promptPlayerToSacrifice(entities) {
     return new Promise((resolve) => {
         showModal({
             title: 'Sacrifice an Entity',
@@ -52,7 +60,7 @@ function promptPlayerToSacrifice(entities) {
     });
 }
 
-const handleSacrificeConfirmation = () => {
+export const handleSacrificeConfirmation = () => {
     console.log('confirm sacrifice');
     const totalCosmicValue = soulSelections.reduce((sum, card) => sum + (card.cosmic || 1), 0);
 
@@ -78,7 +86,7 @@ const handleSacrificeConfirmation = () => {
 };
 
 
-function setCardSacrificed(realmName, entityId, isSelected) {
+export function setCardSacrificed(realmName, entityId, isSelected) {
     const [realm, setRealm] = getRealmAndSetter(realmName, 'PLAYER');
 
     const entityIndex = realm.people.findIndex((e) => e.id === entityId);

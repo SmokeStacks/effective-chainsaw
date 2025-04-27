@@ -1,4 +1,30 @@
-const handleCardSelect = (cardEntity, inHand) => {
+import { 
+    setSelectedCard, setSelectedInHand, setDraftSelected, 
+    setTargetType, setPendingRitual, setTargetSelection,
+    setAwaitingImpostor, setImpostorRealm,
+    setSoulSelections, setCardSacrificed,
+    setPlayerTargetSelection, setBattleRealm,
+    setPlayerBattleSlots, setBattleSelectedCard,
+    setFocus, setAwaitingFocus,
+    playerBattleSlots, enemyBattleSlots,
+    attackMode, awaitingImpostor, awaitingSacrifices,
+    selectionMode, battleRealm, battleSelectedCard,
+    selectedCard, impostorRealm,
+    setPendingManualAbility,
+    recruiterCount, draftSelected
+} from './state';
+
+import { abilitiesDefinitions } from './abilities';
+import { confirmManualAbility } from './ability';
+
+import { handleImpostorPlacement } from './impostor';
+import { handleBoostCard } from './boost';
+import { handleDevelopCard } from './develop';
+import { removeFromRealm } from './realm';
+import { showModal, setModalVisible } from './modal';
+import { isValidAbilityTarget, confirmAbilityTarget } from './ability';
+
+export const handleCardSelect = (cardEntity, inHand) => {
     console.log('hand select')
     setSelectedCard(cardEntity);
     setSelectedInHand(inHand);
@@ -9,7 +35,7 @@ const handleCardSelect = (cardEntity, inHand) => {
     setTargetSelection({ enabled: false });
 };
 
-const handleCancel = () => {
+export const handleCancel = () => {
     setSelectedCard(null);
     setSelectedInHand(null);
     setDraftSelected(false);
@@ -19,7 +45,7 @@ const handleCancel = () => {
     setTargetSelection({ enabled: false });
 };
 
-    const handleRealmCardSelect = (cardEntity) => {
+export const handleRealmCardSelect = (cardEntity) => {
         console.log('handle realm card select', cardEntity)
         console.log('attackMode', attackMode)
         if (awaitingImpostor) {
@@ -109,7 +135,7 @@ const handleCancel = () => {
         }
     };
 
-    function handleAbilityClick(entity) {
+export const handleAbilityClick = (entity) => {
         const manualAbilities = entity.card.abilities?.filter(
             ability => ability.type === 'manual'
         );
@@ -155,7 +181,7 @@ const handleCancel = () => {
         }
     }
 
-    const handleEmptySlotSelect = (slotIndex) => {
+export const handleEmptySlotSelect = (slotIndex) => {
         if (playerBattleSlots[slotIndex]) {
             return; // Return early if slot is not empty
         }
@@ -216,7 +242,7 @@ const handleCancel = () => {
     };
 
 
-    const handleBattleCardSelect = (cardEntity, slotIndex) => {
+export const handleBattleCardSelect = (cardEntity, slotIndex) => {
         if (!battleSelectedCard) {
             setBattleSelectedCard(cardEntity);
         } else {
@@ -251,14 +277,14 @@ const handleCancel = () => {
     //     setSelectedCard(null);
     // };
 
-    const handleServerSelect = (targetType) => {
+export const handleServerSelect = (targetType) => {
         console.log('______server selected ', targetType);
         setSelectedCard(null);
         setDraftSelected(false);
         setTargetType(targetType);
     }
 
-    const handleFocusSelect = (focus) => {
+export const handleFocusSelect = (focus) => {
         console.log('focus select ', focus)
         setFocus(focus);
         setAwaitingFocus(false);

@@ -1,3 +1,22 @@
+import { gameState, setters } from '../helpers/state';
+import { 
+    playerGainFate, playerGainOverload, 
+    enemyGainFate, enemyGainOverload,
+    playerGainBurden, enemyGainBurden,
+    applyEffect, handleDamage,
+    playerGainBits, enemyGainBits,
+    playerGainWounds, enemyGainWounds,
+    playerGainActions, enemyGainActions,
+    playerGainAshes, enemyGainAshes,
+    playerGainSurge, enemyGainSurge,
+    playerGainLag, enemyGainLag,
+    updateEntityInRealm, handleDeadCard,
+    handlePlaceDamage, applyBoost,
+    applyHack, getFriendlyEntities,
+    handleDestroyedThing
+} from '../helpers/core';
+import { getOppositeSide } from '../helpers/utils';
+
 export const abilitiesDefinitions = {
     'Extortion': {
         name: 'Extortion',
@@ -934,15 +953,18 @@ export const abilitiesDefinitions = {
         type: 'triggered',
         triggers: ['entityDied'],
         eventHandler: function (entity, eventData, gameState, side) {
-            const { deadEntity, deadSide } = eventData;
-            if (deadEntity.card.abilities.includes('Decay')) {
+            const { deadEntity } = eventData;
+            if (deadEntity.card.abilities.some(ability => 
+                typeof ability === 'string' ? ability === 'Decay' : ability.name === 'Decay'
+            )) {
                 if (side === 'PLAYER') {
-                    gameState.playerGainFate(1);
-                    gameState.playerGainOverload(2);
+                    playerGainFate(1);
+                    playerGainOverload(2);
                 } else {
-                    gameState.enemyGainFate(1);
-                    gameState.enemyGainOverload(2);
+                    enemyGainFate(1);
+                    enemyGainOverload(2);
                 }
+                console.log(`${entity.card.name} triggered: gained 1 Fate and 2 Overload from decaying entity.`);
             }
         },
     },
@@ -951,11 +973,13 @@ export const abilitiesDefinitions = {
         type: 'triggered',
         triggers: ['dominationResolved'],
         eventHandler: function (entity, eventData, gameState, side) {
-            console.log('gain charge')
             if (eventData.winner === side) {
-                entity.charge = (entity.charge || 0) + 1;
-                console.log(`${entity.card.name} gains 1 Charge (total: ${entity.charge})`);
-                updateCardInRealm(entity, side);
+                applyEffect(entity.id, entity.realm, side, {
+                    type: 'status',
+                    status: 'charge',
+                    amount: 1
+                });
+                console.log(`${entity.card.name} gains 1 Charge from winning domination.`);
             }
         },
     },
@@ -965,17 +989,28 @@ export const abilitiesDefinitions = {
         triggers: ['dominationResolved'],
         eventHandler: function (entity, eventData, gameState, side) {
             if (eventData.winner === side) {
-                // Inflict Freeze 1 on enemy entities
-                const isLocal = entity.card.abilities.includes('Locality');
-                const targets = getEnemyEntities(side, isLocal ? entity.realm : null).filter(e => e.online);
-                targets.forEach(target => {
-                    applyEffect(target, {
-                        type: 'status',
-                        status: 'Freeze',
-                        amount: 1,
+                const enemySide = getOppositeSide(side);
+                const isLocal = entity.card.abilities.some(ability => 
+                    typeof ability === 'string' ? ability === 'Locality' : ability.name === 'Locality'
+                );
+                
+                // Get all enemy realms or just the local realm
+                const realms = isLocal ? [entity.realm] : ['Solarium', 'Theater', 'Underpass', 'Grid'];
+                
+                realms.forEach(realmName => {
+                    const [realm, setRealm] = getRealmAndSetter(realmName, enemySide);
+                    realm.people.forEach(target => {
+                        if (target.online) {
+                            applyEffect(target.id, realmName, enemySide, {
+                                type: 'status',
+                                status: 'freeze',
+                                amount: 1
+                            });
+                        }
                     });
-                    console.log(`${target.card.name} is Frozen by ${entity.card.name}`);
                 });
+                
+                console.log(`${entity.card.name} freezes enemy entities from domination victory.`);
             }
         }
     },
@@ -985,14 +1020,13 @@ export const abilitiesDefinitions = {
         triggers: ['dominationResolved'],
         eventHandler: function (entity, eventData, gameState, side) {
             if (eventData.winner === side) {
-                // Inflict 3 Burden on opponent
-                if (side === 'PLAYER') {
-                    setEnemyBurden(prev => prev + 3);
-                    console.log('Enemy gains 3 Burden due to Dread\'s Dominance effect.');
+                const enemySide = getOppositeSide(side);
+                if (enemySide === 'PLAYER') {
+                    playerGainBurden(3);
                 } else {
-                    setPlayerBurden(prev => prev + 3);
-                    console.log('Player gains 3 Burden due to Dread\'s Dominance effect.');
+                    enemyGainBurden(3);
                 }
+                console.log(`${entity.card.name} inflicts 3 Burden from domination victory.`);
             }
         },
     },
