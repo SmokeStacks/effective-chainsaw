@@ -1,4 +1,4 @@
-import { gameState } from './state';
+import { gameState, stateSetters } from './state';
 
 export function getOppositeSide(side) {
     return side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
@@ -14,13 +14,13 @@ export function getRealmAndSetter(realmName, owner) {
     if (owner === 'PLAYER') {
         switch (realmName) {
             case 'Solarium':
-                return [gameState.playerSolarium, gameState.setters.setPlayerSolarium];
+                return [gameState.playerSolarium, stateSetters.setPlayerSolarium];
             case 'Theater':
-                return [gameState.playerTheater, gameState.setters.setPlayerTheater];
+                return [gameState.playerTheater, stateSetters.setPlayerTheater];
             case 'Underpass':
-                return [gameState.playerUnderpass, gameState.setters.setPlayerUnderpass];
+                return [gameState.playerUnderpass, stateSetters.setPlayerUnderpass];
             case 'Grid':
-                return [gameState.playerGrid, gameState.setters.setPlayerGrid];
+                return [gameState.playerGrid, stateSetters.setPlayerGrid];
             default:
                 console.error('Invalid realm:', realmName);
                 return [null, null];
@@ -28,13 +28,13 @@ export function getRealmAndSetter(realmName, owner) {
     } else {
         switch (realmName) {
             case 'Solarium':
-                return [gameState.enemySolarium, gameState.setters.setEnemySolarium];
+                return [gameState.enemySolarium, stateSetters.setEnemySolarium];
             case 'Theater':
-                return [gameState.enemyTheater, gameState.setters.setEnemyTheater];
+                return [gameState.enemyTheater, stateSetters.setEnemyTheater];
             case 'Underpass':
-                return [gameState.enemyUnderpass, gameState.setters.setEnemyUnderpass];
+                return [gameState.enemyUnderpass, stateSetters.setEnemyUnderpass];
             case 'Grid':
-                return [gameState.enemyGrid, gameState.setters.setEnemyGrid];
+                return [gameState.enemyGrid, stateSetters.setEnemyGrid];
             default:
                 console.error('Invalid realm:', realmName);
                 return [null, null];

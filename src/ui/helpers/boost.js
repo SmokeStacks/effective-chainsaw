@@ -1,4 +1,4 @@
-import { gameState, setters } from './state';
+import { gameState, stateSetters } from './state';
 
 const {
     playerBits = 0,
@@ -6,7 +6,7 @@ const {
 
 const {
     setPlayerBits,
-} = setters;
+} = stateSetters;
 
 export function handleBoostCard(cardEntity) {
     if (!cardEntity || !cardEntity.card) {

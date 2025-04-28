@@ -1,4 +1,4 @@
-import { gameState, setters } from './state';
+import { gameState, stateSetters } from './state';
 
 const {
     modalVisible = false,
@@ -8,7 +8,7 @@ const {
 const {
     setModalVisible,
     setModalProps,
-} = setters;
+} = stateSetters;
 
 export function showModal({ title, message, renderContent, onConfirm, onCancel }) {
     setModalProps({

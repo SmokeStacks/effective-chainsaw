@@ -28,7 +28,6 @@ export const handleCardSelect = (cardEntity, inHand) => {
     setSelectedCard(cardEntity);
     setSelectedInHand(inHand);
     setDraftSelected(false);
-    setDraftSelected(false);
     setTargetType('none');
     setPendingRitual(null);
     setTargetSelection({ enabled: false });
@@ -37,7 +36,6 @@ export const handleCardSelect = (cardEntity, inHand) => {
 export const handleCancel = () => {
     setSelectedCard(null);
     setSelectedInHand(null);
-    setDraftSelected(false);
     setDraftSelected(false);
     setTargetType('none');
     setPendingRitual(null);

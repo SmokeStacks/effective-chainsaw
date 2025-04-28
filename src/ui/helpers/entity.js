@@ -1,5 +1,5 @@
 import { getRealmAndSetter } from './utils';
-import { gameState, setters } from './state';
+import { gameState, stateSetters } from './state';
 
 const {
     playerLibrary,
@@ -11,7 +11,7 @@ const {
     setEnemyLibrary,
     setPlayerHand,
     setEnemyHand
-} = setters;
+} = stateSetters;
 
 export function updateEntityInRealm(entity, updatedProperties, side) {
     const realmName = entity.realm;

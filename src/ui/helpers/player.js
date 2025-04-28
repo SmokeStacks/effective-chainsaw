@@ -1,4 +1,4 @@
-import { gameState, setters } from './state';
+import { gameState, stateSetters } from './state';
 
 // Resource Management
 export function gainBits(num) {
@@ -6,19 +6,19 @@ export function gainBits(num) {
     if (gameState.playerOverload > 0) {
         remainingBits = Math.max(0, remainingBits - gameState.playerOverload);
     }
-    setters.setPlayerBits(prevBits => prevBits + remainingBits);
+    stateSetters.setPlayerBits(prevBits => prevBits + remainingBits);
 }
 
 export function loseBits(num) {
-    setters.setPlayerBits(prevBits => prevBits - num);
+    stateSetters.setPlayerBits(prevBits => prevBits - num);
 }
 
 export function gainAshes(num) {
-    setters.setPlayerAshes(prevAshes => prevAshes + num);
+    stateSetters.setPlayerAshes(prevAshes => prevAshes + num);
 }
 
 export function loseAshes(num) {
-    setters.setPlayerAshes(prevAshes => prevAshes - num);
+    stateSetters.setPlayerAshes(prevAshes => prevAshes - num);
 }
 
 export function gainActions(num) {
@@ -26,19 +26,19 @@ export function gainActions(num) {
     if (gameState.playerLag > 0) {
         remainingActions = Math.max(0, remainingActions - gameState.playerLag);
     }
-    setters.setPlayerActions(prevActions => prevActions + remainingActions);
+    stateSetters.setPlayerActions(prevActions => prevActions + remainingActions);
 }
 
 export function loseActions(num) {
-    setters.setPlayerActions(prevActions => prevActions - num);
+    stateSetters.setPlayerActions(prevActions => prevActions - num);
 }
 
 export function gainBurden(num) {
-    setters.setPlayerBurden(prevBurden => prevBurden + num);
+    stateSetters.setPlayerBurden(prevBurden => prevBurden + num);
 }
 
 export function loseBurden(num) {
-    setters.setPlayerBurden(prevBurden => prevBurden - num);
+    stateSetters.setPlayerBurden(prevBurden => prevBurden - num);
 }
 
 export function gainFate(num) {
@@ -46,35 +46,35 @@ export function gainFate(num) {
     if (gameState.playerBurden > 0) {
         remainingPoints = Math.max(0, remainingPoints - gameState.playerBurden);
     }
-    setters.setPlayerFate(prevFate => prevFate + remainingPoints);
+    stateSetters.setPlayerFate(prevFate => prevFate + remainingPoints);
 }
 
 export function loseFate(num) {
-    setters.setPlayerFate(prevFate => prevFate - num);
+    stateSetters.setPlayerFate(prevFate => prevFate - num);
 }
 
 export function gainWounds(num) {
-    setters.setPlayerWounds(prevWounds => prevWounds + num);
+    stateSetters.setPlayerWounds(prevWounds => prevWounds + num);
 }
 
 export function loseWounds(num) {
-    setters.setPlayerWounds(prevWounds => prevWounds - num);
+    stateSetters.setPlayerWounds(prevWounds => prevWounds - num);
 }
 
 export function gainOverload(num) {
-    setters.setPlayerOverload(prevOverload => prevOverload + num);
+    stateSetters.setPlayerOverload(prevOverload => prevOverload + num);
 }
 
 export function gainLag(num) {
-    setters.setPlayerLag(prevLag => prevLag + num);
+    stateSetters.setPlayerLag(prevLag => prevLag + num);
 }
 
 export function loseLag(num) {
-    setters.setPlayerLag(prevLag => prevLag - num);
+    stateSetters.setPlayerLag(prevLag => prevLag - num);
 }
 
 export function gainSurge(num) {
-    setters.setPlayerSurge(prev => prev + num);
+    stateSetters.setPlayerSurge(prev => prev + num);
 }
 
 // Card Management
@@ -85,15 +85,15 @@ export function draw(num) {
     if (gameState.playerWounds > 0) {
         const newWounds = gameState.playerWounds - num;
         remainingCards = Math.max(0, -newWounds);
-        setters.setPlayerWounds(Math.max(0, newWounds));
+        stateSetters.setPlayerWounds(Math.max(0, newWounds));
     }
 
     if (remainingCards > 0) {
-        setters.setPlayerLibrary(prevLibrary => {
+        stateSetters.setPlayerLibrary(prevLibrary => {
             const newHandCards = prevLibrary.slice(0, remainingCards);
             const newLibrary = prevLibrary.slice(remainingCards);
 
-            setters.setPlayerHand(prevHand => [
+            stateSetters.setPlayerHand(prevHand => [
                 ...prevHand,
                 ...newHandCards
             ]);
@@ -104,22 +104,22 @@ export function draw(num) {
 }
 
 export function draft() {
-    setters.setSelectedCard(gameState.draft[0]);
-    setters.setDraftSelected(true);
-    setters.setSelectedInHand(true);
+    stateSetters.setSelectedCard(gameState.draft[0]);
+    stateSetters.setDraftSelected(true);
+    stateSetters.setSelectedInHand(true);
 }
 
 // Actions
 export function mine() {
     gainBits(1);
     loseActions(1);
-    setters.setCurrentPlayer('ENEMY');
+    stateSetters.setCurrentPlayer('ENEMY');
 }
 
 export function boost() {
     loseActions(1);
     loseBits(1);
-    setters.setAttackMode('BOOST');
+    stateSetters.setAttackMode('BOOST');
 }
 
 export function develop() {
@@ -129,7 +129,7 @@ export function develop() {
     }
     loseActions(1);
     loseBits(1);
-    setters.setAttackMode('DEVELOP');
+    stateSetters.setAttackMode('DEVELOP');
     console.log('Select a card to develop.');
 }
 
@@ -152,12 +152,12 @@ export function handleRez(entity) {
     }
 
     console.log('rezzing now');
-    setters.setRezCard(entity);
-    setters.setAwaitingSacrifices(true);
+    stateSetters.setRezCard(entity);
+    stateSetters.setAwaitingSacrifices(true);
     
     if (!entity.card.soul || entity.card.soul === 0) {
         console.log('no soul cost');
-        setters.setAwaitingSacrifices(false);
+        stateSetters.setAwaitingSacrifices(false);
     }
 }
 

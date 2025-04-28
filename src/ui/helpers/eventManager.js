@@ -1,6 +1,7 @@
 // Event management system for game-wide events
 export const eventManager = {
     events: {},
+    turnCount: 0,
 
     subscribe: (eventType, callback) => {
         console.log('SUBSCRIBED', eventType);
@@ -22,11 +23,18 @@ export const eventManager = {
         console.log('PUBLISH', eventType);
         console.log('PUBLISH DATA', data);
         console.log('EVENTS', eventManager.events);
+        if (eventType === 'turnStart' && data.side === 'PLAYER') {
+            eventManager.turnCount++;
+        }
         if (eventManager.events[eventType] && eventManager.events[eventType].length > 0) {
             console.log('CALLBACK');
             eventManager.events[eventType].forEach(callback => callback(data));
         } else {
             console.log(`No callbacks subscribed for event: ${eventType}`);
         }
+    },
+
+    getTurnCount: () => {
+        return eventManager.turnCount;
     },
 };

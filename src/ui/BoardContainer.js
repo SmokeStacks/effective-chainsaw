@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-    playerGainBits, 
-    playerDraw, 
-    enemyDraw, 
+import { playerGainBits, 
     startTurn,
     enemyLoseBits
 } from './helpers/core';
-import { handleRezPlayerCard } from './helpers/activation';
-import { 
-    handleSacrificeConfirmation,
-    handleSacrifice 
-} from './helpers/sacrifice';
+import { eventManager } from './helpers/eventManager';
+import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { initializeSetters } from './helpers/state';
 import { activateAbilities } from './abilities/glossary';
+import { createLibrary, createEnemyLibrary } from './helpers/setup';
+import Gameboard from './Gameboard';
+import { Solarium, Theater, Underpass, Grid } from './renders/Board';
 
 export function BoardContainer() {
 
@@ -80,17 +77,21 @@ export function BoardContainer() {
         currentPromptCard: null,
         modalVisible: false,
         modalProps: {},
+        modalTitle: '',
+        modalContent: '',
+        modalButtons: [],
         playerBattleSlots: Array(6).fill(null),
         enemyBattleSlots: Array(6).fill(null),
         selectedCard: null,
         battleSelectedCard: null,
         selectedInHand: false,
-        focus: false,
-        awaitingFocus: false
+        focus: '',
+        awaitingFocus: false,
+        draftSelected: false
     });
 
-    // Interface access state
-    const [interfaceState, setInterfaceState] = useState({
+    // Interface access state - currently unused but kept for future features
+    const [, setInterfaceState] = useState({
         player: {
             headSpace: {
                 interfaced: false,
@@ -113,24 +114,108 @@ export function BoardContainer() {
         }
     });
 
+    // Draw functions
+    const playerDraw = useCallback((num) => {
+        console.log('draw ', num);
+        let remainingCards = num;
+
+        if (playerState.wounds > 0) {
+            const newWounds = playerState.wounds - num;
+            remainingCards = Math.max(0, -newWounds);
+            setPlayerState(prev => ({ ...prev, wounds: Math.max(0, newWounds) }));
+        }
+
+        if (remainingCards > 0) {
+            setPlayerState(prev => {
+                const newHandCards = prev.library.slice(0, remainingCards);
+                const newLibrary = prev.library.slice(remainingCards);
+                return {
+                    ...prev,
+                    library: newLibrary,
+                    hand: [...prev.hand, ...newHandCards]
+                };
+            });
+        }
+    }, [playerState.wounds]);
+
+    const enemyDraw = useCallback((num) => {
+        console.log('enemy draw ', num);
+        let remainingCards = num;
+
+        if (enemyState.wounds > 0) {
+            const newWounds = enemyState.wounds - num;
+            remainingCards = Math.max(0, -newWounds);
+            setEnemyState(prev => ({ ...prev, wounds: Math.max(0, newWounds) }));
+        }
+
+        if (remainingCards > 0) {
+            setEnemyState(prev => {
+                const newHandCards = prev.library.slice(0, remainingCards);
+                const newLibrary = prev.library.slice(remainingCards);
+                return {
+                    ...prev,
+                    library: newLibrary,
+                    hand: [...prev.hand, ...newHandCards]
+                };
+            });
+        }
+    }, [enemyState.wounds]);
+
+    // Listen for UI state reset events
+    useEffect(() => {
+        const resetUIStateHandler = (data) => {
+            setUiState(prev => ({
+                ...prev,
+                ...data
+            }));
+        };
+
+        eventManager.subscribe('resetUIState', resetUIStateHandler);
+        return () => eventManager.unsubscribe('resetUIState', resetUIStateHandler);
+    }, []);
+
     // Initialize global setters
     useEffect(() => {
-        initializeSetters({
-            setPlayerState,
-            setEnemyState,
-            setRealms,
-            setGameState,
-            setUiState,
-            setInterfaceState
-        });
-    }, []);
+        const initGame = () => {
+            initializeSetters({
+                setPlayerState,
+                setEnemyState,
+                setRealms,
+                setGameState,
+                setInterfaceState,
+                playerDraw,
+                enemyDraw,
+                setAwaitingFocus: (value) => setUiState(prev => ({ ...prev, awaitingFocus: value })),
+                setFocus: (value) => setUiState(prev => ({ ...prev, focus: value })),
+                setDraftSelected: (value) => setUiState(prev => ({ ...prev, draftSelected: value })),
+                setUiState
+            });
+
+            // Initialize game
+            const playerLibrary = createLibrary();
+            const enemyLibrary = createEnemyLibrary();
+            setPlayerState(prev => ({ ...prev, library: playerLibrary }));
+            setEnemyState(prev => ({ ...prev, library: enemyLibrary }));
+            playerDraw(5); // Draw initial hand
+            enemyDraw(5);
+        };
+
+        initGame();
+    }, [setPlayerState, setEnemyState, setRealms, setGameState, setUiState, setInterfaceState, playerDraw, enemyDraw]);
+
+    // Start first turn after initialization
+    useEffect(() => {
+        if (playerState.library.length > 0 && enemyState.library.length > 0) {
+            startTurn(true);
+        }
+    }, [playerState.library, enemyState.library]);
 
     // Handle burden effects
     useEffect(() => {
         if (playerState.burden >= 10) {
             setGameState(prev => ({ ...prev, mode: 'GAME_OVER' }));
         }
-    }, [playerState.burden]);
+    }, [playerState.burden, setGameState]);
 
     // Handle player realm updates
     useEffect(() => {
@@ -236,7 +321,7 @@ export function BoardContainer() {
                 startTurn(gameState.priorityLeft);
             }
         }
-    }, [gameState.mode, gameState.attackMode, gameState.priorityLeft]);
+    }, [gameState.mode, gameState.attackMode, gameState.priorityLeft, playerDraw, enemyDraw, setGameState]);
 
     useEffect(() => {
         if (gameState.mode === 'MULLIGAN') {
@@ -429,73 +514,132 @@ export function BoardContainer() {
         }
     }, []);
 
+    // Define realm components for the board
+    const realmComponents = [
+        Solarium,
+        Theater,
+        Underpass,
+        Grid
+    ];
+
+    // Action handlers
+    const handleCardSelect = useCallback((card) => {
+        setUiState(prev => ({
+            ...prev,
+            selectedCard: card,
+            selectedInHand: true
+        }));
+    }, []);
+
+    const handleRealmSelect = useCallback((realmName) => {
+        if (uiState.selectedCard && uiState.selectedInHand) {
+            handleRezPlayerCard(uiState.selectedCard, realmName);
+        }
+    }, [uiState.selectedCard, uiState.selectedInHand, handleRezPlayerCard]);
+
+    const handleBattleCardSelect = useCallback((card) => {
+        setUiState(prev => ({
+            ...prev,
+            battleSelectedCard: card
+        }));
+    }, []);
+
+    const handleSlotSelect = useCallback((index) => {
+        // Handle slot selection logic
+    }, []);
+
     return (
         <div className="board-container">
-            <div className="player-stats">
-                <div>Library: {playerState.library.length}</div>
-                <div>Hand: {playerState.hand.length}</div>
-                <div>Graveyard: {playerState.graveyard.length}</div>
-                <div>Actions: {playerState.actions}</div>
-                <div>Fate: {playerState.fate}</div>
-                <div>Wounds: {playerState.wounds}</div>
-                <div>Bits: {playerState.bits}</div>
-                <div>Overload: {playerState.overload}</div>
-                <div>Burden: {playerState.burden}</div>
-                <div>Ashes: {playerState.ashes}</div>
-            </div>
+            <Gameboard 
+                // Player state
+                playerOneHand={playerState.hand}
+                playerDraft={handleDrawButton}
+                playerDraw={handleDrawButton}
+                playerBoost={() => {}}
+                playerWounds={playerState.wounds}
+                playerBits={playerState.bits}
+                playerActions={playerState.actions}
+                playerFate={playerState.fate}
+                playerBurden={playerState.burden}
+                playerAshes={playerState.ashes}
+                playerSurge={playerState.surge}
+                playerOverload={playerState.overload}
+                
+                // Enemy state
+                enemyWounds={enemyState.wounds}
+                enemyBits={enemyState.bits}
+                enemyActions={enemyState.actions}
+                enemyFate={enemyState.fate}
+                enemyBurden={enemyState.burden}
+                enemyAshes={enemyState.ashes}
+                enemySurge={enemyState.surge}
+                enemyOverload={enemyState.overload}
+                enemyHand={enemyState.hand}
+                
+                // Realm state
+                realmComponents={realmComponents}
+                playerSolarium={realms.player.solarium}
+                playerTheater={realms.player.theater}
+                playerUnderpass={realms.player.underpass}
+                playerGrid={realms.player.grid}
+                playerElysium={realms.player.elysium}
+                enemySolarium={realms.enemy.solarium}
+                enemyTheater={realms.enemy.theater}
+                enemyUnderpass={realms.enemy.underpass}
+                enemyGrid={realms.enemy.grid}
+                enemyElysium={realms.enemy.elysium}
+                
+                // Battle state
+                enemyBattleSlots={uiState.enemyBattleSlots}
+                playerBattleSlots={uiState.playerBattleSlots}
+                attackMode={gameState.attackMode}
+                battleRealm={gameState.battleRealm}
+                
+                // UI handlers
+                onCardSelect={handleCardSelect}
+                onRealmSelect={handleRealmSelect}
+                onRealmCardSelect={handleCardSelect}
+                onBattleCardSelect={handleBattleCardSelect}
+                onSlotSelect={handleSlotSelect}
+                onConfirmDefenseSelection={() => {
+                    setGameState(prev => ({ ...prev, mode: 'NONE' }));
+                }}
+                onPlayerBattle={() => {
+                    setGameState(prev => ({ ...prev, mode: 'BATTLE' }));
+                }}
+                onRezPlayerCard={handleRezPlayerCard}
+                onAbilityClick={(ability, entity) => {
+                    if (ability && entity) {
+                        activateAbilities(entity, 'PLAYER');
+                    }
+                }}
+                onQuest={() => {
+                    setGameState(prev => ({ ...prev, attackMode: 'PLAYER_QUEST' }));
+                }}
+                onRaid={() => {
+                    setGameState(prev => ({ ...prev, attackMode: 'PLAYER_RAID' }));
+                }}
+                onHack={() => {
+                    setGameState(prev => ({ ...prev, attackMode: 'PLAYER_HACK' }));
+                }}
+                
+                // Focus state
+                awaitingFocus={uiState.awaitingFocus}
+                focus={uiState.focus}
+                onFocusSelect={(newFocus) => {
+                    setUiState(prev => ({ ...prev, focus: newFocus }));
+                    setUiState(prev => ({ ...prev, awaitingFocus: false }));
+                }}
 
-            <div className="enemy-stats">
-                <div>Actions: {enemyState.actions}</div>
-                <div>Fate: {enemyState.fate}</div>
-                <div>Wounds: {enemyState.wounds}</div>
-                <div>Bits: {enemyState.bits}</div>
-                <div>Overload: {enemyState.overload}</div>
-                <div>Burden: {enemyState.burden}</div>
-                <div>Ashes: {enemyState.ashes}</div>
-                <div>Surge: {enemyState.surge}</div>
-            </div>
-
-            <div className="player-realms">
-                <div>Solarium: {realms.player.solarium ? realms.player.solarium.length : 0}</div>
-                <div>Theater: {realms.player.theater ? realms.player.theater.length : 0}</div>
-                <div>Underpass: {realms.player.underpass ? realms.player.underpass.length : 0}</div>
-                <div>Grid: {realms.player.grid ? realms.player.grid.length : 0}</div>
-                <div>Elysium: {realms.player.elysium ? realms.player.elysium.length : 0}</div>
-            </div>
-
-            <div className="enemy-realms">
-                <div>Hand: {enemyState.hand ? enemyState.hand.length : 0}</div>
-                <div>Solarium: {realms.enemy.solarium ? realms.enemy.solarium.length : 0}</div>
-                <div>Theater: {realms.enemy.theater ? realms.enemy.theater.length : 0}</div>
-                <div>Underpass: {realms.enemy.underpass ? realms.enemy.underpass.length : 0}</div>
-                <div>Grid: {realms.enemy.grid ? realms.enemy.grid.length : 0}</div>
-                <div>Elysium: {realms.enemy.elysium ? realms.enemy.elysium.length : 0}</div>
-            </div>
-
-            <div className="interface-status">
-                <div>Player HeadSpace: {interfaceState.player.headSpace ? 'Yes' : 'No'}</div>
-                <div>Player Pandora: {interfaceState.player.pandora ? 'Yes' : 'No'}</div>
-                <div>Enemy HeadSpace: {interfaceState.enemy.headSpace ? 'Yes' : 'No'}</div>
-                <div>Enemy Pandora: {interfaceState.enemy.pandora ? 'Yes' : 'No'}</div>
-            </div>
-
-            <div className="selected-info">
-                <div>Selected Card: {uiState.selectedCard ? uiState.selectedCard.name : 'None'}</div>
-                <div>Selected in Hand: {uiState.selectedInHand ? 'Yes' : 'No'}</div>
-            </div>
-
-            <button onClick={handleDrawButton}>Draw</button>
-
-            <div className="game-actions">
-                <button onClick={handleRezPlayerCard}>Rez Card</button>
-                <button onClick={handleSacrificeConfirmation}>Confirm Sacrifice</button>
-            </div>
-
-            {uiState.modalVisible && (
-                <div className="modal">
-                    {/* Modal content */}
-                </div>
-            )}
+                // Modal state
+                modalVisible={uiState.modalVisible}
+                modalTitle={uiState.modalTitle}
+                modalContent={uiState.modalContent}
+                modalButtons={uiState.modalButtons}
+                onCloseModal={() => setUiState(prev => ({ ...prev, modalVisible: false }))}
+                awaitingSacrifices={gameState.awaitingSacrifices}
+                onSacrificeConfirmation={handleSacrificeConfirmation}
+            />
         </div>
     );
 }

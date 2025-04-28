@@ -1,6 +1,6 @@
 import { 
     gameState,
-    setters
+    stateSetters
 } from './state';
 import { getRealmAndSetter, getOppositeSide } from './utils';
 import { eventManager } from './eventManager';
@@ -24,7 +24,7 @@ const {
     enemyGainFate,
     playerGainAshes,
     enemyGainAshes
-} = setters;
+} = stateSetters;
 
 export function handleDamage(location, entityId, damageAmount, owner) {
     let cardToWound;

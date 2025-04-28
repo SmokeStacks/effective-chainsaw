@@ -1,6 +1,6 @@
 import { eventManager } from './eventManager';
 import { abilitiesDefinitions } from '../abilities/glossary';
-import { gameState, setters } from './state';
+import { gameState, stateSetters } from './state';
 import { getRealmAndSetter, getOppositeSide } from './utils';
 import { updateEntityInRealm } from './entity';
 import { playerGainFate, enemyGainFate } from './core';
@@ -14,7 +14,7 @@ const {
     setAttackMode,
     setPlayerElysium,
     setEnemyElysium
-} = setters;
+} = stateSetters;
 
 export function handleDevelopCard(cardEntity) {
         setAttackMode('NONE');

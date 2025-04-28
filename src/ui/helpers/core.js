@@ -37,7 +37,7 @@ import {
 } from './game';
 
 // Import state and setters
-import { gameState, setters } from './state';
+import { gameState, stateSetters } from './state';
 
 // Re-export resource management functions
 export {
@@ -108,12 +108,8 @@ const {
     setSelectedInHand,
     setDraftSelected,
     setDraft,
-    setPlayerBurden,
     setPlayerWounds,
     setEnemyWounds,
-    setEnemyBurden,
-    setPlayerFate,
-    setEnemyFate,
     setPlayerActions,
     setEnemyActions,
     setPlayerSolarium,
@@ -132,7 +128,6 @@ const {
     setAttackMode,
     setAwaitingFocus,
     setFocus,
-    setTurnNumber,
     setPlayerInterfacedHeadSpace,
     setPlayerInterfacedPandora,
     setEnemyInterfacedHeadSpace,
@@ -152,7 +147,7 @@ const {
     setEnemyOverload,
     setPlayerEntitiesDiedThisTurn,
     setEnemyEntitiesDiedThisTurn
-} = setters;
+} = stateSetters;
 
 // Export functions
 export function adjustEntityPowerExternal(entity, side) {
@@ -167,67 +162,67 @@ export function adjustEntityPowerExternal(entity, side) {
 }
 
 export function playerGainWounds(amount) {
-    setPlayerWounds(playerWounds + amount);
+    stateSetters.setPlayerWounds(prevWounds => prevWounds + amount);
 }
 
 export function playerLoseWounds(amount) {
-    setPlayerWounds(Math.max(0, playerWounds - amount));
+    stateSetters.setPlayerWounds(prevWounds => Math.max(0, prevWounds - amount));
 }
 
 export function enemyGainWounds(amount) {
-    setEnemyWounds(enemyWounds + amount);
+    stateSetters.setEnemyWounds(prevWounds => prevWounds + amount);
 }
 
 export function enemyLoseWounds(amount) {
-    setEnemyWounds(Math.max(0, enemyWounds - amount));
+    stateSetters.setEnemyWounds(prevWounds => Math.max(0, prevWounds - amount));
 }
 
 export function playerGainBurden(amount) {
-    setPlayerBurden(playerBurden + amount);
+    stateSetters.setPlayerBurden(prevBurden => prevBurden + amount);
 }
 
 export function playerLoseBurden(amount) {
-    setPlayerBurden(Math.max(0, playerBurden - amount));
+    stateSetters.setPlayerBurden(prevBurden => Math.max(0, prevBurden - amount));
 }
 
 export function enemyGainBurden(amount) {
-    setEnemyBurden(enemyBurden + amount);
+    stateSetters.setEnemyBurden(prevBurden => prevBurden + amount);
 }
 
 export function enemyLoseBurden(amount) {
-    setEnemyBurden(Math.max(0, enemyBurden - amount));
+    stateSetters.setEnemyBurden(prevBurden => Math.max(0, prevBurden - amount));
 }
 
 export function playerGainFate(amount) {
-    setPlayerFate(playerFate + amount);
+    stateSetters.setPlayerFate(prevFate => prevFate + amount);
 }
 
 export function playerLoseFate(amount) {
-    setPlayerFate(Math.max(0, playerFate - amount));
+    stateSetters.setPlayerFate(prevFate => Math.max(0, prevFate - amount));
 }
 
 export function enemyGainFate(amount) {
-    setEnemyFate(enemyFate + amount);
+    stateSetters.setEnemyFate(prevFate => prevFate + amount);
 }
 
 export function enemyLoseFate(amount) {
-    setEnemyFate(Math.max(0, enemyFate - amount));
+    stateSetters.setEnemyFate(prevFate => Math.max(0, prevFate - amount));
 }
 
 export function playerGainActions(amount) {
-    setPlayerActions(playerActions + amount);
+    stateSetters.setPlayerActions(prevActions => Math.max(0, prevActions + amount));
 }
 
 export function playerLoseActions(amount) {
-    setPlayerActions(Math.max(0, playerActions - amount));
+    stateSetters.setPlayerActions(prevActions => Math.max(0, prevActions - amount));
 }
 
 export function enemyGainActions(amount) {
-    setEnemyActions(enemyActions + amount);
+    stateSetters.setEnemyActions(prevActions => prevActions + amount);
 }
 
 export function enemyLoseActions(amount) {
-    setEnemyActions(Math.max(0, enemyActions - amount));
+    stateSetters.setEnemyActions(prevActions => Math.max(0, prevActions - amount));
 }
 
 export function returnToOriginalRealm(cardEntity, side) {
@@ -243,13 +238,13 @@ export function returnToOriginalRealm(cardEntity, side) {
 }
 
 export function endPlayerTurn() {
-    setters.setSelectedCard(null);
-    setters.setSelectedInHand(false);
-    setters.setDraftSelected(false);
-    setters.setTargetType('none');
-    setters.setPendingRitual(null);
-    setters.setTargetSelection({ enabled: false });
-    setCurrentPlayer('ENEMY');
+    stateSetters.setSelectedCard(null);
+    stateSetters.setSelectedInHand(false);
+    stateSetters.setDraftSelected(false);
+    stateSetters.setTargetType('none');
+    stateSetters.setPendingRitual(null);
+    stateSetters.setTargetSelection({ enabled: false });
+    stateSetters.setCurrentPlayer('ENEMY');
 }
 
 export const handleRealmSelect = (realmName) => {
@@ -282,8 +277,8 @@ export const handleRealmSelect = (realmName) => {
 
         if (targetingAbilities.length > 0) {
             const ability = targetingAbilities[0]; // Handle first targeting ability
-            setPendingRitual({ entity: selectedCard, ability });
-            setTargetSelection({
+            stateSetters.setPendingRitual({ entity: selectedCard, ability });
+            stateSetters.setTargetSelection({
                 enabled: true,
                 side: 'PLAYER',
                 filter: (target) => target.card.category === 'ENTITY' && target.owner === 'PLAYER',
@@ -291,8 +286,8 @@ export const handleRealmSelect = (realmName) => {
                     confirmRitualActivation(target);
                 },
                 onCancel: () => {
-                    setPendingRitual(null);
-                    setTargetSelection({ enabled: false });
+                    stateSetters.setPendingRitual(null);
+                    stateSetters.setTargetSelection({ enabled: false });
                 },
             });
             // Don't remove from hand yet - wait for target confirmation
@@ -302,14 +297,14 @@ export const handleRealmSelect = (realmName) => {
 
     if (battleSelectedCard) {
         returnToOriginalRealm(battleSelectedCard, 'PLAYER');
-        setBattleSelectedCard(null);
+        stateSetters.setBattleSelectedCard(null);
         const occupiedPlayerSlots = playerBattleSlots.filter(slot => slot !== null).length;
         const occupiedEnemySlots = enemyBattleSlots.filter(slot => slot !== null).length;
         const isPlayerBattleEmpty = occupiedPlayerSlots === 1;
         const isEnemyBattleEmpty = occupiedEnemySlots === 0;
 
         if (isPlayerBattleEmpty && isEnemyBattleEmpty) {
-            setBattleRealm(null);
+            stateSetters.setBattleRealm(null);
         }
     }
     if (!selectedInHand) return;
@@ -318,8 +313,8 @@ export const handleRealmSelect = (realmName) => {
     ) || (draftSelected && recruiterCount > 0);
 
     if (isImpostor) {
-        setAwaitingImpostor(true);
-        setImpostorRealm(realmName);
+        stateSetters.setAwaitingImpostor(true);
+        stateSetters.setImpostorRealm(realmName);
         console.log(`Awaiting Impostor target in realm: ${realmName}`);
         return;
     }
@@ -433,7 +428,7 @@ export const handleRealmSelect = (realmName) => {
 // }
 
 function confirmRitualActivation(target) {
-    const { entity, ability } = pendingRitual;
+    const { entity, ability } = stateSetters.pendingRitual;
     removeCardFromHand(entity);
     // First trigger non-targeting abilities
     entity.card.abilities.forEach(ab => {
@@ -451,7 +446,7 @@ function confirmRitualActivation(target) {
 }
 
 function removeCardFromHand(card) {
-    setPlayerHand((prevHand) => prevHand.filter((c) => c.id !== card.id));
+    stateSetters.setPlayerHand((prevHand) => prevHand.filter((c) => c.id !== card.id));
     //playerLoseActions(1);
 }
 
@@ -497,28 +492,28 @@ function playerAdvanceCards() {
         });
     };
 
-    setPlayerSolarium(prevRealm => {
+    stateSetters.setPlayerSolarium(prevRealm => {
         return {
             ...prevRealm,
             people: advanceCardList(prevRealm.people)
         };
     });
 
-    setPlayerTheater(prevRealm => {
+    stateSetters.setPlayerTheater(prevRealm => {
         return {
             ...prevRealm,
             people: advanceCardList(prevRealm.people)
         };
     });
 
-    setPlayerUnderpass(prevRealm => {
+    stateSetters.setPlayerUnderpass(prevRealm => {
         return {
             ...prevRealm,
             people: advanceCardList(prevRealm.people)
         };
     });
 
-    setPlayerGrid(prevRealm => {
+    stateSetters.setPlayerGrid(prevRealm => {
         return {
             ...prevRealm,
             people: advanceCardList(prevRealm.people)
@@ -570,7 +565,7 @@ function enemyAdvanceCards() {
     };
 
 
-    setEnemySolarium(prevRealm => {
+    stateSetters.setEnemySolarium(prevRealm => {
         return {
             ...prevRealm,
             people: advanceCardList(prevRealm.people),
@@ -579,7 +574,7 @@ function enemyAdvanceCards() {
         };
     });
 
-    setEnemyTheater(prevRealm => {
+    stateSetters.setEnemyTheater(prevRealm => {
         return {
             ...prevRealm,
             people: advanceCardList(prevRealm.people),
@@ -588,7 +583,7 @@ function enemyAdvanceCards() {
         };
     });
 
-    setEnemyUnderpass(prevRealm => {
+    stateSetters.setEnemyUnderpass(prevRealm => {
         return {
             ...prevRealm,
             people: advanceCardList(prevRealm.people),
@@ -597,7 +592,7 @@ function enemyAdvanceCards() {
         };
     });
 
-    setEnemyGrid(prevRealm => {
+    stateSetters.setEnemyGrid(prevRealm => {
         return {
             ...prevRealm,
             people: advanceCardList(prevRealm.people),
@@ -614,14 +609,14 @@ export function enemyDraw(num) {
     if (enemyWounds > 0) {
         const newWounds = enemyWounds - num;
         remainingCards = Math.max(0, -newWounds);
-        setEnemyWounds(Math.max(0, newWounds));
+        stateSetters.setEnemyWounds(prevWounds => Math.max(0, prevWounds - newWounds));
     }
     if (remainingCards > 0) {
-        setEnemyLibrary(prevLibrary => {
+        stateSetters.setEnemyLibrary(prevLibrary => {
             const newHandCards = prevLibrary.slice(0, remainingCards);
             const newLibrary = prevLibrary.slice(remainingCards);
 
-            setEnemyHand(prevHand => [
+            stateSetters.setEnemyHand(prevHand => [
                 ...prevHand,
                 ...newHandCards
             ]);
@@ -669,25 +664,25 @@ function enemyPlayCard() {
             case 'ENTITY':
                 switch (realmToPlayIn) {
                     case 'Solarium':
-                        setEnemySolarium(prevRealm => ({
+                        stateSetters.setEnemySolarium(prevRealm => ({
                             ...prevRealm,
                             people: [...prevRealm.people, updatedCard]
                         }));
                         break;
                     case 'Theater':
-                        setEnemyTheater(prevRealm => ({
+                        stateSetters.setEnemyTheater(prevRealm => ({
                             ...prevRealm,
                             people: [...prevRealm.people, updatedCard]
                         }));
                         break;
                     case 'Underpass':
-                        setEnemyUnderpass(prevRealm => ({
+                        stateSetters.setEnemyUnderpass(prevRealm => ({
                             ...prevRealm,
                             people: [...prevRealm.people, updatedCard]
                         }));
                         break;
                     case 'Grid':
-                        setEnemyGrid(prevRealm => ({
+                        stateSetters.setEnemyGrid(prevRealm => ({
                             ...prevRealm,
                             people: [...prevRealm.people, updatedCard]
                         }));
@@ -701,13 +696,13 @@ function enemyPlayCard() {
             case 'SNIP':
                 switch (realmToPlayIn) {
                     case 'Grid':
-                        setEnemyGrid(prevRealm => ({
+                        stateSetters.setEnemyGrid(prevRealm => ({
                             ...prevRealm,
                             things: [...prevRealm.things, updatedCard]
                         }));
                         break;
                     case 'Underpass':
-                        setEnemyUnderpass(prevRealm => ({
+                        stateSetters.setEnemyUnderpass(prevRealm => ({
                             ...prevRealm,
                             things: [...prevRealm.things, updatedCard]
                         }));
@@ -733,7 +728,7 @@ function enemyPlayCard() {
         }
 
         // Remove the card from the enemy's hand
-        setEnemyHand(prevHand => prevHand.filter(card => card.id !== cardToPlay.id));
+        stateSetters.setEnemyHand(prevHand => prevHand.filter(card => card.id !== cardToPlay.id));
     } else {
         console.log('No realm to play in');
     }
@@ -741,10 +736,10 @@ function enemyPlayCard() {
 
 export function performDetox(side) {
     if (side === 'PLAYER' && playerActions >= 3) {
-        setPlayerActions(prev => prev - 3);
+        stateSetters.setPlayerActions(prev => prev - 3);
         detoxEntities(side);
     } else if (side === 'ENEMY' && enemyActions >= 3) {
-        setEnemyActions(prev => prev - 3);
+        stateSetters.setEnemyActions(prev => prev - 3);
         detoxEntities(side);
     } else {
         console.log('Not enough actions to detox');
@@ -794,7 +789,7 @@ function detoxEntities(side) { // todo apply effect
 export const handleBoostButton = () => {
     playerLoseActions(1);
     playerLoseBits(1);
-    setAttackMode('BOOST')
+    stateSetters.setAttackMode('BOOST')
 }
 
 export const handleDevelopButton = () => {
@@ -804,14 +799,14 @@ export const handleDevelopButton = () => {
     }
     playerLoseActions(1);
     playerLoseBits(1);
-    setAttackMode('DEVELOP');
+    stateSetters.setAttackMode('DEVELOP');
     console.log('Select a card to develop.');
 }
 
 export const handleDrawButton = () => {
     playerDraw(1);
     playerLoseActions(1);
-    setCurrentPlayer('ENEMY');
+    stateSetters.setCurrentPlayer('ENEMY');
 }
 
 export const handleDraftButton = () => {
@@ -825,11 +820,11 @@ export function playerDraw(num) {
     if (playerWounds > 0) {
         const newWounds = playerWounds - num;
         remainingCards = Math.max(0, -newWounds);
-        setPlayerWounds(Math.max(0, newWounds));
+        stateSetters.setPlayerWounds(prevWounds => Math.max(0, prevWounds - newWounds));
     }
 
     if (remainingCards > 0) {
-        setPlayerLibrary(prevLibrary => {
+        stateSetters.setPlayerLibrary(prevLibrary => {
             const newHandCards = prevLibrary.slice(0, remainingCards);
             const newLibrary = prevLibrary.slice(remainingCards);
 
@@ -976,15 +971,19 @@ export function startTurn(currentPriorityLeft) {
     console.log('start turn', currentPriorityLeft)
     eventManager.publish('turnStart', { side: 'PLAYER' });
     eventManager.publish('turnStart', { side: 'ENEMY' });
-    setAwaitingFocus(true);
-    setFocus('');
-    setTurnNumber((prev) => prev + 1);
-    setSelectedCard(null);
-    setSelectedInHand(false);
+    // Reset game state
     setDraftSelected(false);
-    setTargetType('none');
     setPendingRitual(null);
-    setTargetSelection({ enabled: false });
+    
+    // Reset UI state via event manager
+    eventManager.publish('resetUIState', {
+        targetType: 'none',
+        targetSelection: { enabled: false },
+        awaitingFocus: true,
+        focus: '',
+        selectedCard: null,
+        selectedInHand: false
+    });
     const startingPlayer = currentPriorityLeft ? 'ENEMY' : 'PLAYER';
     setCurrentPlayer(startingPlayer);
     setPlayerInterfacedHeadSpace(false);

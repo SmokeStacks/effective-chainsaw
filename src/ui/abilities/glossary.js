@@ -1,4 +1,4 @@
-import { gameState, setters } from '../helpers/state';
+import { gameState, stateSetters } from '../helpers/state';
 import { eventManager } from '../helpers/eventManager';
 import { cardList1 as cardList } from '../data/cardList';
 import { 
@@ -41,7 +41,7 @@ const {
     setPlayerBits, setEnemyBits,
     setPlayerOverload, setEnemyOverload,
     showModal, setModalVisible
-} = setters;
+} = stateSetters;
 
 // Define ability helpers for internal use
 const abilityHelpers = {

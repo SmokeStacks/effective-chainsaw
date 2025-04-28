@@ -15,7 +15,6 @@ import {
     enemyBits,
     playerBits,
     focus,
-    turnNumber,
     setPlayerBits,
     setEnemyBits,
     setPlayerFate,
@@ -29,7 +28,8 @@ import {
 import { enemySacrificeEntity, playerSacrificeEntity } from './sacrifice';
 
 export async function handleDominationPhase() {
-    if (turnNumber >= 2) {
+    const turnCount = eventManager.getTurnCount();
+    if (turnCount >= 2) {
         // Calculate scores
         const playerScore = calculateDominationScore('PLAYER');
         const enemyScore = calculateDominationScore('ENEMY');

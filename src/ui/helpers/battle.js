@@ -1,6 +1,6 @@
 import { eventManager } from './eventManager';
 import { getOppositeSide } from './utils';
-import { gameState, setters } from './state';
+import { gameState, stateSetters } from './state';
 import { applySoloEffect } from './effects';
 import { handleAccessPhase } from './interfacing';
 import { handlePlaceDamage, handleDamage } from './damage';
@@ -56,7 +56,7 @@ const {
     setEnemyDefenseConfirmed,
     setEnemyInterfacedHeadSpace,
     setEnemyInterfacedPandora
-} = setters;
+} = stateSetters;
 
 /**
  * Commits an attack between an attacker and defender.

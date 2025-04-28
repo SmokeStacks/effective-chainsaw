@@ -61,9 +61,9 @@ const state = {
     rezCard: null,
     draftSelected: false,
     selectedRealm: null,
-    turnNumber: 0,
     soulSelections: [],
-    focus: null
+    focus: null,
+    awaitingFocus: false
 };
 
 
@@ -135,6 +135,7 @@ export const gameState = {
 
 // State setters
 const stateSetters = {
+    setSelectedCard: null,
     setPlayerBits: null,
     setPlayerAshes: null,
     setPlayerBurden: null,
@@ -177,7 +178,6 @@ const stateSetters = {
     setEnemyBattleSlots: null,
 
     // Selection setters
-    setSelectedCard: null,
     setSelectedInHand: null,
     setTargetType: null,
     setPlayerTargetSelection: null,
@@ -298,7 +298,6 @@ export const {
     rezCard,
     draftSelected,
     selectedRealm,
-    turnNumber,
     soulSelections,
     focus
 } = state;
@@ -339,7 +338,6 @@ export const {
     setBattleRealm,
     setPlayerBattleSlots,
     setEnemyBattleSlots,
-    setSelectedCard,
     setSelectedInHand,
     setTargetType,
     setPlayerTargetSelection,
@@ -357,8 +355,11 @@ export const {
     setModalVisible,
     setSoulSelections,
     setFocus,
+    setAwaitingFocus,
+    setUiState,
+    setTurnNumber,
     endTurn
 } = stateSetters;
 
 // Export state objects
-export { state, stateSetters as setters };
+export { state, stateSetters };

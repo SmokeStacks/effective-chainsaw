@@ -1,5 +1,4 @@
 import { cardList1, cardList2 } from '../data/cardList';
-import { setPlayerLibrary, setEnemyLibrary } from './state';
 
 export function shuffle(array) {
         let currentIndex = array.length;
@@ -46,7 +45,6 @@ export const createLibrary = () => {
             libraryInstanceArray.push(cardEntityInstance);
         }
         shuffle(libraryInstanceArray);
-        setPlayerLibrary(libraryInstanceArray);
         return libraryInstanceArray;
     };
 
@@ -85,6 +83,5 @@ export const createEnemyLibrary = () => {
             libraryInstanceArray.push(cardEntityInstance);
         }
         shuffle(libraryInstanceArray);
-        setEnemyLibrary(libraryInstanceArray);
         return libraryInstanceArray;
     };

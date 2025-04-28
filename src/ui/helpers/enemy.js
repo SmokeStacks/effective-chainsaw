@@ -1,4 +1,5 @@
-import { gameState, setters } from './state';
+import { gameState, stateSetters } from './state';
+import { activateAbilities } from '../abilities/glossary';
 
 // Resource Management
 export function gainBits(num) {
@@ -6,19 +7,19 @@ export function gainBits(num) {
     if (gameState.enemyOverload > 0) {
         remainingBits = Math.max(0, remainingBits - gameState.enemyOverload);
     }
-    setters.setEnemyBits(prevBits => prevBits + remainingBits);
+    stateSetters.setEnemyBits(prevBits => prevBits + remainingBits);
 }
 
 export function loseBits(num) {
-    setters.setEnemyBits(prevBits => prevBits - num);
+    stateSetters.setEnemyBits(prevBits => prevBits - num);
 }
 
 export function gainAshes(num) {
-    setters.setEnemyAshes(prevAshes => prevAshes + num);
+    stateSetters.setEnemyAshes(prevAshes => prevAshes + num);
 }
 
 export function loseAshes(num) {
-    setters.setEnemyAshes(prevAshes => prevAshes - num);
+    stateSetters.setEnemyAshes(prevAshes => prevAshes - num);
 }
 
 export function gainActions(num) {
@@ -26,19 +27,19 @@ export function gainActions(num) {
     if (gameState.enemyLag > 0) {
         remainingActions = Math.max(0, remainingActions - gameState.enemyLag);
     }
-    setters.setEnemyActions(prevActions => prevActions + remainingActions);
+    stateSetters.setEnemyActions(prevActions => prevActions + remainingActions);
 }
 
 export function loseActions(num) {
-    setters.setEnemyActions(prevActions => Math.max(0, prevActions - num));
+    stateSetters.setEnemyActions(prevActions => Math.max(0, prevActions - num));
 }
 
 export function gainBurden(num) {
-    setters.setEnemyBurden(prevBurden => prevBurden + num);
+    stateSetters.setEnemyBurden(prevBurden => prevBurden + num);
 }
 
 export function loseBurden(num) {
-    setters.setEnemyBurden(prevBurden => prevBurden - num);
+    stateSetters.setEnemyBurden(prevBurden => prevBurden - num);
 }
 
 export function gainFate(num) {
@@ -46,35 +47,35 @@ export function gainFate(num) {
     if (gameState.enemyBurden > 0) {
         remainingPoints = Math.max(0, remainingPoints - gameState.enemyBurden);
     }
-    setters.setEnemyFate(prevFate => prevFate + remainingPoints);
+    stateSetters.setEnemyFate(prevFate => prevFate + remainingPoints);
 }
 
 export function loseFate(num) {
-    setters.setEnemyFate(prevFate => prevFate - num);
+    stateSetters.setEnemyFate(prevFate => prevFate - num);
 }
 
 export function gainWounds(num) {
-    setters.setEnemyWounds(prevWounds => prevWounds + num);
+    stateSetters.setEnemyWounds(prevWounds => prevWounds + num);
 }
 
 export function loseWounds(num) {
-    setters.setEnemyWounds(prevWounds => prevWounds - num);
+    stateSetters.setEnemyWounds(prevWounds => prevWounds - num);
 }
 
 export function gainOverload(num) {
-    setters.setEnemyOverload(prevOverload => prevOverload + num);
+    stateSetters.setEnemyOverload(prevOverload => prevOverload + num);
 }
 
 export function gainLag(num) {
-    setters.setEnemyLag(prevLag => prevLag + num);
+    stateSetters.setEnemyLag(prevLag => prevLag + num);
 }
 
 export function loseLag(num) {
-    setters.setEnemyLag(prevLag => prevLag - num);
+    stateSetters.setEnemyLag(prevLag => prevLag - num);
 }
 
 export function gainSurge(num) {
-    setters.setEnemySurge(prev => prev + num);
+    stateSetters.setEnemySurge(prev => prev + num);
 }
 
 // Card Management
@@ -85,15 +86,15 @@ export function draw(num) {
     if (gameState.enemyWounds > 0) {
         const newWounds = gameState.enemyWounds - num;
         remainingCards = Math.max(0, -newWounds);
-        setters.setEnemyWounds(Math.max(0, newWounds));
+        stateSetters.setEnemyWounds(Math.max(0, newWounds));
     }
 
     if (remainingCards > 0) {
-        setters.setEnemyLibrary(prevLibrary => {
+        stateSetters.setEnemyLibrary(prevLibrary => {
             const newHandCards = prevLibrary.slice(0, remainingCards);
             const newLibrary = prevLibrary.slice(remainingCards);
 
-            setters.setEnemyHand(prevHand => [
+            stateSetters.setEnemyHand(prevHand => [
                 ...prevHand,
                 ...newHandCards
             ]);
