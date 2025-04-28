@@ -1,29 +1,135 @@
-import { eventManager } from '../Tools';
-import { handleDamage } from './damage';
-import { handleDominationPhase } from './domination';
+// Import core dependencies
+import { eventManager } from './eventManager';
 import { 
-    getOppositeSide,
+    getOppositeSide, 
     getRealmAndSetter,
     getAllPlayerRealms,
-    getAllEnemyRealms,
-    calculateSoulsAvailable,
-    removeEffect
+    getAllEnemyRealms
 } from './utils';
-import { handleRezPlayerCard } from './rez';
-import { getAbilityDefinition } from './abilities';
-import { abilitiesDefinitions } from '../data/abilities';
-import { handleAscension } from './ascension';
+
+// Import game mechanics
+import { handleDamage } from './damage';
+import { handleDominationPhase } from './domination';
+import { handleRezPlayerCard } from './enemy/rez';
+import { abilitiesDefinitions } from '../abilities/glossary';
 import { 
-    playerBattleSlots,
-    enemyBattleSlots,
-    battleSelectedCard,
-    recruiterCount,
-    priorityLeft,
-    pendingRitual,
-    enemyRezCards,
-    enemyPlanAttack
-} from './battle';
-import {
+    removeEffect,
+    playerGainOverload,
+    enemyGainOverload
+} from './effects';
+import { setBattleRealm } from './battle';
+import { getAbilityDefinition } from './abilities';
+import { 
+    calculateSoulsAvailable,
+    handleAscension,
+    playerGainBits,
+    playerLoseBits,
+    enemyGainBits,
+    enemyLoseBits,
+    playerGainAshes,
+    playerLoseAshes,
+    enemyGainAshes,
+    enemyLoseAshes,
+    playerGainSurge,
+    playerLoseSurge,
+    enemyGainSurge,
+    enemyLoseSurge
+} from './game';
+
+// Import state and setters
+import { gameState, setters } from './state';
+
+// Re-export resource management functions
+export {
+    // Bits
+    playerGainBits,
+    playerLoseBits,
+    enemyGainBits,
+    enemyLoseBits,
+    // Overload
+    playerGainOverload,
+    enemyGainOverload,
+    // Ashes
+    playerGainAshes,
+    playerLoseAshes,
+    enemyGainAshes,
+    enemyLoseAshes,
+    // Surge
+    playerGainSurge,
+    playerLoseSurge,
+    enemyGainSurge,
+    enemyLoseSurge
+};
+
+// Get state variables
+const {
+    playerBattleSlots = [],
+    enemyBattleSlots = [],
+    battleSelectedCard = null,
+    recruiterCount = 0,
+    priorityLeft = true,
+    pendingRitual = null,
+    enemyRezCards = [],
+    enemyPlanAttack = false,
+    selectedCard = null,
+    selectedInHand = false,
+    draftSelected = false,
+    draft = [],
+    playerBits = 0,
+    playerBurden = 0,
+    playerWounds = 0,
+    enemyWounds = 0,
+    enemyBurden = 0,
+    playerFate = 0,
+    enemyFate = 0,
+    playerActions = 0,
+    enemyActions = 0,
+    playerSolarium = { people: [], places: [], things: [] },
+    playerTheater = { people: [], places: [], things: [] },
+    playerUnderpass = { people: [], places: [], things: [] },
+    playerGrid = { people: [], places: [], things: [] },
+    enemySolarium = { people: [], places: [], things: [] },
+    enemyTheater = { people: [], places: [], things: [] },
+    enemyUnderpass = { people: [], places: [], things: [] },
+    enemyGrid = { people: [], places: [], things: [] },
+    enemyHand = [],
+    playerAshes = 0,
+    playerDriftCount = 0,
+    playerGlitchyAmount = 0,
+    enemyGlitchyAmount = 0,
+    enemyDriftCount = 0,
+    playerDividendAmount = 0,
+    enemyDividendAmount = 0
+} = gameState;
+
+// Get setters
+const {
+    setSelectedCard,
+    setSelectedInHand,
+    setDraftSelected,
+    setDraft,
+    setPlayerBurden,
+    setPlayerWounds,
+    setEnemyWounds,
+    setEnemyBurden,
+    setPlayerFate,
+    setEnemyFate,
+    setPlayerActions,
+    setEnemyActions,
+    setPlayerSolarium,
+    setPlayerTheater,
+    setPlayerUnderpass,
+    setPlayerGrid,
+    setEnemySolarium,
+    setEnemyTheater,
+    setEnemyUnderpass,
+    setEnemyGrid,
+    setPlayerHand,
+    setEnemyHand,
+    setPlayerLibrary,
+    setEnemyLibrary,
+    setCurrentPlayer,
+    setAttackMode,
     setAwaitingFocus,
     setFocus,
     setTurnNumber,
@@ -33,84 +139,108 @@ import {
     setEnemyInterfacedPandora,
     setPlayerElysium,
     setEnemyElysium,
-    playerDriftCount,
-    playerGlitchyAmount,
-    enemyGlitchyAmount,
-    enemyDriftCount,
-    enemyDividendAmount,
-    playerDividendAmount,
     setPlayerFirstAttack,
     setEnemyFirstAttack,
-    setPriorityLeft
-} from './state';
-import {
-    gameState,
-    setters,
-    selectedCard,
-    selectedInHand,
-    draftSelected,
-    draft,
-    playerBits,
-    playerAshes,
-    playerBurden,
-    playerWounds,
-    enemyWounds,
-    enemyLag,
-    playerActions,
-    enemyActions,
-    playerSolarium,
-    playerTheater,
-    playerUnderpass,
-    playerGrid,
-    enemySolarium,
-    enemyTheater,
-    enemyUnderpass,
-    enemyGrid,
-    enemyHand,
-    setSelectedCard,
-    setDraftSelected,
-    setSelectedInHand,
-    setTargetType,
+    setPriorityLeft,
     setPendingRitual,
-    setTargetSelection,
     setBattleSelectedCard,
-    setBattleRealm,
+    setTargetSelection,
+    setTargetType,
     setAwaitingImpostor,
     setImpostorRealm,
-    setPlayerSolarium,
-    setPlayerTheater,
-    setPlayerUnderpass,
-    setPlayerGrid,
-    setEnemySolarium,
-    setEnemyTheater,
-    setEnemyUnderpass,
-    setEnemyGrid,
-    setPlayerWounds,
-    setEnemyWounds,
-    setPlayerBurden,
-    setEnemyBurden,
-    setPlayerFate,
-    setEnemyFate,
     setPlayerOverload,
     setEnemyOverload,
-    setPlayerLag,
-    setEnemyLag,
-    setPlayerAshes,
-    setEnemyAshes,
-    setPlayerSurge,
-    setEnemySurge,
     setPlayerEntitiesDiedThisTurn,
-    setEnemyEntitiesDiedThisTurn,
-    setPlayerHand,
-    setEnemyHand,
-    setPlayerLibrary,
-    setEnemyLibrary,
-    setPlayerActions,
-    setEnemyActions,
-    setDraft,
-    setCurrentPlayer,
-    setAttackMode
-} from './state';
+    setEnemyEntitiesDiedThisTurn
+} = setters;
+
+// Export functions
+export function adjustEntityPowerExternal(entity, side) {
+    if (!entity) return 0;
+    let power = entity.power || 0;
+    
+    // Apply any external modifiers
+    if (entity.powerBoost) power += entity.powerBoost;
+    if (entity.powerPenalty) power -= entity.powerPenalty;
+    
+    return Math.max(0, power);
+}
+
+export function playerGainWounds(amount) {
+    setPlayerWounds(playerWounds + amount);
+}
+
+export function playerLoseWounds(amount) {
+    setPlayerWounds(Math.max(0, playerWounds - amount));
+}
+
+export function enemyGainWounds(amount) {
+    setEnemyWounds(enemyWounds + amount);
+}
+
+export function enemyLoseWounds(amount) {
+    setEnemyWounds(Math.max(0, enemyWounds - amount));
+}
+
+export function playerGainBurden(amount) {
+    setPlayerBurden(playerBurden + amount);
+}
+
+export function playerLoseBurden(amount) {
+    setPlayerBurden(Math.max(0, playerBurden - amount));
+}
+
+export function enemyGainBurden(amount) {
+    setEnemyBurden(enemyBurden + amount);
+}
+
+export function enemyLoseBurden(amount) {
+    setEnemyBurden(Math.max(0, enemyBurden - amount));
+}
+
+export function playerGainFate(amount) {
+    setPlayerFate(playerFate + amount);
+}
+
+export function playerLoseFate(amount) {
+    setPlayerFate(Math.max(0, playerFate - amount));
+}
+
+export function enemyGainFate(amount) {
+    setEnemyFate(enemyFate + amount);
+}
+
+export function enemyLoseFate(amount) {
+    setEnemyFate(Math.max(0, enemyFate - amount));
+}
+
+export function playerGainActions(amount) {
+    setPlayerActions(playerActions + amount);
+}
+
+export function playerLoseActions(amount) {
+    setPlayerActions(Math.max(0, playerActions - amount));
+}
+
+export function enemyGainActions(amount) {
+    setEnemyActions(enemyActions + amount);
+}
+
+export function enemyLoseActions(amount) {
+    setEnemyActions(Math.max(0, enemyActions - amount));
+}
+
+export function returnToOriginalRealm(cardEntity, side) {
+    // Remove from current realm
+    removeFromRealm(cardEntity.realm, cardEntity.id, 'PEOPLE');
+
+    // Add to target realm
+    const [, setRealm] = getRealmAndSetter(cardEntity.realm, side);
+    setRealm(prev => ({
+        ...prev,
+        people: [...prev.people, cardEntity]
+    }));
+}
 
 export function endPlayerTurn() {
     setters.setSelectedCard(null);
@@ -119,7 +249,7 @@ export function endPlayerTurn() {
     setters.setTargetType('none');
     setters.setPendingRitual(null);
     setters.setTargetSelection({ enabled: false });
-    setters.setCurrentPlayer('ENEMY');
+    setCurrentPlayer('ENEMY');
 }
 
 export const handleRealmSelect = (realmName) => {
@@ -346,7 +476,6 @@ function triggerRitualAbilities(entity, target, side) {
     });
 }
 
-
 function playerAdvanceCards() {
     const advanceCardList = (cardList) => {
         return cardList.map(cardEntity => {
@@ -478,7 +607,7 @@ function enemyAdvanceCards() {
     });
 }
 
-function enemyDraw(num) {
+export function enemyDraw(num) {
     console.log('enemy draw', num)
     let remainingCards = num;
 
@@ -501,7 +630,6 @@ function enemyDraw(num) {
         });
     }
 }
-
 
 function enemyPlayCard() {
     if (enemyHand.length === 0) return;
@@ -690,7 +818,7 @@ export const handleDraftButton = () => {
     playerDraft();
 }
 
-function playerDraw(num) {
+export function playerDraw(num) {
     console.log('draw ', num);
     let remainingCards = num;
 
@@ -721,218 +849,14 @@ const playerDraft = () => {
     setSelectedInHand(true);
 };
 
-export const handlePlayerMine = () => {
+export function handlePlayerMine() {
     playerGainBits(1);
     playerLoseActions(1);
     setCurrentPlayer('ENEMY');
 }
-export function playerGainBurden(num) {
-    setPlayerBurden(prevBurden => prevBurden + num);
-}
 
-export function playerLoseBurden(num) {
-    setPlayerBurden(prevBurden => prevBurden - num);
-}
 
-export function playerGainFate(num) {
-    let remainingPoints = num;
-
-    if (playerBurden > 0) {
-        const newBurden = playerBurden - num;
-
-        remainingPoints = Math.max(0, newBurden * -1);
-        setPlayerBurden(Math.max(0, newBurden));
-    }
-    if (remainingPoints > 0) {
-        setPlayerFate(prevFate => prevFate + remainingPoints);
-    }
-}
-
-export function playerLoseFate(num) {
-    setPlayerBurden(prevFate => prevFate - num);
-}
-
-export function enemyGainFate(num) {
-    let remainingPoints = num;
-
-    if (playerBurden > 0) {
-        const newBurden = playerBurden - num;
-
-        remainingPoints = Math.max(0, newBurden * -1);
-        setEnemyBurden(Math.max(0, newBurden));
-    }
-    if (remainingPoints > 0) {
-        setEnemyFate(prevFate => prevFate + remainingPoints);
-    }
-}
-
-export function enemyLoseFate(num) {
-    setEnemyFate(prevFate => prevFate - num);
-}
-
-export function playerGainWounds(num) {
-    setPlayerWounds(prevWounds => prevWounds + num);
-}
-
-export function playerLoseWounds(num) {
-    setPlayerWounds(prevWounds => prevWounds - num);
-}
-
-export function enemyGainBurden(num) {
-    setEnemyBurden(prevBurden => prevBurden + num);
-}
-
-export function enemyLoseBurden(num) {
-    setEnemyBurden(prevBurden => prevBurden - num);
-}
-
-export function enemyGainWounds(num) {
-    setEnemyWounds(prevWounds => prevWounds + num);
-}
-
-export function enemyLoseWounds(num) {
-    setEnemyWounds(prevWounds => prevWounds - num);
-}
-
-export function enemyGainOverload(num) {
-    setEnemyOverload(prevOverload => prevOverload + num);
-}
-
-export function playerGainOverload(num) {
-    setters.setPlayerOverload(prevOverload => prevOverload + num);
-}
-
-export function playerGainBits(num) {
-    let remainingBits = num;
-
-    if (gameState.playerOverload > 0) {
-        remainingBits = Math.max(0, remainingBits - gameState.playerOverload);
-    }
-
-    setters.setPlayerBits(prevBits => prevBits + remainingBits);
-}
-
-export function playerLoseBits(num) {
-    setters.setPlayerBits(prevBits => prevBits - num);
-}
-
-export function enemyGainBits(num) {
-    let remainingBits = num;
-
-    if (gameState.enemyOverload > 0) {
-        remainingBits = Math.max(0, remainingBits - gameState.enemyOverload);
-    }
-
-    setters.setEnemyBits(prevBits => prevBits + remainingBits);
-}
-
-export function enemyLoseBits(num) {
-    setters.setEnemyBits(prevBits => prevBits - num);
-}
-
-function enemyGainActions(num) {
-    let remainingActions = num;
-
-    if (enemyLag > 0) {
-        const newLag = enemyLag - num;
-
-        remainingActions = Math.max(0, newLag * -1);
-        setEnemyLag(Math.max(0, newLag));
-    }
-    setEnemyActions(prevActions => prevActions + remainingActions);
-}
-
-function enemyLoseActions(num) {
-    setEnemyActions(prevActions => Math.max(0, prevActions - num));
-}
-
-export function playerGainAshes(num) {
-    setPlayerAshes(prevAshes => prevAshes + num);
-}
-
-export function enemyGainAshes(num) {
-    setEnemyAshes(prevAshes => prevAshes + num);
-}
-
-export function playerGainSurge(num) {
-    setPlayerSurge(prev => prev + num);
-}
-
-export function enemyGainSurge(num) {
-    setEnemySurge(prev => prev + num);
-}
-
-export function playerLoseAshes(num) {
-    setPlayerAshes(prevAshes => prevAshes - num);
-}
-
-export function enemyLoseAshes(num) {
-    setEnemyAshes(prevAshes => prevAshes - num);
-}
-
-export function playerGainActions(num) {
-    let remainingActions = num;
-
-    if (gameState.playerLag > 0) {
-        remainingActions = Math.max(0, remainingActions - gameState.playerLag);
-    }
-
-    setters.setPlayerActions(prevActions => prevActions + remainingActions);
-}
-
-export function playerLoseActions(num) {
-    setters.setPlayerActions(prevActions => prevActions - num);
-}
-
-export function playerGainLag(num) {
-    setPlayerLag(prevLag => prevLag + num);
-}
-
-export function enemyGainLag(num) {
-    setEnemyLag(prevLag => prevLag + num);
-}
-
-export function playerLoseLag(num) {
-    setPlayerLag(prevLag => prevLag - num);
-}
-
-export function enemyLoseLag(num) {
-    setEnemyLag(prevLag => prevLag - num);
-}
-
-function updateEntityPower(entity, side, powerAdjustment) {
-    const realmName = entity.realm;
-    const [realm, setRealm] = getRealmAndSetter(realmName, side);
-
-    const entityIndex = realm.people.findIndex((e) => e.id === entity.id);
-    if (entityIndex === -1) {
-        console.error(`Entity with ID ${entity.id} not found in realm ${realmName}`);
-        return;
-    }
-
-    const updatedEntity = { ...realm.people[entityIndex] };
-
-    // Initialize currentPower if not already set
-    if (updatedEntity.currentPower === undefined) {
-        updatedEntity.currentPower = updatedEntity.power || 0;
-    }
-
-    updatedEntity.currentPower += powerAdjustment;
-
-    // Update the realm's people array
-    const newPeople = [...realm.people];
-    newPeople[entityIndex] = updatedEntity;
-
-    // Update the realm state
-    setRealm({
-        ...realm,
-        people: newPeople,
-    });
-
-    console.log(`${updatedEntity.card.name}'s power adjusted by ${powerAdjustment}. New power: ${updatedEntity.currentPower}`);
-}
-
-function getFriendlyEntities(side, realmName = null) {
+export function getFriendlyEntities(side, realmName = null) {
     const realms = side === 'PLAYER' ? getAllPlayerRealms() : getAllEnemyRealms();
     let entities = [];
 
@@ -958,40 +882,6 @@ export function getEnemyEntities(side, realmName = null) {
 // function getAllEnemyRealms() {
 //     return [enemySolarium, enemyUnderpass, enemyGrid, enemyTheater];
 // }
-
-
-export function adjustEntityPowerExternal(entity, side) {
-    const realmName = entity.realm;
-    const [realm] = getRealmAndSetter(realmName, side);
-
-    let powerAdjustment = 0;
-
-    // Check for friendly Inspire effects
-    const friendlyEntities = realm.people.filter((e) => e.id !== entity.id);
-    friendlyEntities.forEach((e) => {
-        const inspireAbility = e.card.abilities?.find((ability) => ability.name === 'Inspire');
-        if (inspireAbility) {
-            const inspireAmount = inspireAbility.amount || 1;
-            powerAdjustment += inspireAmount;
-        }
-    });
-
-    // Check for enemy Rotten effects
-    const oppositeSide = getOppositeSide(side);
-    const [enemyRealm] = getRealmAndSetter(realmName, oppositeSide);
-    const enemyEntities = enemyRealm.people;
-
-    enemyEntities.forEach((e) => {
-        const rottenAbility = e.card.abilities?.find((ability) => ability.name === 'Rotten');
-        if (rottenAbility) {
-            const rottenAmount = rottenAbility.amount || 1;
-            powerAdjustment -= rottenAmount;
-        }
-    });
-
-    // Update entity's power
-    updateEntityPower(entity, side, powerAdjustment);
-}
 
 function processEndOfTurnEffects() {
     // Reset death counters
@@ -1082,7 +972,7 @@ export function enemyPerformAction() {
 }
 
 
-function startTurn(currentPriorityLeft) {
+export function startTurn(currentPriorityLeft) {
     console.log('start turn', currentPriorityLeft)
     eventManager.publish('turnStart', { side: 'PLAYER' });
     eventManager.publish('turnStart', { side: 'ENEMY' });
@@ -1195,45 +1085,7 @@ export function endTurn() {
     });
 }
 
-export const returnToOriginalRealm = (cardEntity, side) => {
-    const { setPlayerBattleSlots, setEnemyBattleSlots } = require('./battle');
-    const realm = cardEntity.realm;
-    const updatedCardEntity = { ...cardEntity };
 
-    const updateRealm = (setRealmFunc) => {
-        console.log('Returning card to original realm:', updatedCardEntity);
-        setRealmFunc(prev => ({ ...prev, people: [...prev.people, updatedCardEntity] }));
-    };
-
-    const updateBattleSlots = (setBattleSlotsFunc) => {
-        setBattleSlotsFunc(prev => {
-            const newSlots = [...prev];
-            const cardIndex = newSlots.findIndex(card => card === cardEntity);
-            if (cardIndex !== -1) newSlots[cardIndex] = null;
-            return newSlots;
-        });
-    };
-
-    if (side === 'PLAYER') {
-        updateBattleSlots(setPlayerBattleSlots);
-        switch (realm) {
-            case 'Solarium': updateRealm(setPlayerSolarium); break;
-            case 'Theater': updateRealm(setPlayerTheater); break;
-            case 'Underpass': updateRealm(setPlayerUnderpass); break;
-            case 'Grid': updateRealm(setPlayerGrid); break;
-            default: console.error('Unknown realm:', realm); break;
-        }
-    } else {
-        updateBattleSlots(setEnemyBattleSlots);
-        switch (realm) {
-            case 'Solarium': updateRealm(setEnemySolarium); break;
-            case 'Theater': updateRealm(setEnemyTheater); break;
-            case 'Underpass': updateRealm(setEnemyUnderpass); break;
-            case 'Grid': updateRealm(setEnemyGrid); break;
-            default: console.error('Unknown realm:', realm); break;
-        }
-    }
-};
 
 export const removeFromRealm = (realmName, entityId, category) => {
     const [realm, setRealm] = getRealmAndSetter(realmName);
@@ -1284,7 +1136,7 @@ export const removeFromRealm = (realmName, entityId, category) => {
     });
 };
 
-function getGlobalEntityById(entityId, side, realmName) {
+export function getGlobalEntityById(entityId, side, realmName) {
     const [realm] = getRealmAndSetter(realmName, side);
 
     if (!realm) {

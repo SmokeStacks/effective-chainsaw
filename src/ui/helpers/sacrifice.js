@@ -1,5 +1,5 @@
-import { handleDeadCard, handleDeadCards } from './damage';
-import { showModal, setModalVisible } from './modal';
+import { handleDeadCard, handleDeadCards } from './damage';
+import { showModal, setModalVisible } from '../components/Modal';
 import { 
     enemySolarium, enemyTheater, enemyUnderpass, enemyGrid,
     playerSolarium, playerTheater, playerUnderpass, playerGrid,

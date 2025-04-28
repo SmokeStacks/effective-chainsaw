@@ -1,8 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { playerGainBits, playerDraw, enemyDraw, startTurn, activateAbilities } from './helpers/core';
-import { enemyLoseBits } from './helpers/enemy';
-import { handleSacrificeConfirmation } from './helpers/sacrifice';
+import { 
+    playerGainBits, 
+    playerDraw, 
+    enemyDraw, 
+    startTurn,
+    enemyLoseBits
+} from './helpers/core';
+import { handleRezPlayerCard } from './helpers/activation';
+import { 
+    handleSacrificeConfirmation,
+    handleSacrifice 
+} from './helpers/sacrifice';
 import { initializeSetters } from './helpers/state';
+import { activateAbilities } from './abilities/glossary';
 
 export function BoardContainer() {
 

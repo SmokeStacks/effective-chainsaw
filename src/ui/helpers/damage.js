@@ -1,15 +1,30 @@
 import { 
-    playerBattleSlots, enemyBattleSlots,
-    setPlayerBattleSlots, setEnemyBattleSlots,
-    setPlayerGraveyard, setEnemyGraveyard,
-    playerGainFate, enemyGainFate,
-    playerGainAshes, enemyGainAshes
+    gameState,
+    setters
 } from './state';
-
-import { deactivateAbilities } from './abilities';
-
 import { getRealmAndSetter, getOppositeSide } from './utils';
-import { eventManager } from './events';
+import { eventManager } from './eventManager';
+import { deactivateAbilities } from '../abilities/glossary';
+
+
+const {
+    playerBattleSlots,
+    enemyBattleSlots,
+    playerUnderpass
+} = gameState;
+
+const {
+    setPlayerBattleSlots,
+    setEnemyBattleSlots,
+    setPlayerGraveyard,
+    setEnemyGraveyard,
+    setPlayerHand,
+    setEnemyHand,
+    playerGainFate,
+    enemyGainFate,
+    playerGainAshes,
+    enemyGainAshes
+} = setters;
 
 export function handleDamage(location, entityId, damageAmount, owner) {
     let cardToWound;
@@ -345,7 +360,7 @@ export function handleDeadCards(deadList, side) {
 
 export function handleDestroyedThing(location, entityId, side, runes = 0) {
     const [realm, setRealm] = getRealmAndSetter(location, side);
-
+    
     // Find the thing to remove
     const thingToRemove = realm.things.find(card => card.id === entityId);
 
@@ -428,4 +443,40 @@ export function handleDestroyedPlace(location, entityId, side, runes = 0) {
     } else {
         console.error(`Place with ID ${entityId} not found in ${location} for side ${side}`);
     }
+}
+
+export function handlePlaceDamage(location, entityId, damageAmount, owner) {
+    const [realm, setRealm] = getRealmAndSetter(location, owner);
+    
+    // Find the place in the realm
+    const placeIndex = realm.places.findIndex(place => place.id === entityId);
+    if (placeIndex === -1) {
+        console.error(`Place with ID ${entityId} not found in ${location}`);
+        return { damageDealt: 0, excessDamage: 0 };
+    }
+
+    const place = realm.places[placeIndex];
+    const currentWounds = place.wounds || 0;
+    const maxHealth = place.card.HP;
+    const remainingHealth = maxHealth - currentWounds;
+    const actualDamage = Math.min(remainingHealth, damageAmount);
+    const excessDamage = damageAmount - actualDamage;
+
+    const newWounds = currentWounds + actualDamage;
+    console.log(`${place.card.name} receives ${actualDamage} damage. Total wounds: ${newWounds}`);
+
+    if (newWounds >= maxHealth) {
+        handleDestroyedPlace(location, entityId, owner);
+        return { damageDealt: actualDamage, excessDamage };
+    }
+
+    // Update the place's wounds
+    setRealm(prevRealm => ({
+        ...prevRealm,
+        places: prevRealm.places.map(p => 
+            p.id === entityId ? { ...p, wounds: newWounds } : p
+        )
+    }));
+
+    return { damageDealt: actualDamage, excessDamage };
 }

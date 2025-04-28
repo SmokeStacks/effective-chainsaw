@@ -1,5 +1,5 @@
 import { gameState } from './state';
-import { eventManager } from '../events/EventManager';
+import { eventManager } from './eventManager';
 
 /**
  * Handles the rezzing (activation) of a player card

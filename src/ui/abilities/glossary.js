@@ -1,23 +1,150 @@
 import { gameState, setters } from '../helpers/state';
+import { eventManager } from '../helpers/eventManager';
+import { cardList1 as cardList } from '../data/cardList';
 import { 
     playerGainFate, playerGainOverload, 
     enemyGainFate, enemyGainOverload,
-    playerGainBurden, enemyGainBurden,
-    applyEffect, handleDamage,
     playerGainBits, enemyGainBits,
     playerGainWounds, enemyGainWounds,
     playerGainActions, enemyGainActions,
     playerGainAshes, enemyGainAshes,
     playerGainSurge, enemyGainSurge,
-    playerGainLag, enemyGainLag,
-    updateEntityInRealm, handleDeadCard,
-    handlePlaceDamage, applyBoost,
-    applyHack, getFriendlyEntities,
-    handleDestroyedThing
+    getFriendlyEntities
 } from '../helpers/core';
-import { getOppositeSide } from '../helpers/utils';
 
-export const abilitiesDefinitions = {
+import { applyBoost } from '../helpers/advancement';
+import { handleDamage, handleDeadCard, handlePlaceDamage, handleDestroyedThing } from '../helpers/damage';
+import { getOppositeSide, getRealmAndSetter, getArrayNameForCategory } from '../helpers/utils';
+import { applyEffect, applyFreezeToAllEntities, applyOverload } from '../helpers/effects';
+import { updateEntityInRealm, drawSpecificCard } from '../helpers/entity';
+
+const {
+    playerSolarium, playerTheater, playerUnderpass, playerGrid,
+    enemySolarium, enemyTheater, enemyUnderpass, enemyGrid,
+    playerBattleSlots, enemyBattleSlots,
+    playerLibrary, enemyLibrary,
+    playerInterfaced, enemyInterfaced,
+    playerInterfacedHeadSpace, enemyInterfacedHeadSpace,
+    playerActions, enemyActions
+} = gameState;
+
+const {
+    setPlayerSolarium, setPlayerTheater, setPlayerUnderpass, setPlayerGrid,
+    setEnemySolarium, setEnemyTheater, setEnemyUnderpass, setEnemyGrid,
+    setPlayerBattleSlots, setEnemyBattleSlots,
+    setPlayerHand, setEnemyHand, setAttackMode,
+    setTargetType, setSelectedRealm,
+    setPlayerPandoraAccess, setEnemyPandoraAccess,
+    setPlayerDriftCount, setEnemyDriftCount,
+    setPlayerDividendAmount, setEnemyDividendAmount,
+    setPlayerActions, setEnemyActions,
+    setPlayerBits, setEnemyBits,
+    setPlayerOverload, setEnemyOverload,
+    showModal, setModalVisible
+} = setters;
+
+// Define ability helpers for internal use
+const abilityHelpers = {
+    clearVengeance: function(entity, side) {
+        let location = 'REALM';
+        let realm = null;
+        let setRealm = null;
+        let entityIndex = -1;
+        let setRealmOrBattleSlots = null;
+
+        // Check if entity is in battle
+        const playerBattleCard = playerBattleSlots.find((card) => card && card.id === entity.id);
+        const enemyBattleCard = enemyBattleSlots.find((card) => card && card.id === entity.id);
+
+        if (playerBattleCard || enemyBattleCard) {
+            location = 'BATTLE';
+
+            if (playerBattleCard) {
+                setRealmOrBattleSlots = setPlayerBattleSlots;
+                entityIndex = playerBattleSlots.findIndex((card) => card && card.id === entity.id);
+            } else {
+                setRealmOrBattleSlots = setEnemyBattleSlots;
+                entityIndex = enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
+            }
+        } else {
+            // If not in battle, proceed with realm logic
+            const realmName = entity.realm;
+            [realm, setRealm] = getRealmAndSetter(realmName, side);
+
+            entityIndex = realm.people.findIndex((e) => e.id === entity.id);
+            if (entityIndex === -1) {
+                console.error(`Entity with ID ${entity.id} not found in realm or battle`);
+                return;
+            }
+        }
+
+        // Determine the current entity and array to update
+        const currentEntity = location === 'REALM'
+            ? realm.people[entityIndex]
+            : (playerBattleCard || enemyBattleCard);
+
+        // Check and remove Vengeance
+        if (currentEntity.statusEffects && currentEntity.statusEffects.Vengeance) {
+            const updatedEntity = { ...currentEntity };
+            delete updatedEntity.statusEffects.Vengeance;
+
+            // Update based on location
+            if (location === 'REALM') {
+                const newPeople = [...realm.people];
+                newPeople[entityIndex] = updatedEntity;
+
+                setRealm({
+                    ...realm,
+                    people: newPeople
+                });
+            } else {
+                setRealmOrBattleSlots((prev) =>
+                    prev.map((card) =>
+                        card && card.id === entity.id ? updatedEntity : card
+                    )
+                );
+            }
+
+            console.log(`Vengeance cleared from ${updatedEntity.card.name}`);
+        }
+    },
+
+    swapEntitiesForImpostor: function(selectedCard, enemyEntity, realmName, setOwnRealm, setOpponentRealm, side, dreamer) {
+        // Update ownership and realm properties
+        const updatedSelectedCard = { ...selectedCard, realm: realmName, owner: getOppositeSide(side) };
+        const updatedEnemyEntity = { ...enemyEntity, realm: realmName, owner: side };
+
+        // Determine which arrays to use based on card categories
+        const selectedCardArrayName = getArrayNameForCategory(selectedCard.card.category);
+        const enemyCardArrayName = getArrayNameForCategory(enemyEntity.card.category);
+
+        // Remove enemy entity from opponent realm
+        setOpponentRealm((prevRealm) => ({
+            ...prevRealm,
+            [enemyCardArrayName]: prevRealm[enemyCardArrayName].filter((entity) => entity.id !== enemyEntity.id)
+        }));
+
+        // Add enemy entity to own realm
+        setOwnRealm((prevRealm) => ({
+            ...prevRealm,
+            [enemyCardArrayName]: [...prevRealm[enemyCardArrayName], updatedEnemyEntity]
+        }));
+
+        // Add selected card to opponent realm
+        setOpponentRealm((prevRealm) => ({
+            ...prevRealm,
+            [selectedCardArrayName]: [...prevRealm[selectedCardArrayName], updatedSelectedCard]
+        }));
+
+        // Activate abilities for a Dreamer
+        if (dreamer) {
+            activateAbilities(updatedSelectedCard, getOppositeSide(side));
+        }
+    }
+};
+
+// Initialize abilities definitions
+const abilitiesDefinitions = {
     'Extortion': {
         name: 'Extortion',
         type: 'onPlay',
@@ -51,15 +178,13 @@ export const abilitiesDefinitions = {
             const enemySide = side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
     
             // Get enemy realms
-            const enemyRealms = enemySide === 'PLAYER'
-                ? [
-                    { realm: playerSolarium, setRealm: setPlayerSolarium },
-                    { realm: playerTheater, setRealm: setPlayerTheater },
-                    { realm: playerUnderpass, setRealm: setPlayerUnderpass },
-                    { realm: playerGrid, setRealm: setPlayerGrid },
-                ]
-                : [
-                    { realm: enemySolarium, setRealm: setEnemySolarium },
+            const enemyRealms = enemySide === 'PLAYER' ? [
+                { realm: playerSolarium, setRealm: setPlayerSolarium },
+                { realm: playerTheater, setRealm: setPlayerTheater },
+                { realm: playerUnderpass, setRealm: setPlayerUnderpass },
+                { realm: playerGrid, setRealm: setPlayerGrid }
+            ] : [
+                { realm: enemySolarium, setRealm: setEnemySolarium },
                     { realm: enemyTheater, setRealm: setEnemyTheater },
                     { realm: enemyUnderpass, setRealm: setEnemyUnderpass },
                     { realm: enemyGrid, setRealm: setEnemyGrid },
@@ -274,37 +399,38 @@ export const abilitiesDefinitions = {
     //         setAttackMode(side === 'PLAYER' ? 'PLAYER_HACK' : 'ENEMY_tech');
     //     },
     // },
-    MultiThreadingEffect: {
-        type: 'onPlay',
-        requiresTarget: true,
-        onPlay: function (entity, gameState, side, target) {
-            console.log('MultiThreadingEffect', target);
-            if (side === 'PLAYER') {
-                playerDraw(2);
-                if (target) {
-                    applyBoost(target, 1, side);
-                    setTargetSelection({
-                        enabled: true,
-                        side: side,
-                        filter: (t) => t.owner === getOppositeSide(side),
-                        onSelect: (hackTarget) => {
-                            applyHack(hackTarget);
-                            setTargetSelection({ enabled: false });
-                        },
-                        onCancel: () => {
-                            setTargetSelection({ enabled: false });
-                        },
-                    });
-                }
-            } else {
-                enemyDraw(2);
-                if (target) {
-                    applyBoost(target, 1, side);
-                    // AI logic for hack target
-                }
-            }
-        }
-    },
+    // Temporarily disabled until hack mechanics are implemented
+    // MultiThreadingEffect: {
+    //     type: 'onPlay',
+    //     requiresTarget: true,
+    //     onPlay: function (entity, gameState, side, target) {
+    //         console.log('MultiThreadingEffect', target);
+    //         if (side === 'PLAYER') {
+    //             playerDraw(2);
+    //             if (target) {
+    //                 applyBoost(target, 1, side);
+    //                 setTargetSelection({
+    //                     enabled: true,
+    //                     side: side,
+    //                     filter: (t) => t.owner === getOppositeSide(side),
+    //                     onSelect: (hackTarget) => {
+    //                         // TODO: Implement hack mechanics
+    //                         setTargetSelection({ enabled: false });
+    //                     },
+    //                     onCancel: () => {
+    //                         setTargetSelection({ enabled: false });
+    //                     },
+    //                 });
+    //             }
+    //         } else {
+    //             enemyDraw(2);
+    //             if (target) {
+    //                 applyBoost(target, 1, side);
+    //                 // AI logic for hack target
+    //             }
+    //         }
+    //     }
+    // },
     'ForgeryEffect': {
         name: 'ForgeryEffect',
         type: 'onPlay',
@@ -488,7 +614,7 @@ export const abilitiesDefinitions = {
     'PandoraAccess': {
         name: 'PandoraAccess',
         type: 'static',
-        applyEffect: function (entity, gameState, side) {
+        applyAbilityEffect: function (entity, gameState, side) {
             if (side === 'PLAYER') {
                 setPlayerPandoraAccess(prev => prev + 1);
             } else {
@@ -508,13 +634,13 @@ export const abilitiesDefinitions = {
     'Drift': {
         name: 'Drift',
         type: 'static',
-        applyEffect: function (entity, gameState, side) {
-            if (side === 'PLAYER') {
-                setPlayerDriftCount(prev => prev + 1);
-            } else {
-                setEnemyDriftCount(prev => prev + 1);
-            }
-            console.log(`${entity.card.name} increases Drift count by 1.`);
+        applyAbilityEffect: function(entity, gameState, side) {
+        if (side === 'PLAYER') {
+            setPlayerDriftCount(prev => prev + 1);
+        } else {
+            setEnemyDriftCount(prev => prev + 1);
+        }
+        console.log(`${entity.card.name} increases Drift count by 1.`);
         },
         removeEffect: function (entity, gameState, side) {
             if (side === 'PLAYER') {
@@ -523,12 +649,12 @@ export const abilitiesDefinitions = {
                 setEnemyDriftCount(prev => prev - 1);
             }
             console.log(`${entity.card.name} decreases Drift count by 1.`);
-        },
+        }
     },
     'Dividend': (amount) => ({
         name: 'Dividend',
         type: 'static',
-        applyEffect: function (entity, gameState, side) {
+        applyAbilityEffect: function (entity, gameState, side) {
             if (side === 'PLAYER') {
                 setPlayerDividendAmount(prev => prev + amount);
             } else {
@@ -750,7 +876,7 @@ export const abilitiesDefinitions = {
 
             // Apply Boost 2 to all friendly entities in the same realm
             const realmName = entity.realm;
-            const [realm, setRealm] = getRealmAndSetter(realmName, side);
+            const [realm] = getRealmAndSetter(realmName, side);
 
             const boostAmount = effect.boostAmount || 2; // Default to 2 if not specified
 
@@ -768,137 +894,128 @@ export const abilitiesDefinitions = {
     'Inspire': {
         name: 'Inspire',
         type: 'static',
-        applyEffect: function (entity, gameState, side) {
-            const isLocal = entity.card.abilities.includes('Locality');
-            const targets = getFriendlyEntities(side, isLocal ? entity.realm : null).filter(
-                e => e.id !== entity.id && e.online
-            );
+        applyAbilityEffect: function(entity, gameState, side) {
+        const isLocal = entity.card.abilities.includes('Locality');
+        const targets = getFriendlyEntities(side, isLocal ? entity.realm : null).filter(
+            e => e.id !== entity.id && e.online
+        );
 
-            // Group targets by realm to minimize state updates
-            const targetsByRealm = targets.reduce((acc, target) => {
-                if (!acc[target.realm]) {
-                    acc[target.realm] = [];
-                }
-                acc[target.realm].push(target);
-                return acc;
-            }, {});
+        // Group targets by realm to minimize state updates
+        const targetsByRealm = targets.reduce((acc, target) => {
+            if (!acc[target.realm]) {
+                acc[target.realm] = [];
+            }
+            acc[target.realm].push(target);
+            return acc;
+        }, {});
 
-            // Get realm setters dynamically
-            const realmSetters = {
-                'PLAYER': {
-                    'Solarium': setPlayerSolarium,
-                    'Theater': setPlayerTheater,
-                    'Underpass': setPlayerUnderpass,
-                    'Grid': setPlayerGrid
-                },
-                'ENEMY': {
-                    'Solarium': setEnemySolarium,
-                    'Theater': setEnemyTheater,
-                    'Underpass': setEnemyUnderpass,
-                    'Grid': setEnemyGrid
-                }
-            };
+        // Get realm setters dynamically
+        const realmSetters = {
+            'PLAYER': {
+                'Solarium': setPlayerSolarium,
+                'Theater': setPlayerTheater,
+                'Underpass': setPlayerUnderpass,
+                'Grid': setPlayerGrid
+            },
+            'ENEMY': {
+                'Solarium': setEnemySolarium,
+                'Theater': setEnemyTheater,
+                'Underpass': setEnemyUnderpass,
+                'Grid': setEnemyGrid
+            }
+        };
 
-            // Update each realm with inspired targets
-            Object.entries(targetsByRealm).forEach(([realmName, realmTargets]) => {
-                const setRealm = realmSetters[side][realmName];
+        // Update each realm with inspired targets
+        Object.entries(targetsByRealm).forEach(([realmName, realmTargets]) => {
+            const setRealm = realmSetters[side][realmName];
 
-                setRealm(prevRealm => ({
-                    ...prevRealm,
-                    people: prevRealm.people.map(person => {
-                        const target = realmTargets.find(t => t.id === person.id);
-                        if (target) {
-                            return {
-                                ...person,
-                                power: (person.power || person.card.power || 0) + 1
-                            };
-                        }
-                        return person;
-                    })
-                }));
-            });
-        },
-        removeEffect: function (entity, gameState, side) {
-            const isLocal = entity.card.abilities.includes('Locality');
-            const targets = getFriendlyEntities(side, isLocal ? entity.realm : null).filter(
-                e => e.id !== entity.id && e.online
-            );
+            setRealm(prevRealm => ({
+                ...prevRealm,
+                people: prevRealm.people.map(person => {
+                    const target = realmTargets.find(t => t.id === person.id);
+                    if (target) {
+                        return {
+                            ...person,
+                            power: (person.power || person.card.power || 0) + 1
+                        };
+                    }
+                    return person;
+                })
+            }));
+        });
+    },
+    removeEffect: function (entity, gameState, side) {
+        const isLocal = entity.card.abilities.includes('Locality');
+        const targets = getFriendlyEntities(side, isLocal ? entity.realm : null).filter(
+            e => e.id !== entity.id && e.online
+        );
 
-            // Group targets by realm to minimize state updates
-            const targetsByRealm = targets.reduce((acc, target) => {
-                if (!acc[target.realm]) {
-                    acc[target.realm] = [];
-                }
-                acc[target.realm].push(target);
-                return acc;
-            }, {});
+        // Group targets by realm to minimize state updates
+        const targetsByRealm = targets.reduce((acc, target) => {
+            if (!acc[target.realm]) {
+                acc[target.realm] = [];
+            }
+            acc[target.realm].push(target);
+            return acc;
+        }, {});
 
-            // Get realm setters dynamically
-            const realmSetters = {
-                'PLAYER': {
-                    'Solarium': setPlayerSolarium,
-                    'Theater': setPlayerTheater,
-                    'Underpass': setPlayerUnderpass,
-                    'Grid': setPlayerGrid
-                },
-                'ENEMY': {
-                    'Solarium': setEnemySolarium,
-                    'Theater': setEnemyTheater,
-                    'Underpass': setEnemyUnderpass,
-                    'Grid': setEnemyGrid
-                }
-            };
+        // Get realm setters dynamically
+        const realmSetters = {
+            'PLAYER': {
+                'Solarium': setPlayerSolarium,
+                'Theater': setPlayerTheater,
+                'Underpass': setPlayerUnderpass,
+                'Grid': setPlayerGrid
+            },
+            'ENEMY': {
+                'Solarium': setEnemySolarium,
+                'Theater': setEnemyTheater,
+                'Underpass': setEnemyUnderpass,
+                'Grid': setEnemyGrid
+            }
+        };
 
-            // Restore original power for each realm's targets
-            Object.entries(targetsByRealm).forEach(([realmName, realmTargets]) => {
-                const setRealm = realmSetters[side][realmName];
+        // Update each realm with inspired targets
+        Object.entries(targetsByRealm).forEach(([realmName, realmTargets]) => {
+            const setRealm = realmSetters[side][realmName];
 
-                setRealm(prevRealm => ({
-                    ...prevRealm,
-                    people: prevRealm.people.map(person => {
-                        const target = realmTargets.find(t => t.id === person.id);
-                        if (target) {
-                            return {
-                                ...person,
-                                power: (person.power || person.card.power || 0) - 1
-                            };
-                        }
-                        return person;
-                    })
-                }));
-            });
-        },
+            setRealm(prevRealm => ({
+                ...prevRealm,
+                people: prevRealm.people.map(person => {
+                    const target = realmTargets.find(t => t.id === person.id);
+                    if (target) {
+                        return {
+                            ...person,
+                            power: (person.power || person.card.power || 0) - 1
+                        };
+                    }
+                    return person;
+                })
+            }));
+        });
+    }
     },
     'Rotten': {
         name: 'Rotten',
         type: 'static',
-        applyEffect: function (entity, gameState, side) {
-            const enemySide = side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
-            const enemyRealms = enemySide === 'PLAYER'
-                ? [
-                    { realm: playerSolarium, setRealm: setPlayerSolarium, name: 'Solarium' },
-                    { realm: playerTheater, setRealm: setPlayerTheater, name: 'Theater' },
-                    { realm: playerUnderpass, setRealm: setPlayerUnderpass, name: 'Underpass' },
-                    { realm: playerGrid, setRealm: setPlayerGrid, name: 'Grid' },
-                ]
-                : [
+        applyAbilityEffect: function(entity, gameState, side) {
+        const enemySide = side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
+        const enemyRealms = enemySide === 'PLAYER' ? [
+            { realm: playerSolarium, setRealm: setPlayerSolarium, name: 'Solarium' },
+            { realm: playerTheater, setRealm: setPlayerTheater, name: 'Theater' },
+            { realm: playerUnderpass, setRealm: setPlayerUnderpass, name: 'Underpass' },
+            { realm: playerGrid, setRealm: setPlayerGrid, name: 'Grid' }
+        ] : [
                     { realm: enemySolarium, setRealm: setEnemySolarium, name: 'Solarium' },
                     { realm: enemyTheater, setRealm: setEnemyTheater, name: 'Theater' },
                     { realm: enemyUnderpass, setRealm: setEnemyUnderpass, name: 'Underpass' },
                     { realm: enemyGrid, setRealm: setEnemyGrid, name: 'Grid' },
                 ];
 
-            enemyRealms.forEach(({ realm, setRealm, name }) => {
+            enemyRealms.forEach(({ realm, setRealm }) => {
                 // Create a new array of updated entities
                 const updatedPeople = realm.people.map((enemyEntity) => {
                     // Create a deep copy of the entity
-                    const effect = {
-                        type: 'stat',
-                        field: 'power',
-                        value: -1,
-                    };
-
-                    // Apply effect directly to the entity
                     const newEntity = { ...enemyEntity };
                     newEntity.power = (newEntity.power || newEntity.card.power || 0) - 1;
 
@@ -981,7 +1098,7 @@ export const abilitiesDefinitions = {
                 });
                 console.log(`${entity.card.name} gains 1 Charge from winning domination.`);
             }
-        },
+        }
     },
     'DominanceInflictFreeze': {
         name: 'DominanceInflictFreeze',
@@ -1014,247 +1131,12 @@ export const abilitiesDefinitions = {
             }
         }
     },
-    'DominanceInflictBurden': {
-        name: 'DominanceInflictBurden',
-        type: 'triggered',
-        triggers: ['dominationResolved'],
-        eventHandler: function (entity, eventData, gameState, side) {
-            if (eventData.winner === side) {
-                const enemySide = getOppositeSide(side);
-                if (enemySide === 'PLAYER') {
-                    playerGainBurden(3);
-                } else {
-                    enemyGainBurden(3);
-                }
-                console.log(`${entity.card.name} inflicts 3 Burden from domination victory.`);
-            }
-        },
-    },
-    'SurrenderGainBurden': {
-        name: 'SurrenderGainBurden',
-        type: 'triggered',
-        triggers: ['dominationResolved'],
-        eventHandler: function (entity, eventData, gameState, side) {
-            if (eventData.winner !== side && eventData.winner !== null) {
-                // Gain 3 Burden
-                if (side === 'PLAYER') {
-                    setPlayerBurden(prev => prev + 3);
-                    console.log('Player gains 3 Burden due to Dread\'s Surrender effect.');
-                } else {
-                    setEnemyBurden(prev => prev + 3);
-                    console.log('Enemy gains 3 Burden due to Dread\'s Surrender effect.');
-                }
-            }
-        },
-    },
-    'MassFreezeEnemies': {
-        name: 'MassFreezeEnemies',
-        type: 'onActivate',
-        onActivate: function (entity, gameState, side) {
-            console.log('mass freeze')
-            // Get enemy side
-            const enemySide = side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
+};
 
-            // Get enemy realms
-            const enemyRealms = enemySide === 'PLAYER'
-                ? [
-                    { realm: playerSolarium, setRealm: setPlayerSolarium },
-                    { realm: playerTheater, setRealm: setPlayerTheater },
-                    { realm: playerUnderpass, setRealm: setPlayerUnderpass },
-                    { realm: playerGrid, setRealm: setPlayerGrid },
-                ]
-                : [
-                    { realm: enemySolarium, setRealm: setEnemySolarium },
-                    { realm: enemyTheater, setRealm: setEnemyTheater },
-                    { realm: enemyUnderpass, setRealm: setEnemyUnderpass },
-                    { realm: enemyGrid, setRealm: setEnemyGrid },
-                ];
+// Export helper functions and abilities
+export { abilityHelpers, abilitiesDefinitions, grantAbility, removeAbility };
 
-            // Collect online enemy entities
-            const enemyEntities = enemyRealms.flatMap(({ realm }) =>
-                realm.people.filter((e) => e.online)
-            );
-
-            // Apply Freeze 2 to each online enemy entity
-            enemyEntities.forEach((enemyEntity) => {
-                applyEffect(enemyEntity.id, enemyEntity.realm, enemySide, {
-                    type: 'status',
-                    status: 'Freeze',
-                    amount: 2,
-                });
-                console.log(`${enemyEntity.card.name} gains 2 Freeze due to massFreezeEnemies's effect.`);
-            });
-        },
-    },
-    'Buffer': (amount) => ({
-        name: 'Buffer',
-        type: 'onActivate',
-        onActivate: function (entity, gameState, side) {
-            console.log('apply buffer')
-            applyEffect(entity.id, entity.realm, side, {
-                type: 'status',
-                status: 'Freeze',
-                amount: amount,
-            });
-            console.log(`${entity.card.name} gains ${amount} Freeze due to Buffer.`);
-        },
-    }),
-    Plague: (amount) => ({
-        name: 'Plague',
-        type: 'onActivate',
-        onActivate: function (entity, gameState, side) {
-            // Apply Decay to the entity itself
-            applyEffect(entity.id, entity.realm, side, {
-                type: 'status',
-                status: 'Decay',
-                amount: amount,
-            });
-            console.log(`${entity.card.name} gains ${amount} Decay due to Plague.`);
-        },
-    }),
-    Vicious: (amount) => ({
-        name: 'Vicious',
-        type: 'onActivate',
-        onActivate: function (entity, gameState, side) {
-            if (side === 'PLAYER') {
-                playerGainWounds(amount);
-                console.log(`Player takes ${amount} damage due to Vicious.`);
-            } else {
-                enemyGainWounds(amount);
-                console.log(`Enemy takes ${amount} damage due to Vicious.`);
-            }
-        },
-    }),
-    GainVengeance: (amount) => ({
-        name: 'GainVengeance',
-        type: 'manual',
-        execute: function (entity, amount, side) {
-            addStatusEffect(entity, 'Vengeance', amount, side);
-            console.log(`${entity.card.name} gains Vengeance ${amount}.`);
-        },
-    }),
-    'GrantBoostAndPounce': {
-        name: 'GrantBoostAndPounce',
-        type: 'manual',
-        execute: function (entity, effect, side, target) {
-            if (!target) {
-                console.log('No target provided for GrantBoostAndPounce.');
-                return;
-            }
-
-            // Apply Boost
-            applyBoost(target, effect.boostAmount, side);
-
-            // Grant Pounce with specified amount
-            const pounceAmount = effect.pounceAmount || 1;
-            grantAbility(target, 'pounce', pounceAmount, side);
-
-            console.log(`${target.card.name} gains Boost ${effect.boostAmount} and Pounce (${pounceAmount}).`);
-        },
-    },
-    'InflictOverloadAndLag': {
-        name: 'InflictOverloadAndLag',
-        type: 'onActivate',
-        onActivate: function (entity, gameState, side) {
-            // Inflict Overload and Lag on the opponent
-            if (side === 'PLAYER') {
-                enemyGainOverload(2);
-                enemyGainLag(1);
-            } else {
-                playerGainOverload(2);
-                playerGainLag(1);
-            }
-            console.log(`${entity.card.name} inflicts 2 Overload and 1 Lag on the opponent.`);
-        },
-    },
-    'Gravity': {
-        name: 'Gravity',
-        type: 'onActivate',
-        onActivate: function (entity, gameState, side) {
-            if (side === 'PLAYER') {
-                playerGainLag(1);
-            } else {
-                enemyGainLag(1);
-            }
-            console.log(`${entity.card.name} inflicts 1 Lag on owner.`);
-        },
-    },
-    'Glitchy': {
-        name: 'Glitchy',
-        type: 'static',
-        applyEffect: function (entity, gameState, side) {
-            if (side === 'PLAYER') {
-                setPlayerGlitchyAmount((prev) => prev + 1);
-            } else {
-                setEnemyGlitchyAmount((prev) => prev + 1);
-            }
-            console.log(`${entity.card.name} increases Glitchy by 1.`);
-        },
-        removeEffect: function (entity, gameState, side) {
-            if (side === 'PLAYER') {
-                setPlayerGlitchyAmount((prev) => prev - 1);
-            } else {
-                setEnemyGlitchyAmount((prev) => prev - 1);
-            }
-            console.log(`${entity.card.name} increases Glitchy by 1.`);
-        },
-    },
-    'InflictOverloadOnHack': {
-        name: 'InflictOverloadOnHack',
-        type: 'triggered',
-        triggers: ['attackSuccessful'],
-        eventHandler: function (entity, eventData, gameState, side) {
-            // Check if the side matches
-            if (eventData.type === 'PLAYER_HACK' || 'ENEMY_tech') {
-                // Inflict Overload on the opponent
-                if (side === 'PLAYER') {
-                    setEnemyOverload((prev) => prev + 3);
-                } else {
-                    setPlayerOverload((prev) => prev + 3);
-                }
-                console.log(`${entity.card.name} inflicts 3 Overload on the opponent due to successful Hack.`);
-            }
-        },
-    },
-    'GrantImpostorToDreamers': {
-        name: 'GrantImpostorToDreamers',
-        type: 'static',
-        applyEffect: function (entity, gameState, side) {
-            // Increase the Recruiter count
-            if (side === 'PLAYER') {
-                setRecruiterCount((prev) => prev + 1);
-            } else {
-                setEnemyRecruiterCount((prev) => prev + 1);
-            }
-            console.log(`${entity.card.name} is granting Impostor to your Dreamers.`);
-        },
-        removeEffect: function (entity, gameState, side) {
-            // Decrease the Recruiter count
-            if (side === 'PLAYER') {
-                setRecruiterCount((prev) => prev - 1);
-            } else {
-                setEnemyRecruiterCount((prev) => prev - 1);
-            }
-            console.log(`${entity.card.name} has left play. Adjusting Recruiter count.`);
-        }
-    },
-    'OnEnterGainActions': {
-        name: 'OnEnterGainActions',
-        type: 'onActivate',
-        onActivate: function (entity, gameState, side) {
-            const actionsGained = entity.card.abilities.find(a => a.name === 'OnEnterGainActions').actionsGained || 0;
-            if (side === 'PLAYER') {
-                setPlayerActions((prev) => prev + actionsGained);
-            } else {
-                setEnemyActions((prev) => prev + actionsGained);
-            }
-            console.log(`${entity.card.name} gains ${actionsGained} Actions.`);
-        }
-    },
-    // Define other abilities here
-}
-
-export async function activateAbilities(entity, side) {
+async function activateAbilities(entity, side) {
     console.log('ACTIVATE ABILITIES ', entity);
 
     // Set online first before processing abilities
@@ -1310,547 +1192,277 @@ export async function activateAbilities(entity, side) {
     }
 }
 
-async function applyEffect(entityId, realmName, owner, effect) {
-    console.log('________APPLY EFFECT', effect);
+export { activateAbilities };
 
-    const [realm, setRealmFunction] = getRealmAndSetter(realmName, owner);
-
-    setRealmFunction(prevRealm => {
-        const newRealm = {
-            ...prevRealm,
-            people: prevRealm.people.map(entity => {
-                if (entity.id === entityId) {
-                    return applyEffectToEntity(entity, effect);
-                }
-                return entity;
-            }),
-            things: (prevRealm.things || []).map(entity => {
-                if (entity.id === entityId) {
-                    return applyEffectToEntity(entity, effect);
-                }
-                return entity;
-            }),
-            places: (prevRealm.places || []).map(entity => {
-                if (entity.id === entityId) {
-                    return applyEffectToEntity(entity, effect);
-                }
-                return entity;
-            }),
-        };
-
-        return newRealm;
-    });
-}
-
-function applyEffectToEntity(entity, effect) {
-    const newEntity = { ...entity };
-    newEntity.effects = newEntity.effects ? [...newEntity.effects] : [];
-
-    if (effect.type === 'stat') {
-        newEntity[effect.field] = (newEntity[effect.field] || newEntity.card[effect.field] || 0) + effect.value;
-    } else if (effect.type === 'keyword') {
-        newEntity.modifiedAbilities = new Set(newEntity.modifiedAbilities || (entity.card.abilities || []));
-        newEntity.modifiedAbilities.add(effect.value);
-    } else if (effect.type === 'status') {
-        if (effect.status === 'Freeze') {
-            newEntity.freeze = (newEntity.freeze || 0) + effect.amount;
-            if (effect.amount > 0) {
-                newEntity.readied = false;
-            }
-            console.log(`${newEntity.card.name} gains ${effect.amount} Freeze (total Freeze: ${newEntity.freeze})`);
-        } else if (effect.status === 'Decay') {
-            newEntity.decay = (newEntity.decay || 0) + effect.amount;
-            console.log(`${newEntity.card.name} gains ${effect.amount} Decay (total Decay: ${newEntity.decay})`);
-        } else if (effect.status === 'Venom') {
-            newEntity.venom = (newEntity.venom || 0) + effect.amount;
-            console.log(`${newEntity.card.name} gains ${effect.amount} Venom (total Venom: ${newEntity.venom})`);
-        }
-    } else if (effect.type === 'setOnline') {
-        newEntity.online = effect.value;
-        console.log(`${newEntity.card.name} is set to online: ${newEntity.online}`);
-    } else if (effect.type === 'swap') {
-        return effect.swapEntity;
-    }
-
-    if (effect.duration && effect.duration > 0) {
-        newEntity.effects.push({
-            ...effect,
-            remainingDuration: effect.duration,
-        });
-    }
-
-    console.log('_________________NEW ENTITY AFTER EFFECT ', newEntity);
-    return newEntity;
-}
-
-function addStatusEffect(entity, status, amount, side) {
-    // Determine the realm and setter
-    const realmName = entity.realm; // Ensure the entity has a 'realm' property
+function grantAbility(entity, abilityName, amount = 1, side) {
+    const realmName = entity.realm;
     const [realm, setRealm] = getRealmAndSetter(realmName, side);
 
     const entityIndex = realm.people.findIndex((e) => e.id === entity.id);
-    if (entityIndex === -1) return;
-
-    // Create a new entity object
-    const updatedEntity = { ...realm.people[entityIndex] };
-
-    // Initialize statusEffects if not present
-    if (!updatedEntity.statusEffects) {
-        updatedEntity.statusEffects = {};
+    if (entityIndex === -1) {
+        console.error(`Entity with ID ${entity.id} not found in realm`);
+        return;
     }
 
-    // Update the status effect
-    updatedEntity.statusEffects[status] = (updatedEntity.statusEffects[status] || 0) + amount;
+    const updatedEntity = { ...realm.people[entityIndex] };
 
-    // Update the realm's people array
+    if (!updatedEntity.abilities) {
+        updatedEntity.abilities = {};
+    }
+
+    if (!updatedEntity.abilities[abilityName]) {
+        updatedEntity.abilities[abilityName] = 0;
+    }
+
+    updatedEntity.abilities[abilityName] += amount;
+
     const newPeople = [...realm.people];
     newPeople[entityIndex] = updatedEntity;
 
-    // Update the realm state
     setRealm({
         ...realm,
-        people: newPeople,
-    });
-}
-
-function drawSpecificCard(card, side) {
-    const library = side === 'PLAYER' ? playerLibrary : enemyLibrary;
-    const setLibrary = side === 'PLAYER' ? setPlayerLibrary : setEnemyLibrary;
-    const setHand = side === 'PLAYER' ? setPlayerHand : setEnemyHand;
-    const updatedLibrary = library.filter(entity => entity.id !== card.id);
-    setLibrary(updatedLibrary);
-    setHand(prevHand => [...prevHand, card]);
-
-    console.log(`${card.card.name} has been drawn.`);
-}
-
-
-function deactivateAbilities(entity, side) {
-    if (!entity.activeAbilities) return;
-
-    entity.activeAbilities.forEach((activeAbility) => {
-        const abilityDef = activeAbility.abilityDef;
-        if (abilityDef.type === 'static' && abilityDef.removeEffect) {
-            // Remove static effect
-            abilityDef.removeEffect(entity, gameState, side);
-        } else if (abilityDef.type === 'triggered') {
-            // Unsubscribe from events
-            eventManager.unsubscribe(activeAbility.eventType, activeAbility.handler);
-        }
-        // Handle other ability types as needed
+        people: newPeople
     });
 
-    // Clear the active abilities
-    entity.activeAbilities = [];
-
-    // Adjust entity's power based on external effects
-    adjustEntityPowerExternal(entity, side);
+    console.log(`${entity.card.name} gains ${abilityName} (${updatedEntity.abilities[abilityName]}).`);
 }
 
+function removeAbility(entity, abilityName, amount = 1, side) {
+    const realmName = entity.realm;
+    const [realm, setRealm] = getRealmAndSetter(realmName, side);
 
-
-
-function removeEffect(entityId, realmName, owner, effect) {
-    const [realm, setRealm] = getRealmAndSetter(realmName, owner);
-
-    const entityIndex = realm.people.findIndex((e) => e.id === entityId);
-    if (entityIndex === -1) return;
-
-    const oldEntity = realm.people[entityIndex];
-    const newEntity = { ...oldEntity };
-
-    if (effect.type === 'stat') {
-        // Reverse the stat adjustment
-        newEntity[effect.field] -= effect.value;
-    } else if (effect.type === 'keyword') {
-        if (newEntity.modifiedAbilities) {
-            newEntity.modifiedAbilities = new Set(newEntity.modifiedAbilities);
-            newEntity.modifiedAbilities.delete(effect.value);
-        }
-    } else if (effect.type === 'status') {
-        if (effect.status === 'Freeze') {
-            newEntity.freeze = Math.max(0, (newEntity.freeze || 0) - effect.amount);
-            console.log(`${newEntity.card.name} loses ${effect.amount} Freeze (remaining Freeze: ${newEntity.freeze})`);
-        } else if (effect.status === 'Decay') {
-            newEntity.decay = Math.max(0, (newEntity.decay || 0) - effect.amount);
-            console.log(`${newEntity.card.name} loses ${effect.amount} Decay (remaining Decay: ${newEntity.decay})`);
-        } else if (effect.status === 'Venom') {
-            newEntity.venom = Math.max(0, (newEntity.venom || 0) - effect.amount);
-            console.log(`${newEntity.card.name} loses ${effect.amount} Venom (remaining Venom: ${newEntity.venom})`);
-        }
+    const entityIndex = realm.people.findIndex((e) => e.id === entity.id);
+    if (entityIndex === -1) {
+        console.error(`Entity with ID ${entity.id} not found in realm`);
+        return;
     }
 
-    // Remove effect from effects array
-    if (newEntity.effects) {
-        newEntity.effects = newEntity.effects.filter((e) => e !== effect);
+    const updatedEntity = { ...realm.people[entityIndex] };
+
+    if (!updatedEntity.abilities) {
+        updatedEntity.abilities = {};
     }
-
-    // Update the realm state
-    const newPeople = [...realm.people];
-    newPeople[entityIndex] = newEntity;
-
-    setRealm({
-        ...realm,
-        people: newPeople,
-    });
 }
 
-function applyFreezeToAllEntities(amount) {
-    ['PLAYER', 'ENEMY'].forEach((side) => {
-        const realms = side === 'PLAYER' ? getAllPlayerRealms() : getAllEnemyRealms();
-        realms.forEach((realm) => {
-            ['people'].forEach((arrayName) => {
-                realm[arrayName].forEach((entity) => {
-                    if (entity.card.category === 'ENTITY' && entity.online) {
-                        applyEffect(entity.id, realm.name, side, {
-                            type: 'status',
-                            status: 'Freeze',
-                            amount: amount,
-                        });
-                    }
-                });
-            });
-        });
-    });
-    console.log(`All entities gain Freeze ${amount} due to Brain Freeze.`);
-}
+export function clearVengeance(entity, side) {
+    let location = 'REALM';
+    let realm = null;
+    let setRealm = null;
+    let entityIndex = -1;
+    let setRealmOrBattleSlots = null;
 
-function isValidAbilityTarget(cardEntity) {
-    // Check if the card is a friendly Online entity
-    return (
-        cardEntity.online &&
-        cardEntity.owner === 'PLAYER' &&
-        cardEntity !== pendingAbility.entity // Cannot target itself
-    );
-}
+    // Check if entity is in battle
+    const playerBattleCard = playerBattleSlots.find((card) => card && card.id === entity.id);
+    const enemyBattleCard = enemyBattleSlots.find((card) => card && card.id === entity.id);
 
-function confirmAbilityTarget(target) {
-    const { entity, ability } = pendingAbility;
+    if (playerBattleCard || enemyBattleCard) {
+        location = 'BATTLE';
 
-    // Apply the effect
-    applyAbilityEffect(entity, ability.effect, 'PLAYER', target);
-
-    // Reset state
-    setPendingAbility(null);
-    setSelectionMode('NONE');
-}
-
-    function exhaustEntity(entity, side) {
-        const realmName = entity.realm; // Ensure the entity has a 'realm' property
-        const [realm, setRealm] = getRealmAndSetter(realmName, side);
-
-        const entityIndex = realm.people.findIndex((e) => e.id === entity.id);
-        if (entityIndex === -1) {
-            console.error(`Entity with ID ${entity.id} not found in realm ${realmName}`);
-            return;
-        }
-
-        const updatedEntity = { ...realm.people[entityIndex] };
-
-        // Set steps to 0 to exhaust the entity
-        updatedEntity.steps = 0;
-
-        // Update the realm's people array
-        const newPeople = [...realm.people];
-        newPeople[entityIndex] = updatedEntity;
-
-        // Update the realm state
-        setRealm({
-            ...realm,
-            people: newPeople,
-        });
-
-        console.log(`${entity.card.name} is now exhausted.`);
-    }
-
-    function confirmManualAbility(target) {
-        const { entity, ability } = pendingManualAbility;
-
-        // Apply the ability effect
-        const abilityDef = abilitiesDefinitions[ability.name];
-        if (abilityDef && typeof abilityDef.execute === 'function') {
-            abilityDef.execute(entity, ability.effect, 'PLAYER', target);
+        if (playerBattleCard) {
+            setRealmOrBattleSlots = setPlayerBattleSlots;
+            entityIndex = playerBattleSlots.findIndex((card) => card && card.id === entity.id);
         } else {
-            console.error(`Ability ${ability.name} not found or invalid.`);
+            setRealmOrBattleSlots = setEnemyBattleSlots;
+            entityIndex = enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
         }
-
-        // Clear the pending manual ability and disable target selection
-        setPendingManualAbility(null);
-        setTargetSelection({ enabled: false });
-    }
-
-    function applyOverload(side, amount) {
-        if (side === 'PLAYER') {
-            setPlayerOverload(prevOverload => prevOverload + amount);
-            console.log(`Player gains ${amount} Overload.`);
-        } else {
-            setEnemyOverload(prevOverload => prevOverload + amount);
-            console.log(`Enemy gains ${amount} Overload.`);
-        }
-    }
-
-
-
-
-    function applyAbilityEffect(entity, effect, side) {
-        const abilityDef = abilitiesDefinitions[effect.name];
-        if (abilityDef && typeof abilityDef.execute === 'function') {
-            abilityDef.execute(entity, effect, side);
-        } else {
-            console.error(`Ability effect ${effect.name} not found or invalid.`);
-        }
-    }
-
-
-    function grantAbility(entity, abilityName, amount = 1, side) {
+    } else {
+        // If not in battle, proceed with realm logic
         const realmName = entity.realm;
-        const [realm, setRealm] = getRealmAndSetter(realmName, side);
+        [realm, setRealm] = getRealmAndSetter(realmName, side);
 
-        const entityIndex = realm.people.findIndex((e) => e.id === entity.id);
+        entityIndex = realm.people.findIndex((e) => e.id === entity.id);
         if (entityIndex === -1) {
-            console.error(`Entity with ID ${entity.id} not found in realm ${realmName}`);
+            console.error(`Entity with ID ${entity.id} not found in realm or battle`);
             return;
         }
-
-        const updatedEntity = { ...realm.people[entityIndex] };
-
-        if (!updatedEntity.abilities) {
-            updatedEntity.abilities = {};
-        }
-
-        updatedEntity[abilityName] = (updatedEntity[abilityName] || 0) + amount;
-
-        // Update the realm's people array
-        const newPeople = [...realm.people];
-        newPeople[entityIndex] = updatedEntity;
-
-        // Update the realm state
-        setRealm({
-            ...realm,
-            people: newPeople,
-        });
-
-        console.log(`${entity.card.name} gains ${abilityName} (${updatedEntity.abilities[abilityName]}).`);
     }
 
-    function removeAbility(entity, abilityName, amount = 1, side) {
-        const realmName = entity.realm;
-        const [realm, setRealm] = getRealmAndSetter(realmName, side);
+    // Determine the current entity and array to update
+    const currentEntity = location === 'REALM'
+        ? realm.people[entityIndex]
+        : (playerBattleCard || enemyBattleCard);
 
-        const entityIndex = realm.people.findIndex((e) => e.id === entity.id);
-        if (entityIndex === -1) {
-            console.error(`Entity with ID ${entity.id} not found in realm ${realmName}`);
-            return;
-        }
+    // Check and remove Vengeance
+    if (currentEntity.statusEffects && currentEntity.statusEffects.Vengeance) {
+        const updatedEntity = { ...currentEntity };
+        delete updatedEntity.statusEffects.Vengeance;
 
-        const updatedEntity = { ...realm.people[entityIndex] };
-
-        if (updatedEntity.abilities && updatedEntity.abilities[abilityName]) {
-            updatedEntity.abilities[abilityName] -= amount;
-            if (updatedEntity.abilities[abilityName] <= 0) {
-                delete updatedEntity.abilities[abilityName];
-            }
-
-            // Update the realm's people array
+        // Update based on location
+        if (location === 'REALM') {
             const newPeople = [...realm.people];
             newPeople[entityIndex] = updatedEntity;
 
-            // Update the realm state
             setRealm({
                 ...realm,
-                people: newPeople,
+                people: newPeople
             });
-
-            console.log(`${entity.card.name} loses ${abilityName}. Remaining: ${updatedEntity.abilities[abilityName] || 0}`);
         } else {
-            console.log(`${entity.card.name} does not have ${abilityName}.`);
-        }
-    }
-
-    function applySoloEffect(entity, location) {
-        console.log('solo effect ', entity)
-        applyBoost(entity, entity.solo, entity.owner);
-        applyEffect(entity.id, entity.realm, entity.owner, {
-            type: 'stat',
-            value: entity.solo,
-            field: 'HP'
-        });
-        applyEffect(entity.id, entity.realm, entity.owner, {
-            type: 'stat',
-            value: entity.solo,
-            field: 'power'
-        });
-    }
-
-    function decreaseStealth(entity, side) {
-        if (!entity.stealth || entity.stealth <= 0) {
-            return;
+            setRealmOrBattleSlots((prev) =>
+                prev.map((card) =>
+                    card && card.id === entity.id ? updatedEntity : card
+                )
+            );
         }
 
-        const realmName = entity.realm; // Ensure the entity has a 'realm' property
-        const [realm, setRealm] = getRealmAndSetter(realmName, side);
+        console.log(`Vengeance cleared from ${updatedEntity.card.name}`);
+    }
+}
 
-        const entityIndex = realm.people.findIndex((e) => e.id === entity.id);
+export function deactivateAbilities(entity, side) {
+    // Find the entity in the appropriate realm
+    let location = 'REALM';
+    let realm = null;
+    let setRealm = null;
+    let entityIndex = -1;
+    let setRealmOrBattleSlots = null;
+
+    // Check if entity is in battle
+    const playerBattleCard = playerBattleSlots.find((card) => card && card.id === entity.id);
+    const enemyBattleCard = enemyBattleSlots.find((card) => card && card.id === entity.id);
+
+    if (playerBattleCard || enemyBattleCard) {
+        location = 'BATTLE';
+
+        if (playerBattleCard) {
+            setRealmOrBattleSlots = setPlayerBattleSlots;
+            entityIndex = playerBattleSlots.findIndex((card) => card && card.id === entity.id);
+        } else {
+            setRealmOrBattleSlots = setEnemyBattleSlots;
+            entityIndex = enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
+        }
+    } else {
+        // If not in battle, proceed with realm logic
+        const realmName = entity.realm;
+        [realm, setRealm] = getRealmAndSetter(realmName, side);
+
+        entityIndex = realm.people.findIndex((e) => e.id === entity.id);
         if (entityIndex === -1) {
-            console.error(`Entity with ID ${entity.id} not found in realm ${realmName}`);
+            console.error(`Entity with ID ${entity.id} not found in realm or battle`);
             return;
         }
+    }
 
-        const updatedEntity = { ...realm.people[entityIndex] };
-        updatedEntity.stealth = updatedEntity.stealth - 1;
+    // Determine the current entity and array to update
+    const currentEntity = location === 'REALM'
+        ? realm.people[entityIndex]
+        : (playerBattleCard || enemyBattleCard);
 
-        // Ensure stealth doesn't go below 0
-        if (updatedEntity.stealth < 0) {
-            updatedEntity.stealth = 0;
-        }
+    // Remove all abilities
+    const updatedEntity = { ...currentEntity };
+    delete updatedEntity.abilities;
 
-        // Update the realm's people array
+    // Update based on location
+    if (location === 'REALM') {
         const newPeople = [...realm.people];
         newPeople[entityIndex] = updatedEntity;
 
-        // Update the realm state
         setRealm({
             ...realm,
-            people: newPeople,
+            people: newPeople
         });
-
-        console.log(`${entity.card.name}'s Stealth decreased by 1. New Stealth: ${updatedEntity.stealth}`);
+    } else {
+        setRealmOrBattleSlots((prev) =>
+            prev.map((card) =>
+                card && card.id === entity.id ? updatedEntity : card
+            )
+        );
     }
 
-        function clearVengeance(entity, side) {
-            let location = 'REALM';
-            let realm, setRealm;
-            let entityIndex = -1;
-            let setRealmOrBattleSlots;
-    
-            // Check if entity is in battle
-            const playerBattleCard = playerBattleSlots.find((card) => card && card.id === entity.id);
-            const enemyBattleCard = enemyBattleSlots.find((card) => card && card.id === entity.id);
-    
-            if (playerBattleCard || enemyBattleCard) {
-                location = 'BATTLE';
-    
-                if (playerBattleCard) {
-                    setRealmOrBattleSlots = setPlayerBattleSlots;
-                    entityIndex = playerBattleSlots.findIndex((card) => card && card.id === entity.id);
-                } else {
-                    setRealmOrBattleSlots = setEnemyBattleSlots;
-                    entityIndex = enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
-                }
-            } else {
-                // If not in battle, proceed with realm logic
-                const realmName = entity.realm;
-                [realm, setRealm] = getRealmAndSetter(realmName, side);
-    
-                entityIndex = realm.people.findIndex((e) => e.id === entity.id);
-                if (entityIndex === -1) {
-                    console.error(`Entity with ID ${entity.id} not found in realm or battle`);
-                    return;
-                }
-            }
-    
-            // Determine the current entity and array to update
-            const currentEntity = location === 'REALM'
-                ? realm.people[entityIndex]
-                : (playerBattleCard || enemyBattleCard);
-    
-            // Check and remove Vengeance
-            if (currentEntity.statusEffects && currentEntity.statusEffects.Vengeance) {
-                const updatedEntity = { ...currentEntity };
-                delete updatedEntity.statusEffects.Vengeance;
-    
-                // Update based on location
-                if (location === 'REALM') {
-                    const newPeople = [...realm.people];
-                    newPeople[entityIndex] = updatedEntity;
-    
-                    setRealm({
-                        ...realm,
-                        people: newPeople,
-                    });
-                } else {
-                    setRealmOrBattleSlots((prev) =>
-                        prev.map((card) =>
-                            card && card.id === entity.id ? updatedEntity : card
-                        )
-                    );
-                }
-    
-                console.log(`Vengeance cleared from ${updatedEntity.card.name}`);
-            }
+    console.log(`Abilities deactivated for ${updatedEntity.card.name}`);
+}
+
+export function swapEntitiesForImpostor(selectedCard, enemyEntity, realmName, setOwnRealm, setOpponentRealm, side, dreamer) {
+    // Update ownership and realm properties
+    const updatedSelectedCard = { ...selectedCard, realm: realmName, owner: getOppositeSide(side) };
+    const updatedEnemyEntity = { ...enemyEntity, realm: realmName, owner: side };
+
+    // Determine which arrays to use based on card categories
+    const selectedCardArrayName = getArrayNameForCategory(selectedCard.card.category);
+    const enemyCardArrayName = getArrayNameForCategory(enemyEntity.card.category);
+
+    // Remove enemy entity from opponent realm
+    setOpponentRealm((prevRealm) => ({
+        ...prevRealm,
+        [enemyCardArrayName]: prevRealm[enemyCardArrayName].filter((entity) => entity.id !== enemyEntity.id)
+    }));
+
+    // Add enemy entity to own realm
+    setOwnRealm((prevRealm) => ({
+        ...prevRealm,
+        [enemyCardArrayName]: [...prevRealm[enemyCardArrayName], updatedEnemyEntity]
+    }));
+
+    // Add selected card to opponent realm
+    setOpponentRealm((prevRealm) => ({
+        ...prevRealm,
+        [selectedCardArrayName]: [...prevRealm[selectedCardArrayName], updatedSelectedCard]
+    }));
+
+    // Activate abilities for a Dreamer
+    if (dreamer) {
+        activateAbilities(updatedSelectedCard, getOppositeSide(side));
+    }
+}
+
+export function exhaustEntity(entity, side) {
+    let location = 'REALM';
+    let realm, setRealm;
+    let entityIndex = -1;
+    let setRealmOrBattleSlots;
+
+    // Check if entity is in battle
+    const playerBattleCard = playerBattleSlots.find((card) => card && card.id === entity.id);
+    const enemyBattleCard = enemyBattleSlots.find((card) => card && card.id === entity.id);
+
+    if (playerBattleCard || enemyBattleCard) {
+        location = 'BATTLE';
+
+        if (playerBattleCard) {
+            setRealmOrBattleSlots = setPlayerBattleSlots;
+            entityIndex = playerBattleSlots.findIndex((card) => card && card.id === entity.id);
+        } else {
+            setRealmOrBattleSlots = setEnemyBattleSlots;
+            entityIndex = enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
+        }
+    } else {
+        // If not in battle, proceed with realm logic
+        const realmName = entity.realm;
+        [realm, setRealm] = getRealmAndSetter(realmName, side);
+
+        entityIndex = realm.people.findIndex((e) => e.id === entity.id);
+        if (entityIndex === -1) {
+            console.error(`Entity with ID ${entity.id} not found in realm or battle`);
+            return;
+        }
+    }
+
+    // Determine the current entity and array to update
+    const currentEntity = location === 'REALM'
+        ? realm.people[entityIndex]
+        : (playerBattleCard || enemyBattleCard);
+
+    // Check and remove Vengeance
+    if (currentEntity.statusEffects && currentEntity.statusEffects.Vengeance) {
+        const updatedEntity = { ...currentEntity };
+        delete updatedEntity.statusEffects.Vengeance;
+
+        // Update based on location
+        if (location === 'REALM') {
+            const newPeople = [...realm.people];
+            newPeople[entityIndex] = updatedEntity;
+
+            setRealm({
+                ...realm,
+                people: newPeople
+            });
+        } else {
+            setRealmOrBattleSlots((prev) =>
+                prev.map((card) =>
+                    card && card.id === entity.id ? updatedEntity : card
+                )
+            );
         }
 
-
-        function handleImpostorPlacement(selectedCard, enemyCard, realmName, side, dreamer) {
-            // Determine the realms and setter functions based on the side
-            let ownRealm, setOwnRealm, opponentRealm, setOpponentRealm;
-    
-            if (side === 'PLAYER') {
-                ownRealm = getPlayerRealmByName(realmName);
-                setOwnRealm = getSetPlayerRealm(realmName);
-                opponentRealm = getEnemyRealmByName(realmName);
-                setOpponentRealm = getSetEnemyRealm(realmName);
-            } else {
-                ownRealm = getEnemyRealmByName(realmName);
-                setOwnRealm = getSetEnemyRealm(realmName);
-                opponentRealm = getPlayerRealmByName(realmName);
-                setOpponentRealm = getSetPlayerRealm(realmName);
-            }
-    
-            // Swap the cards
-            swapEntitiesForImpostor(selectedCard, enemyCard, realmName, setOwnRealm, setOpponentRealm, side, dreamer);
-    
-            // Remove the selected card from the player's or enemy's hand
-            if (side === 'PLAYER') {
-                setPlayerHand((prevHand) => prevHand.filter((card) => card.id !== selectedCard.id));
-            } else {
-                setEnemyHand((prevHand) => prevHand.filter((card) => card.id !== selectedCard.id));
-            }
-    
-            // Deduct an action point from the acting player
-            if (side === 'PLAYER') {
-                playerLoseActions(1);
-            } else {
-                enemyLoseActions(1);
-            }
-    
-            // Reset selection states
-            setSelectedCard(null);
-            setSelectedInHand(false);
-            setDraftSelected(false);
-            setTargetType('none');
-            setCurrentPlayer(getOppositeSide(side));
-        }
-    
-        function swapEntitiesForImpostor(selectedCard, enemyEntity, realmName, setOwnRealm, setOpponentRealm, side, dreamer) {
-            // Update ownership and realm properties
-            const updatedSelectedCard = { ...selectedCard, realm: realmName, owner: getOppositeSide(side) };
-            const updatedEnemyEntity = { ...enemyEntity, realm: realmName, owner: side };
-    
-            // Determine which arrays to use based on card categories
-            const selectedCardArrayName = getArrayNameForCategory(selectedCard.card.category);
-            const enemyCardArrayName = getArrayNameForCategory(enemyEntity.card.category);
-    
-            // Remove enemy entity from opponent realm
-            setOpponentRealm((prevRealm) => ({
-                ...prevRealm,
-                [enemyCardArrayName]: prevRealm[enemyCardArrayName].filter((entity) => entity.id !== enemyEntity.id),
-            }));
-    
-            // Add enemy entity to own realm
-            setOwnRealm((prevRealm) => ({
-                ...prevRealm,
-                [enemyCardArrayName]: [...prevRealm[enemyCardArrayName], updatedEnemyEntity],
-            }));
-    
-            // Add selected card to opponent realm
-            setOpponentRealm((prevRealm) => ({
-                ...prevRealm,
-                [selectedCardArrayName]: [...prevRealm[selectedCardArrayName], updatedSelectedCard],
-            }));
-    
-            // Activate abilities for a Dreamer
-            if (dreamer) {
-                activateAbilities(updatedSelectedCard, getOppositeSide(side));
-            }
-        }
+        console.log(`Vengeance cleared from ${updatedEntity.card.name}`);
+    }
+}

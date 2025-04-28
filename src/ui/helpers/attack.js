@@ -1,6 +1,6 @@
 import { setAttackMode } from './state';
 import { playerLoseActions } from './player';
-import { eventManager } from '../Tools';
+import { eventManager } from './eventManager';
 
 export const handleQuest = () => {
     setAttackMode('PLAYER_QUEST');

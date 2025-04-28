@@ -10,8 +10,7 @@ import {
     attackMode, awaitingImpostor, awaitingSacrifices,
     selectionMode, battleRealm, battleSelectedCard,
     selectedCard, impostorRealm,
-    setPendingManualAbility,
-    recruiterCount, draftSelected
+    setPendingManualAbility
 } from './state';
 
 import { abilitiesDefinitions } from './abilities';

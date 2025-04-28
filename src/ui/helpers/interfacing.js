@@ -2,7 +2,7 @@ import { gameState } from './state';
 import { sleep } from './utils';
 import { showModal } from '../components/Modal';
 import { CardDisplay } from '../components/CardDisplay';
-import { eventManager } from '../events/EventManager';
+import { eventManager } from './eventManager';
 
 const {
     enemyLibrary, enemyHand, playerLibrary, playerHand,

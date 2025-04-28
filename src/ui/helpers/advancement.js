@@ -1,15 +1,20 @@
-import { eventManager } from '../Tools';
-import { abilitiesDefinitions } from '../data/abilities';
-import {
+import { eventManager } from './eventManager';
+import { abilitiesDefinitions } from '../abilities/glossary';
+import { gameState, setters } from './state';
+import { getRealmAndSetter, getOppositeSide } from './utils';
+import { updateEntityInRealm } from './entity';
+import { playerGainFate, enemyGainFate } from './core';
+
+const {
+    playerElysium,
+    enemyElysium
+} = gameState;
+
+const {
     setAttackMode,
     setPlayerElysium,
-    setEnemyElysium,
-    playerGainFate,
-    enemyGainFate,
-    gameState,
-} from './state';
-import { updateEntityInRealm } from './utils';
-import { getRealmAndSetter } from './utils';
+    setEnemyElysium
+} = setters;
 
 export function handleDevelopCard(cardEntity) {
         setAttackMode('NONE');

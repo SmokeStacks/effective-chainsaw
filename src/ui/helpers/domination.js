@@ -1,4 +1,4 @@
-import { eventManager } from '../Tools';
+import { eventManager } from './eventManager';
 import { showModal } from '../components/Modal';
 import { BidInputModal } from '../components/BidInputModal';
 import {
@@ -13,6 +13,7 @@ import {
     playerSurge,
     enemySurge,
     enemyBits,
+    playerBits,
     focus,
     turnNumber,
     setPlayerBits,
@@ -22,7 +23,8 @@ import {
     setPlayerBurden,
     setEnemyBurden,
     setPlayerActions,
-    setEnemyActions
+    setEnemyActions,
+    endTurn
 } from './state';
 import { enemySacrificeEntity, playerSacrificeEntity } from './sacrifice';
 

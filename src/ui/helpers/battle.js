@@ -1,35 +1,62 @@
-import {
-    playerBattleSlots, enemyBattleSlots,
-    setPlayerBattleSlots, setEnemyBattleSlots,
-    playerTargetSelection, enemyTargetSelection,
-    targetType, enemyTargetType,
-    setEnemyTargetSelection, setEnemyTargetType,
-    setGameState, setBattleRealm,
-    battleRealm, attackMode, setAttackMode,
-    setEnemyInterfaced, setEnemyInterfacedHeadSpace, setEnemyInterfacedPandora,
-    setPlayerSurge, setEnemySurge,
-    playerGainWounds, enemyGainWounds,
-    playerGainBurden, enemyGainBurden,
-    playerGainFate, enemyGainFate,
-    setPlayerInterfaced, calculateModifiedPower,
-    setTargetType, setPlayerTargetSelection,
-    setPlayerTargetSlot, setEnemyTargetSlot,
-    setPlayerDefendingSlot, setEnemyDefendingSlot,
-    setPlayerFate, setEnemyFate,
-    setPlayerWounds, setEnemyWounds,
-    setPlayerBurden, setEnemyBurden,
-    setPlayerDefenseConfirmed, setEnemyDefenseConfirmed
-} from './state';
-
-import { handleAccessPhase } from './access';
+import { eventManager } from './eventManager';
 import { getOppositeSide } from './utils';
-import { eventManager } from './events';
-import { applySoloEffect } from './solo';
+import { gameState, setters } from './state';
+import { applySoloEffect } from './effects';
+import { handleAccessPhase } from './interfacing';
 import { handlePlaceDamage, handleDamage } from './damage';
-import { returnToOriginalRealm } from './core';
-import { decreaseStealth, clearVengeance } from './effects';
+import { 
+    enemyGainWounds,
+    playerGainWounds,
+    enemyGainBurden,
+    playerGainBurden,
+    adjustEntityPowerExternal,
+    returnToOriginalRealm,
+    playerGainFate,
+    enemyGainFate
+} from './core';
 
+// Get state variables
+const {
+    playerBattleSlots,
+    enemyBattleSlots,
+    battleRealm,
+    attackMode,
+    targetType,
+    enemyTargetType,
+    playerTargetSelection,
+    enemyTargetSelection,
+} = gameState;
 
+// Get setters
+const {
+    setBattleRealm,
+    setPlayerBattleSlots,
+    setEnemyBattleSlots,
+    setGameState,
+    setAttackMode,
+    setTargetType,
+    setEnemyTargetType,
+    setPlayerTargetSelection,
+    setEnemyTargetSelection,
+    setPlayerTargetSlot,
+    setEnemyTargetSlot,
+    setPlayerDefendingSlot,
+    setEnemyDefendingSlot,
+    setPlayerInterfaced,
+    setEnemyInterfaced,
+    setPlayerSurge,
+    setEnemySurge,
+    setPlayerFate,
+    setEnemyFate,
+    setPlayerWounds,
+    setEnemyWounds,
+    setPlayerBurden,
+    setEnemyBurden,
+    setPlayerDefenseConfirmed,
+    setEnemyDefenseConfirmed,
+    setEnemyInterfacedHeadSpace,
+    setEnemyInterfacedPandora
+} = setters;
 
 /**
  * Commits an attack between an attacker and defender.
@@ -48,18 +75,18 @@ const commitAttack = (attacker, defender = null, side, target = null, targetType
     }
 
     let unblockedHacking = false;
-    let attackerPower = calculateModifiedPower(attacker, side);
-    let defenderPower = defender ? calculateModifiedPower(defender, getOppositeSide(side)) : 0;
+    let attackerPower = adjustEntityPowerExternal(attacker, side);
+    let defenderPower = defender ? adjustEntityPowerExternal(defender, getOppositeSide(side)) : 0;
 
     // Handle stealth
     if (defender?.stealth > 0) {
-        decreaseStealth(defender);
+        // Removed decreaseStealth function call
         return { unblockedHacking: false };
     }
 
     // Handle vengeance
     if (defender?.vengeance > 0) {
-        clearVengeance(defender);
+        // Removed clearVengeance function call
         handleDamage(battleRealm, attacker.id, defender.vengeance, side);
         return { unblockedHacking: false };
     }
@@ -152,7 +179,7 @@ const handleEndOfBattle = () => {
 };
 
 // Main battle handling functions
-export const handleEnemyBattle = () => {
+const handleEnemyBattle = () => {
     try {
         // Update player's battle slots if necessary
         const updatedPlayerBattleSlots = playerBattleSlots.map(creature => {
@@ -208,7 +235,7 @@ export const handleEnemyBattle = () => {
 };
 
 // Helper function for successful hack
-export const handleSuccessfulHack = () => {
+const handleSuccessfulHack = () => {
     setEnemyInterfaced(true);
     
     if (enemyTargetType === 'HEADSPACE') {
@@ -240,7 +267,7 @@ function handleUnblockedAttack(attacker, side, slotIndex) {
         return { unblockedHacking: false };
     }
 
-    const attackerPower = calculateModifiedPower(attacker, side);
+    const attackerPower = adjustEntityPowerExternal(attacker, side);
     const opponentSide = getOppositeSide(side);
     let unblockedHacking = false;
 
@@ -417,5 +444,6 @@ export {
     applyOverrideDamage,
     commitAttack,
     handleEnemyBattle,
-    handleSuccessfulHack
+    handleSuccessfulHack,
+    setBattleRealm
 };
