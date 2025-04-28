@@ -1,9 +1,9 @@
-import { gameState, stateSetters } from './state';
+import { state, stateSetters } from './state';
 
 const {
     modalVisible = false,
     modalProps = {},
-} = gameState;
+} = state;
 
 const {
     setModalVisible,

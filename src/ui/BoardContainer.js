@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { playerGainBits, 
-    startTurn,
-    enemyLoseBits
-} from './helpers/core';
+import { startTurn, playerGainBits, enemyLoseBits, playerDraw, enemyDraw } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { initializeSetters } from './helpers/state';
@@ -24,7 +21,9 @@ export function BoardContainer() {
         fate: 0,
         wounds: 0,
         burden: 0,
-        overload: 0
+        overload: 0,
+        surge: 0,
+        lag: 0
     });
 
     // Enemy state
@@ -39,7 +38,8 @@ export function BoardContainer() {
         wounds: 0,
         burden: 0,
         overload: 0,
-        surge: 0
+        surge: 0,
+        lag: 0
     });
 
     // Realm state
@@ -68,7 +68,9 @@ export function BoardContainer() {
         awaitingTrash: false,
         awaitingSacrifices: false,
         battleRealm: null,
-        currentPlayer: 'PLAYER'
+        currentPlayer: 'PLAYER',
+        rezCard: null,
+        targetType: null
     });
 
     // UI state
@@ -91,7 +93,7 @@ export function BoardContainer() {
     });
 
     // Interface access state - currently unused but kept for future features
-    const [, setInterfaceState] = useState({
+    useState({
         player: {
             headSpace: {
                 interfaced: false,
@@ -114,55 +116,83 @@ export function BoardContainer() {
         }
     });
 
-    // Draw functions
-    const playerDraw = useCallback((num) => {
-        console.log('draw ', num);
-        let remainingCards = num;
-
-        if (playerState.wounds > 0) {
-            const newWounds = playerState.wounds - num;
-            remainingCards = Math.max(0, -newWounds);
-            setPlayerState(prev => ({ ...prev, wounds: Math.max(0, newWounds) }));
-        }
-
-        if (remainingCards > 0) {
-            setPlayerState(prev => {
-                const newHandCards = prev.library.slice(0, remainingCards);
-                const newLibrary = prev.library.slice(remainingCards);
-                return {
-                    ...prev,
-                    library: newLibrary,
-                    hand: [...prev.hand, ...newHandCards]
-                };
-            });
-        }
-    }, [playerState.wounds]);
-
-    const enemyDraw = useCallback((num) => {
-        console.log('enemy draw ', num);
-        let remainingCards = num;
-
-        if (enemyState.wounds > 0) {
-            const newWounds = enemyState.wounds - num;
-            remainingCards = Math.max(0, -newWounds);
-            setEnemyState(prev => ({ ...prev, wounds: Math.max(0, newWounds) }));
-        }
-
-        if (remainingCards > 0) {
-            setEnemyState(prev => {
-                const newHandCards = prev.library.slice(0, remainingCards);
-                const newLibrary = prev.library.slice(remainingCards);
-                return {
-                    ...prev,
-                    library: newLibrary,
-                    hand: [...prev.hand, ...newHandCards]
-                };
-            });
-        }
-    }, [enemyState.wounds]);
-
-    // Listen for UI state reset events
+    // Initialize state setters and libraries
     useEffect(() => {
+        console.log('Initializing game state...');
+        // Initialize state setters
+        initializeSetters({
+            setPlayerHand: (setter) => setPlayerState(prev => ({ ...prev, hand: setter(prev.hand) })),
+            setPlayerLibrary: (setter) => setPlayerState(prev => ({ ...prev, library: setter(prev.library) })),
+            setEnemyHand: (setter) => setEnemyState(prev => ({ ...prev, hand: setter(prev.hand) })),
+            setEnemyLibrary: (setter) => setEnemyState(prev => ({ ...prev, library: setter(prev.library) })),
+            setPlayerBits: (setter) => setPlayerState(prev => ({ ...prev, bits: typeof setter === 'function' ? setter(prev.bits) : setter })),
+            setPlayerAshes: (setter) => setPlayerState(prev => ({ ...prev, ashes: typeof setter === 'function' ? setter(prev.ashes) : setter })),
+            setPlayerBurden: (setter) => setPlayerState(prev => ({ ...prev, burden: typeof setter === 'function' ? setter(prev.burden) : setter })),
+            setPlayerFate: (setter) => setPlayerState(prev => ({ ...prev, fate: typeof setter === 'function' ? setter(prev.fate) : setter })),
+            setPlayerWounds: (setter) => setPlayerState(prev => ({ ...prev, wounds: typeof setter === 'function' ? setter(prev.wounds) : setter })),
+            setPlayerOverload: (setter) => setPlayerState(prev => ({ ...prev, overload: typeof setter === 'function' ? setter(prev.overload) : setter })),
+            setPlayerLag: (setter) => setPlayerState(prev => ({ ...prev, lag: typeof setter === 'function' ? setter(prev.lag) : setter })),
+            setPlayerActions: (setter) => setPlayerState(prev => ({ ...prev, actions: typeof setter === 'function' ? setter(prev.actions) : setter })),
+            setPlayerSurge: (setter) => setPlayerState(prev => ({ ...prev, surge: typeof setter === 'function' ? setter(prev.surge) : setter })),
+            setEnemyBits: (setter) => setEnemyState(prev => ({ ...prev, bits: typeof setter === 'function' ? setter(prev.bits) : setter })),
+            setEnemyAshes: (setter) => setEnemyState(prev => ({ ...prev, ashes: typeof setter === 'function' ? setter(prev.ashes) : setter })),
+            setEnemyBurden: (setter) => setEnemyState(prev => ({ ...prev, burden: typeof setter === 'function' ? setter(prev.burden) : setter })),
+            setEnemyFate: (setter) => setEnemyState(prev => ({ ...prev, fate: typeof setter === 'function' ? setter(prev.fate) : setter })),
+            setEnemyWounds: (setter) => setEnemyState(prev => ({ ...prev, wounds: typeof setter === 'function' ? setter(prev.wounds) : setter })),
+            setEnemyOverload: (setter) => setEnemyState(prev => ({ ...prev, overload: typeof setter === 'function' ? setter(prev.overload) : setter })),
+            setEnemyLag: (setter) => setEnemyState(prev => ({ ...prev, lag: typeof setter === 'function' ? setter(prev.lag) : setter })),
+            setEnemyActions: (setter) => setEnemyState(prev => ({ ...prev, actions: typeof setter === 'function' ? setter(prev.actions) : setter })),
+            setEnemySurge: (setter) => setEnemyState(prev => ({ ...prev, surge: typeof setter === 'function' ? setter(prev.surge) : setter })),
+            setPlayerBattleSlots: (setter) => setUiState(prev => ({ ...prev, playerBattleSlots: setter(prev.playerBattleSlots) })),
+            setEnemyBattleSlots: (setter) => setUiState(prev => ({ ...prev, enemyBattleSlots: setter(prev.enemyBattleSlots) })),
+            setTargetType: (setter) => setGameState(prev => ({ ...prev, targetType: setter(prev.targetType) })),
+            setCurrentPlayer: (value) => setGameState(prev => ({ ...prev, currentPlayer: value })),
+            setMode: (value) => setGameState(prev => ({ ...prev, mode: value })),
+            setAwaitingFocus: (value) => setUiState(prev => ({ ...prev, awaitingFocus: value })),
+            setFocus: (value) => setUiState(prev => ({ ...prev, focus: value })),
+            setDraftSelected: (value) => setUiState(prev => ({ ...prev, draftSelected: value })),
+        });
+
+        // Create libraries
+        console.log('Creating libraries...');
+        const playerLibrary = createLibrary();
+        const enemyLibrary = createEnemyLibrary();
+
+        console.log('Setting up libraries and initial state...');
+        // Initialize all state at once to avoid multiple re-renders
+        setPlayerState(prev => ({
+            ...prev,
+            library: playerLibrary,
+            hand: [],
+        }));
+
+        setEnemyState(prev => ({
+            ...prev,
+            library: enemyLibrary,
+            hand: [],
+        }));
+
+        setGameState(prev => ({
+            ...prev,
+            mode: 'MULLIGAN',
+            currentPlayer: 'PLAYER',
+        }));
+
+        // Draw opening hands after state is initialized
+        console.log('Drawing initial hands...');
+        setTimeout(() => {
+            playerDraw(5);
+            enemyDraw(5);
+        }, 0);
+
+        return () => {
+            console.log('Cleaning up game initialization...');
+        };
+    }, []);
+
+    // Set up UI state reset listener
+    useEffect(() => {
+        console.log('Setting up UI state reset listener...');
         const resetUIStateHandler = (data) => {
             setUiState(prev => ({
                 ...prev,
@@ -174,41 +204,12 @@ export function BoardContainer() {
         return () => eventManager.unsubscribe('resetUIState', resetUIStateHandler);
     }, []);
 
-    // Initialize global setters
+    // Start first turn after hands are drawn
     useEffect(() => {
-        const initGame = () => {
-            initializeSetters({
-                setPlayerState,
-                setEnemyState,
-                setRealms,
-                setGameState,
-                setInterfaceState,
-                playerDraw,
-                enemyDraw,
-                setAwaitingFocus: (value) => setUiState(prev => ({ ...prev, awaitingFocus: value })),
-                setFocus: (value) => setUiState(prev => ({ ...prev, focus: value })),
-                setDraftSelected: (value) => setUiState(prev => ({ ...prev, draftSelected: value })),
-                setUiState
-            });
-
-            // Initialize game
-            const playerLibrary = createLibrary();
-            const enemyLibrary = createEnemyLibrary();
-            setPlayerState(prev => ({ ...prev, library: playerLibrary }));
-            setEnemyState(prev => ({ ...prev, library: enemyLibrary }));
-            playerDraw(5); // Draw initial hand
-            enemyDraw(5);
-        };
-
-        initGame();
-    }, [setPlayerState, setEnemyState, setRealms, setGameState, setUiState, setInterfaceState, playerDraw, enemyDraw]);
-
-    // Start first turn after initialization
-    useEffect(() => {
-        if (playerState.library.length > 0 && enemyState.library.length > 0) {
+        if (playerState.hand.length === 5 && enemyState.hand.length === 5 && gameState.attackMode) {
             startTurn(true);
         }
-    }, [playerState.library, enemyState.library]);
+    }, [playerState.hand.length, enemyState.hand.length, gameState.attackMode]);
 
     // Handle burden effects
     useEffect(() => {
@@ -277,12 +278,8 @@ export function BoardContainer() {
         }
     }, [uiState.focus]);
 
-    function handleDrawButton() {
-        if (playerState.bits >= 1) {
-            setPlayerState(prev => ({ ...prev, bits: prev.bits - 1 }));
-        }
-        setGameState(prev => ({ ...prev, currentPlayer: 'ENEMY' }));
-    }
+    // Import button handlers from actions.js
+    const { handleDrawButton, handleDraftButton, handleBoostButton, handleDevelopButton } = require('./helpers/actions');
 
     useEffect(() => {
         if (playerState.actions <= 0 &&
@@ -313,23 +310,12 @@ export function BoardContainer() {
     useEffect(() => {
         if (gameState.mode === 'BEGIN') {
             if (gameState.attackMode) {
-                console.log('begin game')
+                console.log('begin game');
                 playerGainBits(1);
                 playerDraw();
-                enemyDraw(3);
-                setGameState(prev => ({ ...prev, mode: 'NONE' }));
-                startTurn(gameState.priorityLeft);
             }
         }
-    }, [gameState.mode, gameState.attackMode, gameState.priorityLeft, playerDraw, enemyDraw, setGameState]);
-
-    useEffect(() => {
-        if (gameState.mode === 'MULLIGAN') {
-            if (gameState.priorityLeft) {
-                // Handle mulligan phase
-            }
-        }
-    }, [gameState.mode, gameState.priorityLeft]);
+    }, [gameState.mode, gameState.priorityLeft, gameState.attackMode]);
 
     useEffect(() => {
         if (gameState.currentPlayer === 'ENEMY' && enemyState.actions > 0) {
@@ -553,9 +539,10 @@ export function BoardContainer() {
             <Gameboard 
                 // Player state
                 playerOneHand={playerState.hand}
-                playerDraft={handleDrawButton}
+                playerDraft={handleDraftButton}
                 playerDraw={handleDrawButton}
-                playerBoost={() => {}}
+                playerBoost={handleBoostButton}
+                playerDevelop={handleDevelopButton}
                 playerWounds={playerState.wounds}
                 playerBits={playerState.bits}
                 playerActions={playerState.actions}
@@ -622,7 +609,7 @@ export function BoardContainer() {
                 onHack={() => {
                     setGameState(prev => ({ ...prev, attackMode: 'PLAYER_HACK' }));
                 }}
-                
+
                 // Focus state
                 awaitingFocus={uiState.awaitingFocus}
                 focus={uiState.focus}

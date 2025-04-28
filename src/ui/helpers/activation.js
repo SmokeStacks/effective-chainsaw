@@ -1,4 +1,4 @@
-import { gameState } from './state';
+import { state } from './state';
 import { eventManager } from './eventManager';
 
 /**
@@ -12,7 +12,7 @@ export const handleRezPlayerCard = (entity) => {
         playerAshes,
         setRezCard,
         setAwaitingSacrifices
-    } = gameState;
+    } = state;
 
     const soulsAvailable = calculateSoulsAvailable(entity.id);
     
@@ -72,7 +72,7 @@ export const calculateSoulsAvailable = (id) => {
         playerTheater,
         playerUnderpass,
         playerGrid 
-    } = gameState;
+    } = state;
 
     const playerRealmsState = {
         Solarium: playerSolarium,

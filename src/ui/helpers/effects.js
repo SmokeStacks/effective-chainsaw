@@ -1,6 +1,6 @@
 import { eventManager } from './eventManager';
 import { getRealmAndSetter, getOppositeSide } from './utils';
-import { gameState } from './state';
+import { stateSetters } from './state';
 import { applyBoost } from './advancement';
 import { abilitiesDefinitions } from '../abilities/glossary';
 
@@ -98,7 +98,7 @@ export function applyFreezeToAllEntities(amount) {
 }
 
 export function applyOverload(side, amount) {
-    const { setPlayerOverload, setEnemyOverload } = gameState;
+    const { setPlayerOverload, setEnemyOverload } = stateSetters;
     if (side === 'PLAYER') {
         setPlayerOverload(prev => prev + amount);
     } else {
@@ -111,7 +111,7 @@ export function playerGainOverload(amount) {
 }
 
 export function enemyGainOverload(amount) {
-    gameState.setEnemyOverload(prev => prev + amount);
+    stateSetters.setEnemyOverload(prev => prev + amount);
 }
 
 export function removeEffect(entityId, realmName, owner, effect) {

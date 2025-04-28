@@ -1,6 +1,6 @@
 import { eventManager } from './eventManager';
 import { abilitiesDefinitions } from '../abilities/glossary';
-import { gameState, stateSetters } from './state';
+import { state, stateSetters } from './state';
 import { getRealmAndSetter, getOppositeSide } from './utils';
 import { updateEntityInRealm } from './entity';
 import { playerGainFate, enemyGainFate } from './core';
@@ -8,7 +8,7 @@ import { playerGainFate, enemyGainFate } from './core';
 const {
     playerElysium,
     enemyElysium
-} = gameState;
+} = state;
 
 const {
     setAttackMode,
@@ -192,12 +192,12 @@ export async function activateAscendedAbilities(cardEntity, side) {
             if (abilityDef) {
                 if (abilityDef.typeCategory === 'static') {
                     // Apply static effect
-                    abilityDef.applyEffect(cardEntity, gameState, side);
+                    abilityDef.applyEffect(cardEntity, state, side);
                 } else if (abilityDef.typeCategory === 'triggered') {
                     console.log('_____________________________________________________-activate trigger listener');
                     abilityDef.triggers.forEach((eventType) => {
                         const handler = (eventData) => {
-                            abilityDef.eventHandler(cardEntity, eventData, gameState, side);
+                            abilityDef.eventHandler(cardEntity, eventData, state, side);
                         };
                         eventManager.subscribe(eventType, handler);
                         console.log(`Subscribed to event "${eventType}" for ability "${ability.name}"`);

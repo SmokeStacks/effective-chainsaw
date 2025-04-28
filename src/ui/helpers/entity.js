@@ -1,10 +1,10 @@
 import { getRealmAndSetter } from './utils';
-import { gameState, stateSetters } from './state';
+import { state, stateSetters } from './state';
 
 const {
     playerLibrary,
     enemyLibrary
-} = gameState;
+} = state;
 
 const {
     setPlayerLibrary,

@@ -1,75 +1,5 @@
-// Initial state object
-const state = {
-    playerBits: 0,
-    playerAshes: 0,
-    playerBurden: 0,
-    playerFate: 0,
-    playerWounds: 0,
-    playerOverload: 0,
-    playerLag: 0,
-    playerActions: 3,
-    playerSurge: 0,
-    playerDriftCount: 0,
-    playerGlitchyAmount: 0,
-
-    enemyBits: 0,
-    enemyAshes: 0,
-    enemyBurden: 0,
-    enemyFate: 0,
-    enemyWounds: 0,
-    enemyOverload: 0,
-    enemyLag: 0,
-    enemyActions: 3,
-    enemySurge: 0,
-    enemyDriftCount: 0,
-    enemyGlitchyAmount: 0,
-    enemyDividendAmount: 2,
-
-    // Realms
-    playerSolarium: { people: [], places: [], things: [] },
-    playerTheater: { people: [], places: [], things: [] },
-    playerUnderpass: { people: [], places: [], things: [] },
-    playerGrid: { people: [], places: [], things: [] },
-    
-    enemySolarium: { people: [], places: [], things: [] },
-    enemyTheater: { people: [], places: [], things: [] },
-    enemyUnderpass: { people: [], places: [], things: [] },
-    enemyGrid: { people: [], places: [], things: [] },
-
-    // Battle state
-    battleRealm: null,
-    playerBattleSlots: Array(6).fill(null),
-    enemyBattleSlots: Array(6).fill(null),
-
-    // Selection state
-    selectedCard: null,
-    selectedInHand: false,
-    targetType: 'none',
-    playerTargetSelection: null,
-    enemyTargetSelection: null,
-    pendingRitual: null,
-    targetSelection: { enabled: false },
-
-    // Game flow
-    currentPlayer: 'PLAYER',
-    priorityLeft: true,
-    
-    // Other state
-    playerFirstAttack: true,
-    awaitingImpostor: false,
-    awaitingSacrifices: false,
-    rezCard: null,
-    draftSelected: false,
-    selectedRealm: null,
-    soulSelections: [],
-    focus: null,
-    awaitingFocus: false
-};
-
-
-
 // Game State
-export const gameState = {
+export const state = {
     playerBits: 0,
     playerAshes: 0,
     playerBurden: 0,
@@ -94,6 +24,14 @@ export const gameState = {
     enemyDriftCount: 0,
     enemyGlitchyAmount: 0,
     enemyDividendAmount: 2,
+
+    // Cards
+    playerHand: [],
+    playerLibrary: [],
+    playerGraveyard: [],
+    enemyHand: [],
+    enemyLibrary: [],
+    enemyGraveyard: [],
 
     // Realms
     playerSolarium: { people: [], places: [], things: [] },
@@ -136,6 +74,12 @@ export const gameState = {
 // State setters
 const stateSetters = {
     setSelectedCard: null,
+    setPlayerHand: null,
+    setPlayerLibrary: null,
+    setPlayerGraveyard: null,
+    setEnemyHand: null,
+    setEnemyLibrary: null,
+    setEnemyGraveyard: null,
     setPlayerBits: null,
     setPlayerAshes: null,
     setPlayerBurden: null,
@@ -272,6 +216,12 @@ export const {
     enemyDriftCount,
     enemyGlitchyAmount,
     enemyDividendAmount,
+    playerHand,
+    playerLibrary,
+    playerGraveyard,
+    enemyHand,
+    enemyLibrary,
+    enemyGraveyard,
     playerSolarium,
     playerTheater,
     playerUnderpass,
@@ -304,6 +254,12 @@ export const {
 
 // Export setters
 export const {
+    setPlayerHand,
+    setPlayerLibrary,
+    setPlayerGraveyard,
+    setEnemyHand,
+    setEnemyLibrary,
+    setEnemyGraveyard,
     setPlayerBits,
     setPlayerAshes,
     setPlayerBurden,
@@ -362,4 +318,4 @@ export const {
 } = stateSetters;
 
 // Export state objects
-export { state, stateSetters };
+export { stateSetters };

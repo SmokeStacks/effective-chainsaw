@@ -1,4 +1,4 @@
-import { gameState, stateSetters } from '../helpers/state';
+import { state, stateSetters } from '../helpers/state';
 import { eventManager } from '../helpers/eventManager';
 import { cardList1 as cardList } from '../data/cardList';
 import { 
@@ -26,7 +26,7 @@ const {
     playerInterfaced, enemyInterfaced,
     playerInterfacedHeadSpace, enemyInterfacedHeadSpace,
     playerActions, enemyActions
-} = gameState;
+} = state;
 
 const {
     setPlayerSolarium, setPlayerTheater, setPlayerUnderpass, setPlayerGrid,
@@ -148,12 +148,12 @@ const abilitiesDefinitions = {
     'Extortion': {
         name: 'Extortion',
         type: 'onPlay',
-        onPlay: function (entity, gameState, side) {
+        onPlay: function (entity, state, side) {
             const countEntities = () => {
                 let count = 0;
                 const realms = ['playerSolarium', 'enemySolarium', 'playerTheater', 'enemyTheater', 'playerUnderpass', 'enemyUnderpass', 'playerGrid', 'enemyGrid'];
                 realms.forEach(realmName => {
-                    const realm = gameState[realmName];
+                    const realm = state[realmName];
                     if (realm) {
                         count += realm.people.length;
                     }
@@ -268,7 +268,7 @@ const abilitiesDefinitions = {
     'ImplantsEffect': {
         name: 'ImplantsEffect',
         type: 'onPlay',
-        onPlay: function (entity, gameState, side) {
+        onPlay: function (entity, state, side) {
             // Grant +2 Surge and +2 Ash
             if (side === 'PLAYER') {
                 playerGainSurge(2);
@@ -349,7 +349,7 @@ const abilitiesDefinitions = {
     'Duplicate': {
         name: 'Duplicate',
         type: 'onPlay',
-        onPlay: function (entity, gameState, side) {
+        onPlay: function (entity, state, side) {
             const duplicateAbility = entity.card.abilities.find(
                 (ability) => ability.name === 'Duplicate'
             );
@@ -434,7 +434,7 @@ const abilitiesDefinitions = {
     'ForgeryEffect': {
         name: 'ForgeryEffect',
         type: 'onPlay',
-        onPlay: function (entity, gameState, side) {
+        onPlay: function (entity, state, side) {
             if (side === 'PLAYER' && playerInterfacedHeadSpace) {
                 playerGainBits(10);
                 const CatPhishCard = cardList.find(card => card.name === 'CatPhish');
@@ -517,7 +517,7 @@ const abilitiesDefinitions = {
     'GainAshAndOverload': {
         name: 'GainAshAndOverload',
         type: 'onPlay',
-        onPlay: function (entity, gameState, side) {
+        onPlay: function (entity, state, side) {
             // Gain 6 Ash
             if (side === 'PLAYER') {
                 playerGainAshes(6);
@@ -536,7 +536,7 @@ const abilitiesDefinitions = {
     'BrainFreezeHackPandora': {
         name: 'BrainFreezeHackPandora',
         type: 'onPlay',
-        onPlay: function (entity, gameState, side) {
+        onPlay: function (entity, state, side) {
             // Set up a one-time listener for successfulHack and failedHack events
             const handler = (eventData) => {
                 if (eventData.side === side && eventData.targetType === 'PANDORA') {
@@ -1167,7 +1167,7 @@ async function activateAbilities(entity, side) {
             }
 
             if (abilityDef.type === 'static') {
-                abilityDef.applyEffect(entity, gameState, side);
+                abilityDef.applyEffect(entity, state, side);
                 entity.activeAbilities.push({ abilityName, abilityDef });
             } else if (abilityDef.type === 'triggered') {
                 console.log('activate trigger listener');
@@ -1176,7 +1176,7 @@ async function activateAbilities(entity, side) {
                         if (entity.scheming && !entity.schemeUnlocked) {
                             return;
                         }
-                        abilityDef.eventHandler(entity, eventData, gameState, side);
+                        abilityDef.eventHandler(entity, eventData, state, side);
                     };
                     eventManager.subscribe(eventType, handler);
                     entity.activeAbilities.push({ abilityName, eventType, handler });
@@ -1185,7 +1185,7 @@ async function activateAbilities(entity, side) {
                 entity.activeAbilities.push({ abilityName, abilityDef });
             } else if (abilityDef.type === 'onActivate') {
                 console.log('on activate');
-                abilityDef.onActivate(entity, gameState, side);
+                abilityDef.onActivate(entity, state, side);
                 entity.activeAbilities.push({ abilityName, abilityDef });
             }
         }

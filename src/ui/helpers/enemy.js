@@ -1,11 +1,11 @@
-import { gameState, stateSetters } from './state';
+import { state, stateSetters } from './state';
 import { activateAbilities } from '../abilities/glossary';
 
 // Resource Management
 export function gainBits(num) {
     let remainingBits = num;
-    if (gameState.enemyOverload > 0) {
-        remainingBits = Math.max(0, remainingBits - gameState.enemyOverload);
+    if (state.enemyOverload > 0) {
+        remainingBits = Math.max(0, remainingBits - state.enemyOverload);
     }
     stateSetters.setEnemyBits(prevBits => prevBits + remainingBits);
 }
@@ -24,8 +24,8 @@ export function loseAshes(num) {
 
 export function gainActions(num) {
     let remainingActions = num;
-    if (gameState.enemyLag > 0) {
-        remainingActions = Math.max(0, remainingActions - gameState.enemyLag);
+    if (state.enemyLag > 0) {
+        remainingActions = Math.max(0, remainingActions - state.enemyLag);
     }
     stateSetters.setEnemyActions(prevActions => prevActions + remainingActions);
 }
@@ -44,8 +44,8 @@ export function loseBurden(num) {
 
 export function gainFate(num) {
     let remainingPoints = num;
-    if (gameState.enemyBurden > 0) {
-        remainingPoints = Math.max(0, remainingPoints - gameState.enemyBurden);
+    if (state.enemyBurden > 0) {
+        remainingPoints = Math.max(0, remainingPoints - state.enemyBurden);
     }
     stateSetters.setEnemyFate(prevFate => prevFate + remainingPoints);
 }
@@ -83,8 +83,8 @@ export function draw(num) {
     console.log('enemy draw ', num);
     let remainingCards = num;
 
-    if (gameState.enemyWounds > 0) {
-        const newWounds = gameState.enemyWounds - num;
+    if (state.enemyWounds > 0) {
+        const newWounds = state.enemyWounds - num;
         remainingCards = Math.max(0, -newWounds);
         stateSetters.setEnemyWounds(Math.max(0, newWounds));
     }
@@ -113,10 +113,10 @@ export function handleRez(card) {
 // Helper Functions
 export function calculateSoulsAvailable(id) {
     const enemyRealmsState = {
-        Solarium: gameState.enemySolarium,
-        Theater: gameState.enemyTheater,
-        Underpass: gameState.enemyUnderpass,
-        Grid: gameState.enemyGrid,
+        Solarium: state.enemySolarium,
+        Theater: state.enemyTheater,
+        Underpass: state.enemyUnderpass,
+        Grid: state.enemyGrid,
     };
 
     return Object.values(enemyRealmsState).reduce((sum, realm) => {

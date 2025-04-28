@@ -1,4 +1,4 @@
-import { gameState } from './state';
+import { state } from './state';
 import { sleep } from './utils';
 import { showModal } from '../components/Modal';
 import { CardDisplay } from '../components/CardDisplay';
@@ -19,7 +19,7 @@ const {
     setPlayerUnderpass, setPlayerGrid, setPlayerTheater, setPlayerSolarium,
     setEnemyUnderpass, setEnemyGrid, setEnemyTheater, setEnemySolarium,
     battleRealm
-} = gameState;
+} = state;
 
 const getRealmAndSetter = (location, side) => {
     if (side === 'ENEMY') {

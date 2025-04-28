@@ -1,8 +1,8 @@
-import { gameState, stateSetters } from './state';
+import { state, stateSetters } from './state';
 
 const {
     playerBits = 0,
-} = gameState;
+} = state;
 
 const {
     setPlayerBits,

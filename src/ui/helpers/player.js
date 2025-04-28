@@ -1,10 +1,10 @@
-import { gameState, stateSetters } from './state';
+import { state, stateSetters } from './state';
 
 // Resource Management
 export function gainBits(num) {
     let remainingBits = num;
-    if (gameState.playerOverload > 0) {
-        remainingBits = Math.max(0, remainingBits - gameState.playerOverload);
+    if (state.playerOverload > 0) {
+        remainingBits = Math.max(0, remainingBits - state.playerOverload);
     }
     stateSetters.setPlayerBits(prevBits => prevBits + remainingBits);
 }
@@ -23,8 +23,8 @@ export function loseAshes(num) {
 
 export function gainActions(num) {
     let remainingActions = num;
-    if (gameState.playerLag > 0) {
-        remainingActions = Math.max(0, remainingActions - gameState.playerLag);
+    if (state.playerLag > 0) {
+        remainingActions = Math.max(0, remainingActions - state.playerLag);
     }
     stateSetters.setPlayerActions(prevActions => prevActions + remainingActions);
 }
@@ -43,8 +43,8 @@ export function loseBurden(num) {
 
 export function gainFate(num) {
     let remainingPoints = num;
-    if (gameState.playerBurden > 0) {
-        remainingPoints = Math.max(0, remainingPoints - gameState.playerBurden);
+    if (state.playerBurden > 0) {
+        remainingPoints = Math.max(0, remainingPoints - state.playerBurden);
     }
     stateSetters.setPlayerFate(prevFate => prevFate + remainingPoints);
 }
@@ -82,8 +82,8 @@ export function draw(num) {
     console.log('draw ', num);
     let remainingCards = num;
 
-    if (gameState.playerWounds > 0) {
-        const newWounds = gameState.playerWounds - num;
+    if (state.playerWounds > 0) {
+        const newWounds = state.playerWounds - num;
         remainingCards = Math.max(0, -newWounds);
         stateSetters.setPlayerWounds(Math.max(0, newWounds));
     }
@@ -104,7 +104,7 @@ export function draw(num) {
 }
 
 export function draft() {
-    stateSetters.setSelectedCard(gameState.draft[0]);
+    stateSetters.setSelectedCard(state.draft[0]);
     stateSetters.setDraftSelected(true);
     stateSetters.setSelectedInHand(true);
 }
@@ -123,7 +123,7 @@ export function boost() {
 }
 
 export function develop() {
-    if (gameState.playerActions < 1 || gameState.playerBits < 1) {
+    if (state.playerActions < 1 || state.playerBits < 1) {
         console.log('Not enough resources to develop a card.');
         return;
     }
@@ -144,8 +144,8 @@ export function handleRez(entity) {
         return;
     }
 
-    if (gameState.playerBits < entity.card.rezCost || 
-        gameState.playerAshes < entity.card.ash || 
+    if (state.playerBits < entity.card.rezCost || 
+        state.playerAshes < entity.card.ash || 
         soulsAvailable < entity.card.soul) {
         console.log('no resources');
         return;
@@ -164,10 +164,10 @@ export function handleRez(entity) {
 // Helper Functions
 export function calculateSoulsAvailable(id) {
     const playerRealmsState = {
-        Solarium: gameState.playerSolarium,
-        Theater: gameState.playerTheater,
-        Underpass: gameState.playerUnderpass,
-        Grid: gameState.playerGrid,
+        Solarium: state.playerSolarium,
+        Theater: state.playerTheater,
+        Underpass: state.playerUnderpass,
+        Grid: state.playerGrid,
     };
 
     return Object.values(playerRealmsState).reduce((sum, realm) => {

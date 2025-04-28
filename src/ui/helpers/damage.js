@@ -1,5 +1,5 @@
 import { 
-    gameState,
+    state,
     stateSetters
 } from './state';
 import { getRealmAndSetter, getOppositeSide } from './utils';
@@ -11,7 +11,7 @@ const {
     playerBattleSlots,
     enemyBattleSlots,
     playerUnderpass
-} = gameState;
+} = state;
 
 const {
     setPlayerBattleSlots,

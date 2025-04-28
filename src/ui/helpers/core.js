@@ -17,7 +17,7 @@ import {
     playerGainOverload,
     enemyGainOverload
 } from './effects';
-import { setBattleRealm } from './battle';
+
 import { getAbilityDefinition } from './abilities';
 import { 
     calculateSoulsAvailable,
@@ -37,7 +37,7 @@ import {
 } from './game';
 
 // Import state and setters
-import { gameState, stateSetters } from './state';
+import { state, stateSetters } from './state';
 
 // Re-export resource management functions
 export {
@@ -68,7 +68,6 @@ const {
     battleSelectedCard = null,
     recruiterCount = 0,
     priorityLeft = true,
-    pendingRitual = null,
     enemyRezCards = [],
     enemyPlanAttack = false,
     selectedCard = null,
@@ -76,12 +75,8 @@ const {
     draftSelected = false,
     draft = [],
     playerBits = 0,
-    playerBurden = 0,
     playerWounds = 0,
     enemyWounds = 0,
-    enemyBurden = 0,
-    playerFate = 0,
-    enemyFate = 0,
     playerActions = 0,
     enemyActions = 0,
     playerSolarium = { people: [], places: [], things: [] },
@@ -94,13 +89,13 @@ const {
     enemyGrid = { people: [], places: [], things: [] },
     enemyHand = [],
     playerAshes = 0,
-    playerDriftCount = 0,
     playerGlitchyAmount = 0,
     enemyGlitchyAmount = 0,
+    playerDriftCount = 0,
     enemyDriftCount = 0,
     playerDividendAmount = 0,
     enemyDividendAmount = 0
-} = gameState;
+} = state;
 
 // Get setters
 const {
@@ -108,10 +103,6 @@ const {
     setSelectedInHand,
     setDraftSelected,
     setDraft,
-    setPlayerWounds,
-    setEnemyWounds,
-    setPlayerActions,
-    setEnemyActions,
     setPlayerSolarium,
     setPlayerTheater,
     setPlayerUnderpass,
@@ -121,13 +112,7 @@ const {
     setEnemyUnderpass,
     setEnemyGrid,
     setPlayerHand,
-    setEnemyHand,
-    setPlayerLibrary,
-    setEnemyLibrary,
     setCurrentPlayer,
-    setAttackMode,
-    setAwaitingFocus,
-    setFocus,
     setPlayerInterfacedHeadSpace,
     setPlayerInterfacedPandora,
     setEnemyInterfacedHeadSpace,
@@ -138,11 +123,7 @@ const {
     setEnemyFirstAttack,
     setPriorityLeft,
     setPendingRitual,
-    setBattleSelectedCard,
-    setTargetSelection,
     setTargetType,
-    setAwaitingImpostor,
-    setImpostorRealm,
     setPlayerOverload,
     setEnemyOverload,
     setPlayerEntitiesDiedThisTurn,
@@ -828,7 +809,7 @@ export function playerDraw(num) {
             const newHandCards = prevLibrary.slice(0, remainingCards);
             const newLibrary = prevLibrary.slice(remainingCards);
 
-            setPlayerHand(prevHand => [
+            stateSetters.setPlayerHand(prevHand => [
                 ...prevHand,
                 ...newHandCards
             ]);

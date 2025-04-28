@@ -1,4 +1,4 @@
-import { gameState } from './state';
+import { state, stateSetters } from './state';
 import { calculateSoulsAvailable as calcSoulsPlayer } from './player';
 import { calculateSoulsAvailable as calcSoulsEnemy } from './enemy';
 import { handleAscension } from './advancement';
@@ -8,7 +8,7 @@ const {
     enemyBits = 0,
     setPlayerBits,
     setEnemyBits,
-} = gameState;
+} = state;
 
 // Bits management
 export function playerGainBits(amount) {
@@ -29,35 +29,35 @@ export function enemyLoseBits(amount) {
 
 // Ash management
 export function playerGainAshes(amount) {
-    gameState.setPlayerAshes(prev => prev + amount);
+    stateSetters.setPlayerAshes(prev => prev + amount);
 }
 
 export function playerLoseAshes(amount) {
-    gameState.setPlayerAshes(prev => Math.max(0, prev - amount));
+    stateSetters.setPlayerAshes(prev => Math.max(0, prev - amount));
 }
 
 export function enemyGainAshes(amount) {
-    gameState.setEnemyAshes(prev => prev + amount);
+    stateSetters.setEnemyAshes(prev => prev + amount);
 }
 
 export function enemyLoseAshes(amount) {
-    gameState.setEnemyAshes(prev => Math.max(0, prev - amount));
+    stateSetters.setEnemyAshes(prev => Math.max(0, prev - amount));
 }
 
 export function playerGainSurge(amount) {
-    gameState.setPlayerSurge(prev => prev + amount);
+    stateSetters.setPlayerSurge(prev => prev + amount);
 }
 
 export function playerLoseSurge(amount) {
-    gameState.setPlayerSurge(prev => Math.max(0, prev - amount));
+    stateSetters.setPlayerSurge(prev => Math.max(0, prev - amount));
 }
 
 export function enemyGainSurge(amount) {
-    gameState.setEnemySurge(prev => prev + amount);
+    stateSetters.setEnemySurge(prev => prev + amount);
 }
 
 export function enemyLoseSurge(amount) {
-    gameState.setEnemySurge(prev => Math.max(0, prev - amount));
+    stateSetters.setEnemySurge(prev => Math.max(0, prev - amount));
 }
 
 // Re-export functions

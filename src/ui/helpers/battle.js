@@ -1,6 +1,6 @@
 import { eventManager } from './eventManager';
 import { getOppositeSide } from './utils';
-import { gameState, stateSetters } from './state';
+import { state, stateSetters } from './state';
 import { applySoloEffect } from './effects';
 import { handleAccessPhase } from './interfacing';
 import { handlePlaceDamage, handleDamage } from './damage';
@@ -25,7 +25,7 @@ const {
     enemyTargetType,
     playerTargetSelection,
     enemyTargetSelection,
-} = gameState;
+} = state;
 
 // Get setters
 const {
