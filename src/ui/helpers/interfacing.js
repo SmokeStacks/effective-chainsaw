@@ -18,6 +18,8 @@ const {
     playerGainFate, enemyGainFate,
     setPlayerUnderpass, setPlayerGrid, setPlayerTheater, setPlayerSolarium,
     setEnemyUnderpass, setEnemyGrid, setEnemyTheater, setEnemySolarium,
+    setPlayerInterfacedHeadSpace, setEnemyInterfacedHeadSpace,
+    setPlayerInterfacedPandora, setEnemyInterfacedPandora,
     battleRealm
 } = state;
 
@@ -86,7 +88,17 @@ export function handleAccessPhase(side) {
     const accessCards = [];
     if (acessTargetType === 'PANDORA') {
         accessCards.push(...library.slice(0, numAccesses));
+        if (side === 'PLAYER') {
+            setEnemyInterfacedPandora(true);
+        } else {
+            setPlayerInterfacedPandora(true);
+        }
     } else if (acessTargetType === 'HEADSPACE') {
+        if (side === 'PLAYER') {
+            setEnemyInterfacedHeadSpace(true);
+        } else {
+            setPlayerInterfacedHeadSpace(true);
+        }
         for (let i = 0; i < numAccesses; i++) {
             if (hand.length > 0) {
                 let chosenIndex = Math.floor(Math.random() * hand.length);
@@ -305,55 +317,53 @@ export async function handleExposedCard(card, location, side, callback) {
                 card.exposed = true;
                 if (side === 'ENEMY') {
                     playerGainOverload(2);
-                    } else {
-                        enemyGainOverload(2);
-                    }
-    
-                    if (location === 'HEADSPACE') {
-                        if (side === 'PLAYER') {
-                            setEnemyHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
-                        } else {
-                            setPlayerHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
-                        }
-                    } else if (location === 'PANDORA') {
-                        if (side === 'PLAYER') {
-                            setEnemyLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
-                        } else {
-                            setPlayerLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
-                        }
-                    }
                 } else {
-                    // Already exposed, discard
-                    if (side === 'ENEMY') {
-                        playerGainOverload(2);
+                    enemyGainOverload(2);
+                }
+
+                if (location === 'HEADSPACE') {
+                    if (side === 'PLAYER') {
+                        setEnemyHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
                     } else {
-                        enemyGainOverload(2);
+                        setPlayerHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
                     }
-    
-                    if (location === 'HEADSPACE') {
-                        if (side === 'PLAYER') {
-                            setEnemyHand(prevHand => prevHand.filter(c => c.id !== card.id));
-                            setEnemyGraveyard(prev => [...prev, card]);
-                        } else {
-                            setPlayerHand(prevHand => prevHand.filter(c => c.id !== card.id));
-                            setPlayerGraveyard(prev => [...prev, card]);
-                        }
-                    } else if (location === 'PANDORA') {
-                        if (side === 'PLAYER') {
-                            setEnemyLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
-                            setEnemyGraveyard(prev => [...prev, card]);
-                        } else {
-                            setPlayerLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
-                            setPlayerGraveyard(prev => [...prev, card]);
-                        }
+                } else if (location === 'PANDORA') {
+                    if (side === 'PLAYER') {
+                        setEnemyLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
+                    } else {
+                        setPlayerLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
                     }
                 }
-    
-                callback();
-            },
-            onCancel: () => {
-                // Even if cancel is clicked, just proceed
-                callback();
-            },
-        });
-    }
+            } else {
+                if (side === 'ENEMY') {
+                    playerGainOverload(2);
+                } else {
+                    enemyGainOverload(2);
+                }
+
+                if (location === 'HEADSPACE') {
+                    if (side === 'PLAYER') {
+                        setEnemyHand(prevHand => prevHand.filter(c => c.id !== card.id));
+                        setEnemyGraveyard(prev => [...prev, card]);
+                    } else {
+                        setPlayerHand(prevHand => prevHand.filter(c => c.id !== card.id));
+                        setPlayerGraveyard(prev => [...prev, card]);
+                    }
+                } else if (location === 'PANDORA') {
+                    if (side === 'PLAYER') {
+                        setEnemyLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
+                        setEnemyGraveyard(prev => [...prev, card]);
+                    } else {
+                        setPlayerLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
+                        setPlayerGraveyard(prev => [...prev, card]);
+                    }
+                }
+            }
+            callback();
+        },
+        onCancel: () => {
+            // Even if cancel is clicked, just proceed
+            callback();
+        },
+    });
+}

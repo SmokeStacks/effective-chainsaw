@@ -38,11 +38,13 @@ export const state = {
     playerTheater: { people: [], places: [], things: [] },
     playerUnderpass: { people: [], places: [], things: [] },
     playerGrid: { people: [], places: [], things: [] },
+    playerElysium: { people: [], places: [], things: [] },
     
     enemySolarium: { people: [], places: [], things: [] },
     enemyTheater: { people: [], places: [], things: [] },
     enemyUnderpass: { people: [], places: [], things: [] },
     enemyGrid: { people: [], places: [], things: [] },
+    enemyElysium: { people: [], places: [], things: [] },
 
     // Battle state
     battleRealm: null,
@@ -110,11 +112,13 @@ const stateSetters = {
     setPlayerTheater: null,
     setPlayerUnderpass: null,
     setPlayerGrid: null,
+    setPlayerElysium: null,
     
     setEnemySolarium: null,
     setEnemyTheater: null,
     setEnemyUnderpass: null,
     setEnemyGrid: null,
+    setEnemyElysium: null,
 
     // Battle setters
     setBattleRealm: null,

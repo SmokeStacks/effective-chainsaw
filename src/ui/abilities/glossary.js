@@ -1115,7 +1115,7 @@ const abilitiesDefinitions = {
                 const realms = isLocal ? [entity.realm] : ['Solarium', 'Theater', 'Underpass', 'Grid'];
                 
                 realms.forEach(realmName => {
-                    const [realm, setRealm] = getRealmAndSetter(realmName, enemySide);
+                    const [realm] = getRealmAndSetter(realmName, enemySide);
                     realm.people.forEach(target => {
                         if (target.online) {
                             applyEffect(target.id, realmName, enemySide, {

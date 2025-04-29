@@ -1,4 +1,5 @@
-import { cardList1, cardList2 } from '../data/cardList';
+import { cardList1 } from '../../playerDecks/deckTwo';
+import enemyOne from '../../systemDecks/enemyOne';
 
 export function shuffle(array) {
         let currentIndex = array.length;
@@ -50,8 +51,8 @@ export const createLibrary = () => {
 
 export const createEnemyLibrary = () => {
         const libraryInstanceArray = [];
-        for (let i = 0; i < cardList2.length; i++) {
-            const card = cardList2[i];
+        for (let i = 0; i < enemyOne.length; i++) {
+            const card = enemyOne[i];
             const cardEntityInstance = {
                 id: `b${i.toString()}`,
                 card: card,

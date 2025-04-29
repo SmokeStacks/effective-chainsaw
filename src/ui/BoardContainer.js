@@ -1,49 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startTurn, playerGainBits, enemyLoseBits, playerDraw, enemyDraw } from './helpers/core';
+import { startTurn, playerGainBits, enemyLoseBits } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
-import { initializeSetters } from './helpers/state';
-import { activateAbilities } from './abilities/glossary';
+import { initializeSetters, stateSetters, state } from './helpers/state';
 import { createLibrary, createEnemyLibrary } from './helpers/setup';
+import { activateAbilities } from './abilities/glossary';
 import Gameboard from './Gameboard';
-import { Solarium, Theater, Underpass, Grid } from './renders/Board';
+import { draw as playerDraw } from './helpers/player';
+import { draw as enemyDraw } from './helpers/enemy';
+import { Solarium, Theater, Underpass, Grid, Elysium } from './renders/Board';
 
-export function BoardContainer() {
-
-    // Player state
-    const [playerState, setPlayerState] = useState({
-        library: [],
-        hand: [],
-        graveyard: [],
-        actions: 3,
-        bits: 0,
-        ashes: 0,
-        fate: 0,
-        wounds: 0,
-        burden: 0,
-        overload: 0,
-        surge: 0,
-        lag: 0
-    });
-
-    // Enemy state
-    const [enemyState, setEnemyState] = useState({
-        library: [],
-        hand: [],
-        graveyard: [],
-        actions: 3,
-        bits: 0,
-        ashes: 0,
-        fate: 0,
-        wounds: 0,
-        burden: 0,
-        overload: 0,
-        surge: 0,
-        lag: 0
-    });
-
+export default function BoardContainer() {
     // Realm state
     const [realms, setRealms] = useState({
+
         player: {
             solarium: { name: 'Solarium', people: [], places: [], things: [] },
             theater: { name: 'Theater', people: [], places: [], things: [] },
@@ -121,36 +91,62 @@ export function BoardContainer() {
         console.log('Initializing game state...');
         // Initialize state setters
         initializeSetters({
-            setPlayerHand: (setter) => setPlayerState(prev => ({ ...prev, hand: setter(prev.hand) })),
-            setPlayerLibrary: (setter) => setPlayerState(prev => ({ ...prev, library: setter(prev.library) })),
-            setEnemyHand: (setter) => setEnemyState(prev => ({ ...prev, hand: setter(prev.hand) })),
-            setEnemyLibrary: (setter) => setEnemyState(prev => ({ ...prev, library: setter(prev.library) })),
-            setPlayerBits: (setter) => setPlayerState(prev => ({ ...prev, bits: typeof setter === 'function' ? setter(prev.bits) : setter })),
-            setPlayerAshes: (setter) => setPlayerState(prev => ({ ...prev, ashes: typeof setter === 'function' ? setter(prev.ashes) : setter })),
-            setPlayerBurden: (setter) => setPlayerState(prev => ({ ...prev, burden: typeof setter === 'function' ? setter(prev.burden) : setter })),
-            setPlayerFate: (setter) => setPlayerState(prev => ({ ...prev, fate: typeof setter === 'function' ? setter(prev.fate) : setter })),
-            setPlayerWounds: (setter) => setPlayerState(prev => ({ ...prev, wounds: typeof setter === 'function' ? setter(prev.wounds) : setter })),
-            setPlayerOverload: (setter) => setPlayerState(prev => ({ ...prev, overload: typeof setter === 'function' ? setter(prev.overload) : setter })),
-            setPlayerLag: (setter) => setPlayerState(prev => ({ ...prev, lag: typeof setter === 'function' ? setter(prev.lag) : setter })),
-            setPlayerActions: (setter) => setPlayerState(prev => ({ ...prev, actions: typeof setter === 'function' ? setter(prev.actions) : setter })),
-            setPlayerSurge: (setter) => setPlayerState(prev => ({ ...prev, surge: typeof setter === 'function' ? setter(prev.surge) : setter })),
-            setEnemyBits: (setter) => setEnemyState(prev => ({ ...prev, bits: typeof setter === 'function' ? setter(prev.bits) : setter })),
-            setEnemyAshes: (setter) => setEnemyState(prev => ({ ...prev, ashes: typeof setter === 'function' ? setter(prev.ashes) : setter })),
-            setEnemyBurden: (setter) => setEnemyState(prev => ({ ...prev, burden: typeof setter === 'function' ? setter(prev.burden) : setter })),
-            setEnemyFate: (setter) => setEnemyState(prev => ({ ...prev, fate: typeof setter === 'function' ? setter(prev.fate) : setter })),
-            setEnemyWounds: (setter) => setEnemyState(prev => ({ ...prev, wounds: typeof setter === 'function' ? setter(prev.wounds) : setter })),
-            setEnemyOverload: (setter) => setEnemyState(prev => ({ ...prev, overload: typeof setter === 'function' ? setter(prev.overload) : setter })),
-            setEnemyLag: (setter) => setEnemyState(prev => ({ ...prev, lag: typeof setter === 'function' ? setter(prev.lag) : setter })),
-            setEnemyActions: (setter) => setEnemyState(prev => ({ ...prev, actions: typeof setter === 'function' ? setter(prev.actions) : setter })),
-            setEnemySurge: (setter) => setEnemyState(prev => ({ ...prev, surge: typeof setter === 'function' ? setter(prev.surge) : setter })),
-            setPlayerBattleSlots: (setter) => setUiState(prev => ({ ...prev, playerBattleSlots: setter(prev.playerBattleSlots) })),
-            setEnemyBattleSlots: (setter) => setUiState(prev => ({ ...prev, enemyBattleSlots: setter(prev.enemyBattleSlots) })),
-            setTargetType: (setter) => setGameState(prev => ({ ...prev, targetType: setter(prev.targetType) })),
-            setCurrentPlayer: (value) => setGameState(prev => ({ ...prev, currentPlayer: value })),
-            setMode: (value) => setGameState(prev => ({ ...prev, mode: value })),
-            setAwaitingFocus: (value) => setUiState(prev => ({ ...prev, awaitingFocus: value })),
-            setFocus: (value) => setUiState(prev => ({ ...prev, focus: value })),
-            setDraftSelected: (value) => setUiState(prev => ({ ...prev, draftSelected: value })),
+            setPlayerHand: (value) => stateSetters.setPlayerHand = value,
+            setPlayerLibrary: (value) => stateSetters.setPlayerLibrary = value,
+            setEnemyHand: (value) => stateSetters.setEnemyHand = value,
+            setEnemyLibrary: (value) => stateSetters.setEnemyLibrary = value,
+            setPlayerBits: (value) => stateSetters.setPlayerBits(value),
+            setPlayerAshes: (value) => stateSetters.setPlayerAshes(value),
+            setPlayerBurden: (value) => stateSetters.setPlayerBurden(value),
+            setPlayerFate: (value) => stateSetters.setPlayerFate(value),
+            setPlayerWounds: (value) => stateSetters.setPlayerWounds(value),
+            setPlayerOverload: (value) => stateSetters.setPlayerOverload(value),
+            setPlayerLag: (value) => stateSetters.setPlayerLag(value),
+            setPlayerActions: (value) => stateSetters.setPlayerActions(value),
+            setPlayerSurge: (value) => stateSetters.setPlayerSurge(value),
+            setEnemyBits: (value) => stateSetters.setEnemyBits(value),
+            setEnemyAshes: (value) => stateSetters.setEnemyAshes(value),
+            setEnemyBurden: (value) => stateSetters.setEnemyBurden(value),
+            setEnemyFate: (value) => stateSetters.setEnemyFate(value),
+            setEnemyWounds: (value) => stateSetters.setEnemyWounds(value),
+            setEnemyOverload: (value) => stateSetters.setEnemyOverload(value),
+            setEnemyLag: (value) => stateSetters.setEnemyLag(value),
+            setEnemyActions: (value) => stateSetters.setEnemyActions(value),
+            setEnemySurge: (value) => stateSetters.setEnemySurge(value),
+            setPlayerBattleSlots: (value) => stateSetters.setPlayerBattleSlots(value),
+            setEnemyBattleSlots: (value) => stateSetters.setEnemyBattleSlots(value),
+            setPlayerDevelopSlots: (value) => stateSetters.setPlayerDevelopSlots(value),
+            setEnemyDevelopSlots: (value) => stateSetters.setEnemyDevelopSlots(value),
+            setPlayerDraftSlots: (value) => stateSetters.setPlayerDraftSlots(value),
+            setPlayerElysium: (value) => stateSetters.setPlayerElysium(value),
+            setEnemyElysium: (value) => stateSetters.setEnemyElysium(value),
+            setEnemyDraftSlots: (value) => stateSetters.setEnemyDraftSlots(value),
+            setPlayerBoostSlots: (value) => stateSetters.setPlayerBoostSlots(value),
+            setEnemyBoostSlots: (value) => stateSetters.setEnemyBoostSlots(value),
+            setPlayerHandSlots: (value) => stateSetters.setPlayerHandSlots(value),
+            setEnemyHandSlots: (value) => stateSetters.setEnemyHandSlots(value),
+            setPlayerSurgeSlots: (value) => stateSetters.setPlayerSurgeSlots(value),
+            setEnemySurgeSlots: (value) => stateSetters.setEnemySurgeSlots(value),
+            setPlayerOverloadSlots: (value) => stateSetters.setPlayerOverloadSlots(value),
+            setEnemyOverloadSlots: (value) => stateSetters.setEnemyOverloadSlots(value),
+            setPlayerLagSlots: (value) => stateSetters.setPlayerLagSlots(value),
+            setEnemyLagSlots: (value) => stateSetters.setEnemyLagSlots(value),
+            setPlayerSolariumSlots: (value) => stateSetters.setPlayerSolariumSlots(value),
+            setEnemySolariumSlots: (value) => stateSetters.setEnemySolariumSlots(value),
+            setPlayerTheaterSlots: (value) => stateSetters.setPlayerTheaterSlots(value),
+            setEnemyTheaterSlots: (value) => stateSetters.setEnemyTheaterSlots(value),
+            setPlayerUnderpassSlots: (value) => stateSetters.setPlayerUnderpassSlots(value),
+            setEnemyUnderpassSlots: (value) => stateSetters.setEnemyUnderpassSlots(value),
+            setPlayerGridSlots: (value) => stateSetters.setPlayerGridSlots(value),
+            setEnemyGridSlots: (value) => stateSetters.setEnemyGridSlots(value),
+            setPlayerElysiumSlots: (value) => stateSetters.setPlayerElysiumSlots(value),
+            setEnemyElysiumSlots: (value) => stateSetters.setEnemyElysiumSlots(value),
+            setTargetType: (value) => stateSetters.setTargetType(value),
+            setCurrentPlayer: (value) => stateSetters.setCurrentPlayer(value),
+            setMode: (value) => stateSetters.setMode(value),
+            setAwaitingFocus: (value) => stateSetters.setAwaitingFocus(value),
+            setFocus: (value) => stateSetters.setFocus(value),
+            setDraftSelected: (value) => stateSetters.setDraftSelected(value),
         });
 
         // Create libraries
@@ -160,17 +156,17 @@ export function BoardContainer() {
 
         console.log('Setting up libraries and initial state...');
         // Initialize all state at once to avoid multiple re-renders
-        setPlayerState(prev => ({
-            ...prev,
-            library: playerLibrary,
-            hand: [],
-        }));
-
-        setEnemyState(prev => ({
-            ...prev,
-            library: enemyLibrary,
-            hand: [],
-        }));
+        console.log('Initial playerLibrary:', playerLibrary);
+        stateSetters.setPlayerLibrary(() => {
+            console.log('Setting player library');
+            return playerLibrary;
+        });
+        stateSetters.setPlayerHand(() => {
+            console.log('Setting initial player hand');
+            return [];
+        });
+        stateSetters.setEnemyLibrary(() => enemyLibrary);
+        stateSetters.setEnemyHand(() => []);
 
         setGameState(prev => ({
             ...prev,
@@ -180,10 +176,10 @@ export function BoardContainer() {
 
         // Draw opening hands after state is initialized
         console.log('Drawing initial hands...');
-        setTimeout(() => {
-            playerDraw(5);
-            enemyDraw(5);
-        }, 0);
+        // Remove the setTimeout to ensure state updates happen synchronously
+        playerDraw(5);
+        console.log('Player hand after draw:', state.playerHand);
+        enemyDraw(5);
 
         return () => {
             console.log('Cleaning up game initialization...');
@@ -192,147 +188,219 @@ export function BoardContainer() {
 
     // Set up UI state reset listener
     useEffect(() => {
-        console.log('Setting up UI state reset listener...');
-        const resetUIStateHandler = (data) => {
-            setUiState(prev => ({
-                ...prev,
-                ...data
-            }));
+        const resetUIStateHandler = () => {
+            setUiState({
+                trashPromptVisible: false,
+                currentPromptCard: null,
+                modalVisible: false,
+                modalProps: null,
+                selectedCard: null,
+                selectedInHand: false,
+                battleSelectedCard: null,
+                selectedRealm: null
+            });
         };
 
         eventManager.subscribe('resetUIState', resetUIStateHandler);
         return () => eventManager.unsubscribe('resetUIState', resetUIStateHandler);
-    }, []);
+    }, [setUiState]);
 
     // Start first turn after hands are drawn
     useEffect(() => {
-        if (playerState.hand.length === 5 && enemyState.hand.length === 5 && gameState.attackMode) {
+        if (state.playerHand.length === 5 && state.enemyHand.length === 5 && state.attackMode) {
             startTurn(true);
         }
-    }, [playerState.hand.length, enemyState.hand.length, gameState.attackMode]);
+    }, []);
 
-    // Handle burden effects
     useEffect(() => {
-        if (playerState.burden >= 10) {
-            setGameState(prev => ({ ...prev, mode: 'GAME_OVER' }));
+        if (state.playerBurden >= 10) {
+            stateSetters.setMode('GAME_OVER');
         }
-    }, [playerState.burden, setGameState]);
+    }, []);
 
     // Handle player realm updates
     useEffect(() => {
-        if (playerState.solarium) {
-            setRealms(prev => ({
-                ...prev,
-                player: {
-                    ...prev.player,
-                    solarium: playerState.solarium
-                }
-            }));
+        if (state.playerSolarium.people.length === 0 &&
+            state.playerTheater.people.length === 0 &&
+            state.playerUnderpass.people.length === 0 &&
+            state.playerGrid.people.length === 0 &&
+            state.playerElysium.people.length === 0) {
+            eventManager.publish('PLAYER_LOST');
         }
-        if (playerState.theater) {
-            setRealms(prev => ({
-                ...prev,
-                player: {
-                    ...prev.player,
-                    theater: playerState.theater
-                }
-            }));
-        }
-        if (playerState.underpass) {
-            setRealms(prev => ({
-                ...prev,
-                player: {
-                    ...prev.player,
-                    underpass: playerState.underpass
-                }
-            }));
-        }
-        if (playerState.grid) {
-            setRealms(prev => ({
-                ...prev,
-                player: {
-                    ...prev.player,
-                    grid: playerState.grid
-                }
-            }));
-        }
-        if (playerState.elysium) {
-            setRealms(prev => ({
-                ...prev,
-                player: {
-                    ...prev.player,
-                    elysium: playerState.elysium
-                }
-            }));
-        }
-    }, [playerState]);
-
-    // Focus effects
-    useEffect(() => {
-        if (uiState.focus) {
-            setUiState(prev => ({
-                ...prev,
-                focus: false,
-                awaitingFocus: false
-            }));
-        }
-    }, [uiState.focus]);
-
-    // Import button handlers from actions.js
-    const { handleDrawButton, handleDraftButton, handleBoostButton, handleDevelopButton } = require('./helpers/actions');
+    }, []);
 
     useEffect(() => {
-        if (playerState.actions <= 0 &&
-            enemyState.actions <= 0 &&
-            gameState.mode === 'NORMAL' &&
-            gameState.mode !== 'BEGIN' &&
-            !gameState.attackMode
-        ) {
-            // Handle domination phase logic
-            setGameState(prev => ({ ...prev, mode: 'DOMINATION' }));
+        if (state.mode === 'GAME_OVER') {
+            if (state.currentPlayer === 'ENEMY') {
+                state.enemyBits = 0;
+            }
         }
-    }, [playerState.actions, enemyState.actions, gameState.mode, gameState.attackMode]);
+    }, []);
 
+    // Handle burden effects
     useEffect(() => {
-        if (gameState.mode === 'ATTACK_RESOLVED') {
-            if (gameState.currentPlayer === 'PLAYER') {
-                if (enemyState.bits >= 1) {
+        if (state.playerBurden >= 10) {
+            stateSetters.setMode('GAME_OVER');
+        }
+    }, [state.playerBurden, stateSetters]);
+
+    // Handle player realm updates
+    useEffect(() => {
+        if (state.playerSolarium) {
+            setRealms(prev => ({
+                ...prev,
+                player: {
+                    ...prev.player,
+                    solarium: state.playerSolarium
+                }
+            }));
+        }
+        if (state.playerTheater) {
+            setRealms(prev => ({
+                ...prev,
+                player: {
+                    ...prev.player,
+                    theater: state.playerTheater
+                }
+            }));
+        }
+        if (state.playerUnderpass) {
+            setRealms(prev => ({
+                ...prev,
+                player: {
+                    ...prev.player,
+                    underpass: state.playerUnderpass
+                }
+            }));
+        }
+        if (state.playerGrid) {
+            setRealms(prev => ({
+                ...prev,
+                player: {
+                    ...prev.player,
+                    grid: state.playerGrid
+                }
+            }));
+        }
+        if (state.playerElysium) {
+            setRealms(prev => ({
+                ...prev,
+                player: {
+                    ...prev.player,
+                    elysium: state.playerElysium
+                }
+            }));
+        }
+    }, [state.playerSolarium, state.playerTheater, state.playerUnderpass, state.playerGrid, state.playerElysium]);
+
+    // Effect to handle hand size limit
+    useEffect(() => {
+        if (state.playerHand.length >= 7 || state.enemyHand.length >= 7) {
+            console.log('Hand size limit reached');
+        }
+    }, []);
+
+    // Effect to handle player win conditions
+    useEffect(() => {
+        // Check burden win
+        if (state.playerBurden >= 10) {
+            console.log('Player wins by burden!');
+        }
+
+        // Check realm win
+        if (state.playerElysium >= 10 ||
+            state.playerGrid >= 10 ||
+            state.playerSolarium >= 10 ||
+            state.playerTheater >= 10 ||
+            state.playerUnderpass >= 10) {
+            console.log('Player wins by realm!');
+        }
+
+        // Check bits win
+        if (state.playerBits >= 10) {
+            console.log('Player wins by bits!');
+        }
+
+        // Check ashes win
+        if (state.playerAshes >= 10) {
+            console.log('Player wins by ashes!');
+        }
+
+        // Check fate win
+        if (state.playerFate >= 10) {
+            console.log('Player wins by fate!');
+        }
+    }, []);
+
+    // Effect to handle player loss conditions
+    useEffect(() => {
+        // Check wounds loss
+        if (state.playerWounds >= 10) {
+            console.log('Player loses by wounds!');
+        }
+
+        // Check overload loss
+        if (state.playerOverload >= 10) {
+            console.log('Player loses by overload!');
+        }
+
+        // Check actions loss
+        if (state.playerActions <= 0) {
+            console.log('Player out of actions');
+        }
+    }, []);
+
+    // Effect to handle attack resolution
+    useEffect(() => {
+        if (state.mode === 'ATTACK_RESOLVED') {
+            if (state.currentPlayer === 'PLAYER') {
+                if (state.enemyBits >= 1) {
                     enemyLoseBits(1);
                 }
             } else {
-                setGameState(prev => ({ ...prev, currentPlayer: 'ENEMY' }));
+                stateSetters.setCurrentPlayer('PLAYER');
             }
-            setGameState(prev => ({ ...prev, mode: 'NORMAL' }));
+            stateSetters.setMode('NORMAL');
         }
-    }, [gameState.mode, gameState.currentPlayer, enemyState.bits]);
+    }, [state.mode, state.currentPlayer, state.enemyBits]);
+
+    // Effect to handle enemy win condition
+    useEffect(() => {
+        if (state.enemyBits >= 10) {
+            console.log('Enemy wins!');
+        }
+    }, []);
+
+    // Effect to handle enemy win condition with no actions
+    useEffect(() => {
+        if (state.enemyActions <= 0 && state.enemyBits >= 10) {
+            console.log('Enemy wins!');
+        }
+    }, []);
 
     // Start the game or turn
     useEffect(() => {
-        if (gameState.mode === 'BEGIN') {
-            if (gameState.attackMode) {
-                console.log('begin game');
-                playerGainBits(1);
-                playerDraw();
-            }
+        if (state.mode === 'BEGIN' && state.attackMode) {
+            console.log('begin game');
+            playerGainBits(1);
+            playerDraw();
         }
-    }, [gameState.mode, gameState.priorityLeft, gameState.attackMode]);
+    }, []);
 
+    // Handle domination phase
     useEffect(() => {
-        if (gameState.currentPlayer === 'ENEMY' && enemyState.actions > 0) {
-            if (enemyState.bits >= 2) {
-                setGameState(prev => ({ ...prev, currentPlayer: 'PLAYER' }));
-            }
+        if (state.playerActions <= 0 &&
+            state.enemyActions <= 0 &&
+            state.mode === 'NORMAL' &&
+            state.mode !== 'BEGIN' &&
+            !state.attackMode) {
+            stateSetters.setMode('DOMINATION');
         }
-    }, [gameState.currentPlayer, enemyState.bits, enemyState.actions]);
+    }, []);
 
+    // Effect to handle rez card
     useEffect(() => {
-        if (gameState.awaitingSacrifices && gameState.rezCard) {
-            const soulsAvailable = gameState.rezCard.card.souls || 0;
-            if (soulsAvailable >= gameState.rezCard.card.soul) {
-                setGameState(prev => ({ ...prev, awaitingSacrifices: false }));
-            }
-            
-            // Update realm state based on card type
+        if (gameState.rezCard) {
             switch (gameState.rezCard.realm) {
                 case 'Solarium':
                     if (gameState.rezCard.card.category === 'ENTITY') {
@@ -488,8 +556,6 @@ export function BoardContainer() {
         }
     }, [gameState, setRealms]);
 
-
-
     const handleRezPlayerCard = useCallback((entity) => {
         if (entity) {
             setGameState(prev => ({ 
@@ -499,14 +565,6 @@ export function BoardContainer() {
             }));
         }
     }, []);
-
-    // Define realm components for the board
-    const realmComponents = [
-        Solarium,
-        Theater,
-        Underpass,
-        Grid
-    ];
 
     // Action handlers
     const handleCardSelect = useCallback((card) => {
@@ -534,41 +592,41 @@ export function BoardContainer() {
         // Handle slot selection logic
     }, []);
 
+    // Create a component for each realm type
+    const createRealmComponent = (RealmComponent) => {
+        const WrappedComponent = ({ onRealmSelect, onRealmCardSelect, onAbilityClick, onRezPlayerCard }) => {
+            const realmName = RealmComponent.realmName.toLowerCase();
+            const playerRealmState = realms.player[realmName];
+            const enemyRealmState = realms.enemy[realmName];
+            return (
+                <RealmComponent
+                    onRealmSelect={onRealmSelect}
+                    onRealmCardSelect={onRealmCardSelect}
+                    onAbilityClick={onAbilityClick}
+                    onRezPlayerCard={onRezPlayerCard}
+                    playerState={playerRealmState}
+                    enemyState={enemyRealmState}
+                />
+            );
+        };
+        WrappedComponent.realmName = RealmComponent.realmName;
+        return WrappedComponent;
+    };
+
+    const realmComponents = [
+        createRealmComponent(Solarium),
+        createRealmComponent(Theater),
+        createRealmComponent(Underpass),
+        createRealmComponent(Grid),
+        createRealmComponent(Elysium)
+    ];
+
     return (
         <div className="board-container">
             <Gameboard 
-                // Player state
-                playerOneHand={playerState.hand}
-                playerDraft={handleDraftButton}
-                playerDraw={handleDrawButton}
-                playerBoost={handleBoostButton}
-                playerDevelop={handleDevelopButton}
-                playerWounds={playerState.wounds}
-                playerBits={playerState.bits}
-                playerActions={playerState.actions}
-                playerFate={playerState.fate}
-                playerBurden={playerState.burden}
-                playerAshes={playerState.ashes}
-                playerSurge={playerState.surge}
-                playerOverload={playerState.overload}
-                
-                // Enemy state
-                enemyWounds={enemyState.wounds}
-                enemyBits={enemyState.bits}
-                enemyActions={enemyState.actions}
-                enemyFate={enemyState.fate}
-                enemyBurden={enemyState.burden}
-                enemyAshes={enemyState.ashes}
-                enemySurge={enemyState.surge}
-                enemyOverload={enemyState.overload}
-                enemyHand={enemyState.hand}
-                
-                // Realm state
                 realmComponents={realmComponents}
-                playerSolarium={realms.player.solarium}
-                playerTheater={realms.player.theater}
-                playerUnderpass={realms.player.underpass}
-                playerGrid={realms.player.grid}
+                playerOneHand={state.playerHand}
+                enemyHand={state.enemyHand}
                 playerElysium={realms.player.elysium}
                 enemySolarium={realms.enemy.solarium}
                 enemyTheater={realms.enemy.theater}
@@ -630,5 +688,3 @@ export function BoardContainer() {
         </div>
     );
 }
-
-export default BoardContainer;

@@ -122,8 +122,8 @@ export function Elysium({ onRealmSelect, onServerSelect, onRealmCardSelect, onAb
     );
 }
 
-Solarium.realmName = 'Solarium';
-Theater.realmName = 'Theater';
-Underpass.realmName = 'Underpass';
-Grid.realmName = 'Grid';
-Elysium.realmName = 'Elysium';
+Solarium.realmName = 'solarium';
+Theater.realmName = 'theater';
+Underpass.realmName = 'underpass';
+Grid.realmName = 'grid';
+Elysium.realmName = 'elysium';

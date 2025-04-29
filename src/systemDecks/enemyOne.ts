@@ -716,4 +716,4 @@ const enemyOne: Card[] = [
 ];
 
 // Export the array of cards
-export const cardList2: Card[] = enemyOne;
+export default enemyOne;

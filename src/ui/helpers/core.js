@@ -967,10 +967,13 @@ export function startTurn(currentPriorityLeft) {
     });
     const startingPlayer = currentPriorityLeft ? 'ENEMY' : 'PLAYER';
     setCurrentPlayer(startingPlayer);
-    setPlayerInterfacedHeadSpace(false);
-    setPlayerInterfacedPandora(false);
-    setEnemyInterfacedHeadSpace(false);
-    setEnemyInterfacedPandora(false);
+    // Reset interface states after card processing
+    Promise.resolve().then(() => {
+        setPlayerInterfacedHeadSpace(false);
+        setPlayerInterfacedPandora(false);
+        setEnemyInterfacedHeadSpace(false);
+        setEnemyInterfacedPandora(false);
+    });
 
     const resetTurnFlags = (cardList) => {
         return cardList.map(cardEntity => {
