@@ -113,10 +113,7 @@ const {
     setEnemyGrid,
     setPlayerHand,
     setCurrentPlayer,
-    setPlayerInterfacedHeadSpace,
-    setPlayerInterfacedPandora,
-    setEnemyInterfacedHeadSpace,
-    setEnemyInterfacedPandora,
+
     setPlayerElysium,
     setEnemyElysium,
     setPlayerFirstAttack,
@@ -949,9 +946,12 @@ export function enemyPerformAction() {
 
 
 export function startTurn(currentPriorityLeft) {
-    console.log('start turn', currentPriorityLeft)
+    console.log('start turn', currentPriorityLeft);
+    const startingPlayer = currentPriorityLeft ? 'PLAYER' : 'ENEMY';
+    setCurrentPlayer(startingPlayer);
     eventManager.publish('turnStart', { side: 'PLAYER' });
     eventManager.publish('turnStart', { side: 'ENEMY' });
+    
     // Reset game state
     setDraftSelected(false);
     setPendingRitual(null);
@@ -965,16 +965,8 @@ export function startTurn(currentPriorityLeft) {
         selectedCard: null,
         selectedInHand: false
     });
-    const startingPlayer = currentPriorityLeft ? 'ENEMY' : 'PLAYER';
-    setCurrentPlayer(startingPlayer);
-    // Reset interface states after card processing
-    Promise.resolve().then(() => {
-        setPlayerInterfacedHeadSpace(false);
-        setPlayerInterfacedPandora(false);
-        setEnemyInterfacedHeadSpace(false);
-        setEnemyInterfacedPandora(false);
-    });
 
+    // Reset turn flags for all realms
     const resetTurnFlags = (cardList) => {
         return cardList.map(cardEntity => {
             if (cardEntity.abilityActivated) {
@@ -1037,7 +1029,7 @@ export function startTurn(currentPriorityLeft) {
         things: resetTurnFlags(prevRealm.things),
     }));
 
-
+    // Handle start of turn effects
     playerGainActions(3 + playerDriftCount);
     if (playerGlitchyAmount > 0) {
         setPlayerOverload((prev) => prev + playerGlitchyAmount);
@@ -1051,7 +1043,7 @@ export function startTurn(currentPriorityLeft) {
     enemyGainBits(enemyDividendAmount);
     playerGainBits(playerDividendAmount);
     playerDraw(1);
-    enemyDraw(1);
+    enemyDraw(3); // Enemy draws 3 cards at start of turn
     setPlayerFirstAttack(true);
     setEnemyFirstAttack(true);
     playerAdvanceCards();

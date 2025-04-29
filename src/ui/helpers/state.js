@@ -71,6 +71,7 @@ export const state = {
     rezCard: null,
     draftSelected: false,
     selectedRealm: null,
+    soulSelections: [],
 };
 
 // State setters
@@ -144,6 +145,7 @@ const stateSetters = {
     setRezCard: null,
     setDraftSelected: null,
     setSelectedRealm: null,
+    setSoulSelections: null,
 };
 
 // Initialize setters with React setState functions
@@ -164,13 +166,13 @@ export function getRealmAndSetter(realmName, side) {
         case 'PLAYER':
             switch (realmName) {
                 case 'Solarium':
-                    return [playerSolarium, setPlayerSolarium];
+                    return [state.playerSolarium, stateSetters.setPlayerSolarium];
                 case 'Theater':
-                    return [playerTheater, setPlayerTheater];
+                    return [state.playerTheater, stateSetters.setPlayerTheater];
                 case 'Underpass':
-                    return [playerUnderpass, setPlayerUnderpass];
+                    return [state.playerUnderpass, stateSetters.setPlayerUnderpass];
                 case 'Grid':
-                    return [playerGrid, setPlayerGrid];
+                    return [state.playerGrid, stateSetters.setPlayerGrid];
                 default:
                     console.error(`Invalid realm name: ${realmName}`);
                     return [null, null];
@@ -178,13 +180,13 @@ export function getRealmAndSetter(realmName, side) {
         case 'ENEMY':
             switch (realmName) {
                 case 'Solarium':
-                    return [enemySolarium, setEnemySolarium];
+                    return [state.enemySolarium, stateSetters.setEnemySolarium];
                 case 'Theater':
-                    return [enemyTheater, setEnemyTheater];
+                    return [state.enemyTheater, stateSetters.setEnemyTheater];
                 case 'Underpass':
-                    return [enemyUnderpass, setEnemyUnderpass];
+                    return [state.enemyUnderpass, stateSetters.setEnemyUnderpass];
                 case 'Grid':
-                    return [enemyGrid, setEnemyGrid];
+                    return [state.enemyGrid, stateSetters.setEnemyGrid];
                 default:
                     console.error(`Invalid realm name: ${realmName}`);
                     return [null, null];
@@ -195,66 +197,76 @@ export function getRealmAndSetter(realmName, side) {
     }
 }
 
-// Export state variables
-export const {
-    playerBits,
-    playerAshes,
-    playerBurden,
-    playerFate,
-    playerWounds,
-    playerOverload,
-    playerLag,
-    playerActions,
-    playerSurge,
-    playerDriftCount,
-    playerGlitchyAmount,
-    enemyBits,
-    enemyAshes,
-    enemyBurden,
-    enemyFate,
-    enemyWounds,
-    enemyOverload,
-    enemyLag,
-    enemyActions,
-    enemySurge,
-    enemyDriftCount,
-    enemyGlitchyAmount,
-    enemyDividendAmount,
-    playerHand,
-    playerLibrary,
-    playerGraveyard,
-    enemyHand,
-    enemyLibrary,
-    enemyGraveyard,
-    playerSolarium,
-    playerTheater,
-    playerUnderpass,
-    playerGrid,
-    enemySolarium,
-    enemyTheater,
-    enemyUnderpass,
-    enemyGrid,
-    battleRealm,
-    playerBattleSlots,
-    enemyBattleSlots,
-    selectedCard,
-    selectedInHand,
-    targetType,
-    playerTargetSelection,
-    enemyTargetSelection,
-    pendingRitual,
-    targetSelection,
-    currentPlayer,
-    priorityLeft,
-    playerFirstAttack,
-    awaitingImpostor,
-    awaitingSacrifices,
-    rezCard,
-    draftSelected,
-    selectedRealm,
-    soulSelections,
-    focus
-} = state;
+// Export state getters
+export const getState = () => state;
+
+// Export individual state values as getters
+export const playerBits = () => state.playerBits;
+export const playerAshes = () => state.playerAshes;
+export const playerBurden = () => state.playerBurden;
+export const playerFate = () => state.playerFate;
+export const playerWounds = () => state.playerWounds;
+export const playerOverload = () => state.playerOverload;
+export const playerLag = () => state.playerLag;
+export const playerActions = () => state.playerActions;
+export const playerSurge = () => state.playerSurge;
+export const playerDriftCount = () => state.playerDriftCount;
+export const playerGlitchyAmount = () => state.playerGlitchyAmount;
+
+export const enemyBits = () => state.enemyBits;
+export const enemyAshes = () => state.enemyAshes;
+export const enemyBurden = () => state.enemyBurden;
+export const enemyFate = () => state.enemyFate;
+export const enemyWounds = () => state.enemyWounds;
+export const enemyOverload = () => state.enemyOverload;
+export const enemyLag = () => state.enemyLag;
+export const enemyActions = () => state.enemyActions;
+export const enemySurge = () => state.enemySurge;
+export const enemyDriftCount = () => state.enemyDriftCount;
+export const enemyGlitchyAmount = () => state.enemyGlitchyAmount;
+export const enemyDividendAmount = () => state.enemyDividendAmount;
+
+export const playerHand = () => state.playerHand;
+export const playerLibrary = () => state.playerLibrary;
+export const playerGraveyard = () => state.playerGraveyard;
+export const enemyHand = () => state.enemyHand;
+export const enemyLibrary = () => state.enemyLibrary;
+export const enemyGraveyard = () => state.enemyGraveyard;
+
+export const playerSolarium = () => state.playerSolarium;
+export const playerTheater = () => state.playerTheater;
+export const playerUnderpass = () => state.playerUnderpass;
+export const playerGrid = () => state.playerGrid;
+export const playerElysium = () => state.playerElysium;
+
+export const enemySolarium = () => state.enemySolarium;
+export const enemyTheater = () => state.enemyTheater;
+export const enemyUnderpass = () => state.enemyUnderpass;
+export const enemyGrid = () => state.enemyGrid;
+export const enemyElysium = () => state.enemyElysium;
+
+export const battleRealm = () => state.battleRealm;
+export const playerBattleSlots = () => state.playerBattleSlots;
+export const enemyBattleSlots = () => state.enemyBattleSlots;
+
+export const selectedCard = () => state.selectedCard;
+export const selectedInHand = () => state.selectedInHand;
+export const targetType = () => state.targetType;
+export const playerTargetSelection = () => state.playerTargetSelection;
+export const enemyTargetSelection = () => state.enemyTargetSelection;
+export const pendingRitual = () => state.pendingRitual;
+export const targetSelection = () => state.targetSelection;
+
+export const currentPlayer = () => state.currentPlayer;
+export const priorityLeft = () => state.priorityLeft;
+
+export const playerFirstAttack = () => state.playerFirstAttack;
+export const awaitingImpostor = () => state.awaitingImpostor;
+export const awaitingSacrifices = () => state.awaitingSacrifices;
+export const rezCard = () => state.rezCard;
+export const draftSelected = () => state.draftSelected;
+export const selectedRealm = () => state.selectedRealm;
+export const soulSelections = () => state.soulSelections;
 
 // Export setters
 export const {

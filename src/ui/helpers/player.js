@@ -79,27 +79,35 @@ export function gainSurge(num) {
 
 // Card Management
 export function draw(num) {
-    console.log('draw ', num);
+    console.log('Player draw called with num:', num);
+    console.log('Current player library:', state.playerLibrary);
+    console.log('Current player hand:', state.playerHand);
     let remainingCards = num;
 
     if (state.playerWounds > 0) {
         const newWounds = state.playerWounds - num;
         remainingCards = Math.max(0, -newWounds);
         stateSetters.setPlayerWounds(Math.max(0, newWounds));
+        console.log('Player has wounds, adjusted remainingCards:', remainingCards);
     }
 
-    if (remainingCards > 0) {
-        stateSetters.setPlayerLibrary(prevLibrary => {
-            const newHandCards = prevLibrary.slice(0, remainingCards);
-            const newLibrary = prevLibrary.slice(remainingCards);
+    if (remainingCards > 0 && state.playerLibrary.length > 0) {
+        // Get current state values
+        const currentLibrary = state.playerLibrary;
+        const currentHand = state.playerHand;
 
-            stateSetters.setPlayerHand(prevHand => [
-                ...prevHand,
-                ...newHandCards
-            ]);
+        // Calculate new values
+        const newHandCards = currentLibrary.slice(0, remainingCards);
+        const newLibrary = currentLibrary.slice(remainingCards);
+        const newHand = [...currentHand, ...newHandCards];
 
-            return newLibrary;
-        });
+        console.log('Cards being drawn:', newHandCards);
+        console.log('New library state:', newLibrary);
+        console.log('New hand state:', newHand);
+
+        // Update state in sequence
+        stateSetters.setPlayerLibrary(newLibrary);
+        stateSetters.setPlayerHand(newHand);
     }
 }
 

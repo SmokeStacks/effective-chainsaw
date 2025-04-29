@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { startTurn, playerGainBits, enemyLoseBits } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
-import { initializeSetters, stateSetters, state } from './helpers/state';
+import { state, stateSetters, initializeSetters } from './helpers/state';
 import { createLibrary, createEnemyLibrary } from './helpers/setup';
 import { activateAbilities } from './abilities/glossary';
 import Gameboard from './Gameboard';
@@ -11,6 +11,12 @@ import { draw as enemyDraw } from './helpers/enemy';
 import { Solarium, Theater, Underpass, Grid, Elysium } from './renders/Board';
 
 export default function BoardContainer() {
+    // Card state - using global state instead of local state
+    const [, setPlayerHand] = useState([]);
+    const [, setPlayerLibrary] = useState([]);
+    const [, setEnemyHand] = useState([]);
+    const [, setEnemyLibrary] = useState([]);
+
     // Realm state
     const [realms, setRealms] = useState({
 
@@ -89,101 +95,63 @@ export default function BoardContainer() {
     // Initialize state setters and libraries
     useEffect(() => {
         console.log('Initializing game state...');
-        // Initialize state setters
-        initializeSetters({
-            setPlayerHand: (value) => stateSetters.setPlayerHand = value,
-            setPlayerLibrary: (value) => stateSetters.setPlayerLibrary = value,
-            setEnemyHand: (value) => stateSetters.setEnemyHand = value,
-            setEnemyLibrary: (value) => stateSetters.setEnemyLibrary = value,
-            setPlayerBits: (value) => stateSetters.setPlayerBits(value),
-            setPlayerAshes: (value) => stateSetters.setPlayerAshes(value),
-            setPlayerBurden: (value) => stateSetters.setPlayerBurden(value),
-            setPlayerFate: (value) => stateSetters.setPlayerFate(value),
-            setPlayerWounds: (value) => stateSetters.setPlayerWounds(value),
-            setPlayerOverload: (value) => stateSetters.setPlayerOverload(value),
-            setPlayerLag: (value) => stateSetters.setPlayerLag(value),
-            setPlayerActions: (value) => stateSetters.setPlayerActions(value),
-            setPlayerSurge: (value) => stateSetters.setPlayerSurge(value),
-            setEnemyBits: (value) => stateSetters.setEnemyBits(value),
-            setEnemyAshes: (value) => stateSetters.setEnemyAshes(value),
-            setEnemyBurden: (value) => stateSetters.setEnemyBurden(value),
-            setEnemyFate: (value) => stateSetters.setEnemyFate(value),
-            setEnemyWounds: (value) => stateSetters.setEnemyWounds(value),
-            setEnemyOverload: (value) => stateSetters.setEnemyOverload(value),
-            setEnemyLag: (value) => stateSetters.setEnemyLag(value),
-            setEnemyActions: (value) => stateSetters.setEnemyActions(value),
-            setEnemySurge: (value) => stateSetters.setEnemySurge(value),
-            setPlayerBattleSlots: (value) => stateSetters.setPlayerBattleSlots(value),
-            setEnemyBattleSlots: (value) => stateSetters.setEnemyBattleSlots(value),
-            setPlayerDevelopSlots: (value) => stateSetters.setPlayerDevelopSlots(value),
-            setEnemyDevelopSlots: (value) => stateSetters.setEnemyDevelopSlots(value),
-            setPlayerDraftSlots: (value) => stateSetters.setPlayerDraftSlots(value),
-            setPlayerElysium: (value) => stateSetters.setPlayerElysium(value),
-            setEnemyElysium: (value) => stateSetters.setEnemyElysium(value),
-            setEnemyDraftSlots: (value) => stateSetters.setEnemyDraftSlots(value),
-            setPlayerBoostSlots: (value) => stateSetters.setPlayerBoostSlots(value),
-            setEnemyBoostSlots: (value) => stateSetters.setEnemyBoostSlots(value),
-            setPlayerHandSlots: (value) => stateSetters.setPlayerHandSlots(value),
-            setEnemyHandSlots: (value) => stateSetters.setEnemyHandSlots(value),
-            setPlayerSurgeSlots: (value) => stateSetters.setPlayerSurgeSlots(value),
-            setEnemySurgeSlots: (value) => stateSetters.setEnemySurgeSlots(value),
-            setPlayerOverloadSlots: (value) => stateSetters.setPlayerOverloadSlots(value),
-            setEnemyOverloadSlots: (value) => stateSetters.setEnemyOverloadSlots(value),
-            setPlayerLagSlots: (value) => stateSetters.setPlayerLagSlots(value),
-            setEnemyLagSlots: (value) => stateSetters.setEnemyLagSlots(value),
-            setPlayerSolariumSlots: (value) => stateSetters.setPlayerSolariumSlots(value),
-            setEnemySolariumSlots: (value) => stateSetters.setEnemySolariumSlots(value),
-            setPlayerTheaterSlots: (value) => stateSetters.setPlayerTheaterSlots(value),
-            setEnemyTheaterSlots: (value) => stateSetters.setEnemyTheaterSlots(value),
-            setPlayerUnderpassSlots: (value) => stateSetters.setPlayerUnderpassSlots(value),
-            setEnemyUnderpassSlots: (value) => stateSetters.setEnemyUnderpassSlots(value),
-            setPlayerGridSlots: (value) => stateSetters.setPlayerGridSlots(value),
-            setEnemyGridSlots: (value) => stateSetters.setEnemyGridSlots(value),
-            setPlayerElysiumSlots: (value) => stateSetters.setPlayerElysiumSlots(value),
-            setEnemyElysiumSlots: (value) => stateSetters.setEnemyElysiumSlots(value),
-            setTargetType: (value) => stateSetters.setTargetType(value),
-            setCurrentPlayer: (value) => stateSetters.setCurrentPlayer(value),
-            setMode: (value) => stateSetters.setMode(value),
-            setAwaitingFocus: (value) => stateSetters.setAwaitingFocus(value),
-            setFocus: (value) => stateSetters.setFocus(value),
-            setDraftSelected: (value) => stateSetters.setDraftSelected(value),
-        });
 
         // Create libraries
         console.log('Creating libraries...');
-        const playerLibrary = createLibrary();
-        const enemyLibrary = createEnemyLibrary();
+        const playerLib = createLibrary();
+        const enemyLib = createEnemyLibrary();
 
+        // Setting up libraries and initial state
         console.log('Setting up libraries and initial state...');
-        // Initialize all state at once to avoid multiple re-renders
-        console.log('Initial playerLibrary:', playerLibrary);
-        stateSetters.setPlayerLibrary(() => {
-            console.log('Setting player library');
-            return playerLibrary;
-        });
-        stateSetters.setPlayerHand(() => {
-            console.log('Setting initial player hand');
-            return [];
-        });
-        stateSetters.setEnemyLibrary(() => enemyLibrary);
-        stateSetters.setEnemyHand(() => []);
+        console.log('Initial playerLibrary:', playerLib);
+        console.log('Initial enemyLibrary:', enemyLib);
 
+        // Initialize state setters
+        initializeSetters({
+            setPlayerHand: (value) => {
+                setPlayerHand(value);
+                state.playerHand = value;
+            },
+            setPlayerLibrary: (value) => {
+                setPlayerLibrary(value);
+                state.playerLibrary = value;
+            },
+            setEnemyHand: (value) => {
+                setEnemyHand(value);
+                state.enemyHand = value;
+            },
+            setEnemyLibrary: (value) => {
+                setEnemyLibrary(value);
+                state.enemyLibrary = value;
+            },
+        });
+
+        // Initialize state
+        state.playerLibrary = playerLib;
+        state.enemyLibrary = enemyLib;
+        state.playerHand = [];
+        state.enemyHand = [];
+        
+        // Update React state
+        setPlayerLibrary(playerLib);
+        setEnemyLibrary(enemyLib);
+        setPlayerHand([]);
+        setEnemyHand([]);
+
+        // Set game state
         setGameState(prev => ({
             ...prev,
             mode: 'MULLIGAN',
             currentPlayer: 'PLAYER',
         }));
 
-        // Draw opening hands after state is initialized
+        // Draw initial hands
         console.log('Drawing initial hands...');
-        // Remove the setTimeout to ensure state updates happen synchronously
+        console.log('State before draw:', state);
         playerDraw(5);
-        console.log('Player hand after draw:', state.playerHand);
         enemyDraw(5);
 
-        return () => {
-            console.log('Cleaning up game initialization...');
-        };
+        console.log('Libraries initialized, ready for drawing initial hands...');
     }, []);
 
     // Set up UI state reset listener

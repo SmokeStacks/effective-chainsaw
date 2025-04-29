@@ -1,30 +1,7 @@
+import { state, stateSetters } from './state';
 import { eventManager } from './eventManager';
 import { showModal } from '../components/Modal';
 import { BidInputModal } from '../components/BidInputModal';
-import {
-    playerSolarium,
-    playerTheater,
-    playerUnderpass,
-    playerGrid,
-    enemySolarium,
-    enemyTheater,
-    enemyUnderpass,
-    enemyGrid,
-    playerSurge,
-    enemySurge,
-    enemyBits,
-    playerBits,
-    focus,
-    setPlayerBits,
-    setEnemyBits,
-    setPlayerFate,
-    setEnemyFate,
-    setPlayerBurden,
-    setEnemyBurden,
-    setPlayerActions,
-    setEnemyActions,
-    endTurn
-} from './state';
 import { enemySacrificeEntity, playerSacrificeEntity } from './sacrifice';
 
 export async function handleDominationPhase() {
@@ -35,12 +12,12 @@ export async function handleDominationPhase() {
         const enemyScore = calculateDominationScore('ENEMY');
 
         // Determine the AI's bid
-        const enemyBid = determineEnemyBid(enemyScore, playerScore, enemyBits, playerBits);
+        const enemyBid = determineEnemyBid(enemyScore, playerScore, state.enemyBits, state.playerBits);
 
         // Prompt the player to spend Bits
-        const playerBid = await promptPlayerBid(playerBits);
-        setPlayerBits((prev) => prev - playerBid);
-        setEnemyBits((prev) => prev - enemyBid);
+        const playerBid = await promptPlayerBid(state.playerBits);
+        stateSetters.setPlayerBits((prev) => prev - playerBid);
+        stateSetters.setEnemyBits((prev) => prev - enemyBid);
 
         // Calculate final scores
         const finalPlayerScore = playerScore + playerBid;
@@ -72,10 +49,10 @@ export async function handleDominationPhase() {
         eventManager.publish('dominationResolved', { winner, loser });
         console.log('dominationResolved')
         // Proceed to end the turn
-        endTurn();
+        stateSetters.endTurn();
     } else {
         // If it's before turn 2, just end the turn
-        endTurn();
+        stateSetters.endTurn();
     }
 }
 
@@ -83,8 +60,8 @@ export async function handleDominationPhase() {
 
 export function calculateDominationScore(side) {
     const realms = side === 'PLAYER'
-        ? [playerSolarium, playerTheater, playerUnderpass, playerGrid]
-        : [enemySolarium, enemyTheater, enemyUnderpass, enemyGrid];
+        ? [state.playerSolarium, state.playerTheater, state.playerUnderpass, state.playerGrid]
+        : [state.enemySolarium, state.enemyTheater, state.enemyUnderpass, state.enemyGrid];
 
     const entities = realms.flatMap(realm => realm.people).filter(entity => entity.online && entity.readied);
     const totalPower = entities.reduce((sum, entity) => {
@@ -93,7 +70,7 @@ export function calculateDominationScore(side) {
         return sum + totalEntityPower;
     }, 0);
 
-    const surge = side === 'PLAYER' ? playerSurge : enemySurge;
+    const surge = side === 'PLAYER' ? state.playerSurge : state.enemySurge;
 
     return totalPower + surge;
 }
@@ -167,27 +144,27 @@ export function determineEnemyBid(enemyScore, playerScore, enemyBits, playerBits
 
 
 export function applyDominationReward(winnerSide) {
-    if (focus === 'magi') {
+    if (state.focus === 'magi') {
         if (winnerSide === 'PLAYER') {
-            setPlayerFate(prev => prev + 1);
-            setEnemyBurden(prev => prev + 1);
+            stateSetters.setPlayerFate(prev => prev + 1);
+            stateSetters.setEnemyBurden(prev => prev + 1);
         } else {
-            setEnemyFate(prev => prev + 1);
-            setPlayerBurden(prev => prev + 1);
+            stateSetters.setEnemyFate(prev => prev + 1);
+            stateSetters.setPlayerBurden(prev => prev + 1);
         }
-    } else if (focus === 'phys') {
+    } else if (state.focus === 'phys') {
         if (winnerSide === 'PLAYER') {
             enemySacrificeEntity();
         } else {
             playerSacrificeEntity();
         }
-    } else if (focus === 'tech') {
+    } else if (state.focus === 'tech') {
         if (winnerSide === 'PLAYER') {
-            setPlayerActions(prev => prev + 2);
-            setPlayerBits(prev => prev + 1);
+            stateSetters.setPlayerActions(prev => prev + 2);
+            stateSetters.setPlayerBits(prev => prev + 1);
         } else {
-            setEnemyActions(prev => prev + 2);
-            setEnemyBits(prev => prev + 1);
+            stateSetters.setEnemyActions(prev => prev + 2);
+            stateSetters.setEnemyBits(prev => prev + 1);
         }
     } else {
         console.log('no focus for domination')
