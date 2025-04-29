@@ -80,27 +80,35 @@ export function gainSurge(num) {
 
 // Card Management
 export function draw(num) {
-    console.log('enemy draw ', num);
+    console.log('Enemy draw called with num:', num);
+    console.log('Current enemy library:', state.enemyLibrary);
+    console.log('Current enemy hand:', state.enemyHand);
     let remainingCards = num;
 
     if (state.enemyWounds > 0) {
         const newWounds = state.enemyWounds - num;
         remainingCards = Math.max(0, -newWounds);
         stateSetters.setEnemyWounds(Math.max(0, newWounds));
+        console.log('Enemy has wounds, adjusted remainingCards:', remainingCards);
     }
 
-    if (remainingCards > 0) {
-        stateSetters.setEnemyLibrary(prevLibrary => {
-            const newHandCards = prevLibrary.slice(0, remainingCards);
-            const newLibrary = prevLibrary.slice(remainingCards);
+    if (remainingCards > 0 && state.enemyLibrary.length > 0) {
+        // Get current state values
+        const currentLibrary = state.enemyLibrary;
+        const currentHand = state.enemyHand;
 
-            stateSetters.setEnemyHand(prevHand => [
-                ...prevHand,
-                ...newHandCards
-            ]);
+        // Calculate new values
+        const newHandCards = currentLibrary.slice(0, remainingCards);
+        const newLibrary = currentLibrary.slice(remainingCards);
+        const newHand = [...currentHand, ...newHandCards];
 
-            return newLibrary;
-        });
+        console.log('Cards being drawn:', newHandCards);
+        console.log('New library state:', newLibrary);
+        console.log('New hand state:', newHand);
+
+        // Update state in sequence
+        stateSetters.setEnemyLibrary(newLibrary);
+        stateSetters.setEnemyHand(newHand);
     }
 }
 

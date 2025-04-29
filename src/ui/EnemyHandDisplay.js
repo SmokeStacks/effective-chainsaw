@@ -5,7 +5,7 @@ import CardDisplay from "./CardDisplay";
 function HandCards({ cards }) {
     var cardsEntities = [];
     for (var i = 0; i < cards.length; i++) {
-        cardsEntities.push(<CardDisplay key={i} entity={cards[i]} />);
+        cardsEntities.push(<CardDisplay key={i} entity={cards[i]} inHand={true} />);
     }
     return <>{cardsEntities}</>;
 }
