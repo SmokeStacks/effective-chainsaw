@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startTurn, playerGainBits, enemyLoseBits } from './helpers/core';
+import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { state, stateSetters, initializeSetters } from './helpers/state';
 import { createLibrary, createEnemyLibrary } from './helpers/setup';
 import { activateAbilities } from './abilities/glossary';
 import Gameboard from './Gameboard';
-import { draw as playerDraw } from './helpers/player';
+import { draw } from './helpers/player';
+import { handleFocusSelect, handleCardSelect as selectionHandleCardSelect } from './helpers/selection';
 import { draw as enemyDraw } from './helpers/enemy';
 import { Solarium, Theater, Underpass, Grid, Elysium } from './renders/Board';
 
@@ -148,7 +149,7 @@ export default function BoardContainer() {
         // Draw initial hands
         console.log('Drawing initial hands...');
         console.log('State before draw:', state);
-        playerDraw(5);
+        draw(5);
         enemyDraw(5);
 
         console.log('Libraries initialized, ready for drawing initial hands...');
@@ -188,14 +189,17 @@ export default function BoardContainer() {
 
     // Handle player realm updates
     useEffect(() => {
-        if (state.playerSolarium.people.length === 0 &&
-            state.playerTheater.people.length === 0 &&
-            state.playerUnderpass.people.length === 0 &&
-            state.playerGrid.people.length === 0 &&
-            state.playerElysium.people.length === 0) {
-            eventManager.publish('PLAYER_LOST');
+        // Only check for player loss after game has started and first turn has begun
+        if (gameState.mode !== 'NONE' && gameState.mode !== 'MULLIGAN') {
+            if (state.playerSolarium.people.length === 0 &&
+                state.playerTheater.people.length === 0 &&
+                state.playerUnderpass.people.length === 0 &&
+                state.playerGrid.people.length === 0 &&
+                state.playerElysium.people.length === 0) {
+                eventManager.publish('PLAYER_LOST');
+            }
         }
-    }, []);
+    }, [gameState.mode]);
 
     useEffect(() => {
         if (state.mode === 'GAME_OVER') {
@@ -330,7 +334,7 @@ export default function BoardContainer() {
             }
             stateSetters.setMode('NORMAL');
         }
-    }, [state.mode, state.currentPlayer, state.enemyBits]);
+    }, []);
 
     // Effect to handle enemy win condition
     useEffect(() => {
@@ -346,12 +350,19 @@ export default function BoardContainer() {
         }
     }, []);
 
+    // Effect to handle enemy turn
+    useEffect(() => {
+        if (state.currentPlayer === 'ENEMY' && state.mode === 'NORMAL') {
+            enemyPerformAction();
+        }
+    }, []);
+
     // Start the game or turn
     useEffect(() => {
         if (state.mode === 'BEGIN' && state.attackMode) {
             console.log('begin game');
             playerGainBits(1);
-            playerDraw();
+            draw(1);
         }
     }, []);
 
@@ -535,12 +546,9 @@ export default function BoardContainer() {
     }, []);
 
     // Action handlers
-    const handleCardSelect = useCallback((card) => {
-        setUiState(prev => ({
-            ...prev,
-            selectedCard: card,
-            selectedInHand: true
-        }));
+    const handleCardSelect = useCallback((card, inHand = true) => {
+        // Use the selection helper to handle card selection
+        selectionHandleCardSelect(card, inHand);
     }, []);
 
     const handleRealmSelect = useCallback((realmName) => {
@@ -640,8 +648,13 @@ export default function BoardContainer() {
                 awaitingFocus={uiState.awaitingFocus}
                 focus={uiState.focus}
                 onFocusSelect={(newFocus) => {
-                    setUiState(prev => ({ ...prev, focus: newFocus }));
-                    setUiState(prev => ({ ...prev, awaitingFocus: false }));
+                    console.log('Focus selected in BoardContainer:', newFocus);
+                    handleFocusSelect(newFocus);
+                    setUiState(prev => ({
+                        ...prev,
+                        focus: newFocus,
+                        awaitingFocus: false
+                    }));
                 }}
 
                 // Modal state
@@ -652,6 +665,7 @@ export default function BoardContainer() {
                 onCloseModal={() => setUiState(prev => ({ ...prev, modalVisible: false }))}
                 awaitingSacrifices={gameState.awaitingSacrifices}
                 onSacrificeConfirmation={handleSacrificeConfirmation}
+                playerDraw={draw}
             />
         </div>
     );

@@ -1,5 +1,5 @@
 import { state, stateSetters } from './state';
-import { draw as playerDraw, draft as playerDraft } from './player';
+import { draw, draft } from './player';
 
 // Button handlers
 export const handleBoostButton = () => {
@@ -28,11 +28,11 @@ export const handleDrawButton = () => {
         console.log('Not enough actions to draw.');
         return;
     }
-    playerDraw(1);
+    draw(1);
     stateSetters.setPlayerActions(prev => prev - 1);
     stateSetters.setCurrentPlayer('ENEMY');
 };
 
 export const handleDraftButton = () => {
-    playerDraft();
+    draft();
 };

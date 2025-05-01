@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import { Button } from 'react-bootstrap';
 
 class Actions extends Component {
     constructor(props) {
@@ -66,7 +65,7 @@ class Actions extends Component {
         // todo1 
         return (
             <div className="action-menu">
-                <div className="action-item" onClick={() => playerDraw()}>DRAW</div>
+                <div className="action-item" onClick={() => playerDraw(1)}>DRAW</div>
                 <div className="action-item" onClick={() => playerDraft()}>DRAFT</div>
                 <div className="action-item" onClick={() => playerMine()}>PHISH</div>
                 <div className="action-item" onClick={() => playerBoost()}>BOOST</div>

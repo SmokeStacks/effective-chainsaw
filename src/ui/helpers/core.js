@@ -781,11 +781,7 @@ export const handleDevelopButton = () => {
     console.log('Select a card to develop.');
 }
 
-export const handleDrawButton = () => {
-    playerDraw(1);
-    playerLoseActions(1);
-    stateSetters.setCurrentPlayer('ENEMY');
-}
+// Moved to actions.js
 
 export const handleDraftButton = () => {
     playerDraft();
@@ -923,15 +919,15 @@ function processEndOfTurnEffects() {
 }
 
 export function enemyPerformAction() {
-    console.log('enemy perform action', enemyActions);
-    if (enemyActions > 0) {
+    console.log('enemy perform action', state.enemyActions);
+    if (state.enemyActions > 0) {
         enemyRezCards().then(() => {
             enemyPlanAttack().then(attackPlanned => {
                 if (attackPlanned) {
                     enemyLoseActions(1);
                     return;
                 }
-                if (enemyHand.length > 0) {
+                if (state.enemyHand.length > 0) {
                     enemyPlayCard();
                     enemyLoseActions(1);
                 } else {
@@ -949,6 +945,8 @@ export function startTurn(currentPriorityLeft) {
     console.log('start turn', currentPriorityLeft);
     const startingPlayer = currentPriorityLeft ? 'PLAYER' : 'ENEMY';
     setCurrentPlayer(startingPlayer);
+    stateSetters.setCurrentPlayer(startingPlayer);
+    stateSetters.setMode('NORMAL');
     eventManager.publish('turnStart', { side: 'PLAYER' });
     eventManager.publish('turnStart', { side: 'ENEMY' });
     
@@ -962,7 +960,6 @@ export function startTurn(currentPriorityLeft) {
         targetSelection: { enabled: false },
         awaitingFocus: true,
         focus: '',
-        selectedCard: null,
         selectedInHand: false
     });
 

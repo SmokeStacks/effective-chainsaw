@@ -72,6 +72,8 @@ export const state = {
     draftSelected: false,
     selectedRealm: null,
     soulSelections: [],
+    focus: null,
+    awaitingFocus: false,
 };
 
 // State setters
@@ -125,6 +127,7 @@ const stateSetters = {
     setBattleRealm: null,
     setPlayerBattleSlots: null,
     setEnemyBattleSlots: null,
+    setBattleSelectedCard: null,
 
     // Selection setters
     setSelectedInHand: null,
@@ -132,6 +135,7 @@ const stateSetters = {
     setPlayerTargetSelection: null,
     setEnemyTargetSelection: null,
     setPendingRitual: null,
+    setPendingManualAbility: null,
     setTargetSelection: null,
 
     // Game flow setters
@@ -141,6 +145,7 @@ const stateSetters = {
     // Other setters
     setPlayerFirstAttack: null,
     setAwaitingImpostor: null,
+    setImpostorRealm: null,
     setAwaitingSacrifices: null,
     setRezCard: null,
     setDraftSelected: null,
@@ -267,9 +272,12 @@ export const rezCard = () => state.rezCard;
 export const draftSelected = () => state.draftSelected;
 export const selectedRealm = () => state.selectedRealm;
 export const soulSelections = () => state.soulSelections;
+export const focus = () => state.focus;
+export const awaitingFocus = () => state.awaitingFocus;
 
 // Export setters
 export const {
+    setSelectedCard,
     setPlayerHand,
     setPlayerLibrary,
     setPlayerGraveyard,
@@ -310,24 +318,25 @@ export const {
     setBattleRealm,
     setPlayerBattleSlots,
     setEnemyBattleSlots,
+    setBattleSelectedCard,
     setSelectedInHand,
     setTargetType,
     setPlayerTargetSelection,
     setEnemyTargetSelection,
     setPendingRitual,
+    setPendingManualAbility,
     setTargetSelection,
     setCurrentPlayer,
     setPriorityLeft,
     setPlayerFirstAttack,
     setAwaitingImpostor,
+    setImpostorRealm,
     setAwaitingSacrifices,
     setRezCard,
     setDraftSelected,
     setSelectedRealm,
     setModalVisible,
     setSoulSelections,
-    setFocus,
-    setAwaitingFocus,
     setUiState,
     setTurnNumber,
     endTurn
