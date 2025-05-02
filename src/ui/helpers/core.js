@@ -428,7 +428,7 @@ function removeCardFromHand(card) {
     //playerLoseActions(1);
 }
 
-function triggerRitualAbilities(entity, target, side) {
+export function triggerRitualAbilities(entity, target, side) {
     entity.card.abilities.forEach((ability) => {
         if (typeof ability === 'object' && ability.type === 'onPlay') {
             const abilityDef = abilitiesDefinitions[ability.name];
@@ -919,7 +919,11 @@ function processEndOfTurnEffects() {
 }
 
 export function enemyPerformAction() {
-    console.log('enemy perform action', state.enemyActions);
+    console.log('Enemy perform action:', {
+        enemyActions: state.enemyActions,
+        enemyHandSize: state.enemyHand.length,
+        currentPlayer: state.currentPlayer
+    });
     if (state.enemyActions > 0) {
         enemyRezCards().then(() => {
             enemyPlanAttack().then(attackPlanned => {

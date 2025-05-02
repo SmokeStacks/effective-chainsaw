@@ -10,13 +10,19 @@ import { handleImpostorPlacement } from './impostor';
 import { confirmManualAbility, isValidAbilityTarget, confirmAbilityTarget } from './abilities';
 
 export const handleCardSelect = (cardEntity, inHand) => {
-    console.log('hand select')
+    console.log('=== handleCardSelect ===');
+    console.log('cardEntity:', cardEntity);
+    console.log('inHand:', inHand);
+    console.log('Current state:', state);
+
     stateSetters.setSelectedCard(cardEntity);
     stateSetters.setSelectedInHand(inHand);
     stateSetters.setDraftSelected(false);
     stateSetters.setTargetType('none');
     stateSetters.setPendingRitual(null);
     stateSetters.setTargetSelection({ enabled: false });
+
+    console.log('State after update:', state);
 };
 
 export const handleCancel = () => {

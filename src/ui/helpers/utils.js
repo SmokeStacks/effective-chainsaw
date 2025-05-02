@@ -11,8 +11,11 @@ export function willEntitySurvive(entity, incomingDamage) {
 }
 
 export function getRealmAndSetter(realmName, owner) {
+    // Convert realm name to title case for comparison
+    const normalizedName = realmName.charAt(0).toUpperCase() + realmName.slice(1).toLowerCase();
+    
     if (owner === 'PLAYER') {
-        switch (realmName) {
+        switch (normalizedName) {
             case 'Solarium':
                 return [state.playerSolarium, stateSetters.setPlayerSolarium];
             case 'Theater':
@@ -26,7 +29,7 @@ export function getRealmAndSetter(realmName, owner) {
                 return [null, null];
         }
     } else {
-        switch (realmName) {
+        switch (normalizedName) {
             case 'Solarium':
                 return [state.enemySolarium, stateSetters.setEnemySolarium];
             case 'Theater':

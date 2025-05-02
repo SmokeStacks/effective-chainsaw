@@ -98,28 +98,30 @@ class Gameboard extends Component {
             trashPromptVisible,
             currentPromptCard,
             modalVisible,
-            modalProps,
+            modalProps
         } = this.props;
+
+        const realmNames = ['solarium', 'theater', 'underpass', 'grid', 'elysium'];
 
         const displayedRealms = [
             realmComponents[this.state.currentRealmIndex],
             realmComponents[this.state.currentRealmIndex + 1]
-        ];
+        ].filter(realm => realm);
 
         const playerRealmsState = {
-            Solarium: playerSolarium,
-            Theater: playerTheater,
-            Underpass: playerUnderpass,
-            Grid: playerGrid,
-            Elysium: playerElysium,
+            solarium: playerSolarium,
+            theater: playerTheater,
+            underpass: playerUnderpass,
+            grid: playerGrid,
+            elysium: playerElysium,
         };
 
         const enemyRealmsState = {
-            Solarium: enemySolarium,
-            Theater: enemyTheater,
-            Underpass: enemyUnderpass,
-            Grid: enemyGrid,
-            Elysium: enemyElysium,
+            solarium: enemySolarium,
+            theater: enemyTheater,
+            underpass: enemyUnderpass,
+            grid: enemyGrid,
+            elysium: enemyElysium,
         };
 
         return (
@@ -138,14 +140,13 @@ class Gameboard extends Component {
                                 return (
                                     <RealmComponent
                                         key={index}
-                                        onRealmSelect={() => onRealmSelect(RealmComponent.name)}
+                                        onRealmSelect={() => onRealmSelect(realmNames[this.state.currentRealmIndex + index])}
                                         onServerSelect={onServerSelect}
                                         onRealmCardSelect={onRealmCardSelect}
                                         onRezPlayerCard={onRezPlayerCard}
                                         onAbilityClick={onAbilityClick}
-                                        playerState={playerRealmsState[RealmComponent.name]}
-                                        enemyState={enemyRealmsState[RealmComponent.name]}
-                                        name={RealmComponent.name}
+                                        playerState={playerRealmsState[realmNames[this.state.currentRealmIndex + index]]}
+                                        enemyState={enemyRealmsState[realmNames[this.state.currentRealmIndex + index]]}
                                     />
                                 );
                             })}

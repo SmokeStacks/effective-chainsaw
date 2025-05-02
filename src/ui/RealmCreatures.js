@@ -2,10 +2,12 @@ import React, { Component } from 'react';
 
 import CardDisplay from "./CardDisplay";
 
-function RealmCards({ cards, onCardSelect, onRezPlayerCard, isPlayerCard }) {
+function RealmCards({ cards = [], onCardSelect, onRezPlayerCard, isPlayerCard }) {
     var cardsEntities = [];
-    for (var i = 0; i < cards.length; i++) {
-        cardsEntities.push(<CardDisplay isFaceUp={cards[i].online} isPlayerCard={isPlayerCard} key={i} entity={cards[i]} onCardSelect={onCardSelect} onRezPlayerCard={onRezPlayerCard} inHand={false} />);
+    if (cards) {
+        for (var i = 0; i < cards.length; i++) {
+            cardsEntities.push(<CardDisplay isFaceUp={cards[i].online} isPlayerCard={isPlayerCard} key={i} entity={cards[i]} onCardSelect={onCardSelect} onRezPlayerCard={onRezPlayerCard} inHand={false} />);
+        }
     }
     return <>{cardsEntities}</>;
 }

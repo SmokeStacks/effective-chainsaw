@@ -1,12 +1,12 @@
 import RealmCreatures from "../RealmCreatures";
-import CardDisplay from "../CardDisplay";
+
 import RealmStuff from "../RealmStuff";
 
 // todo
 // SolariumRealm.js
 export function Solarium({ onRealmSelect, onRealmCardSelect, onAbilityClick, onRezPlayerCard, playerState, enemyState }) {
     return (
-        <div className="realm solarium" onClick={() => onRealmSelect('SOLARIUM')}>
+        <div className="realm solarium" onClick={() => onRealmSelect('solarium')}>
             <div className="realm-name">SOLARIUM</div>
             <div className="cards-container">
                 <div className="creatures-container">
@@ -24,7 +24,7 @@ export function Solarium({ onRealmSelect, onRealmCardSelect, onAbilityClick, onR
 
 export function Theater({ onRealmSelect, onRealmCardSelect, onAbilityClick, onRezPlayerCard, playerState, enemyState }) {
     return (
-        <div className="realm theater" onClick={() => onRealmSelect('THEATER')}>
+        <div className="realm theater" onClick={() => onRealmSelect('theater')}>
             <div className="realm-name">TRENCHES</div>
             <div className="cards-container">
                 <div className="creatures-container">
@@ -49,7 +49,7 @@ export function Theater({ onRealmSelect, onRealmCardSelect, onAbilityClick, onRe
 // UnderpassRealm.js
 export function Underpass({ onRealmSelect, onServerSelect, onRealmCardSelect, onAbilityClick, onRezPlayerCard, playerState, enemyState }) {
     return (
-        <div className="realm underpass" onClick={() => onRealmSelect('UNDERPASS')}>
+        <div className="realm underpass" onClick={() => onRealmSelect('underpass')}>
             <div className="realm-name">
                 IRL
                 <div className="server" onClick={() => onServerSelect('HEADSPACE')}>HEADSPACE</div>
@@ -79,7 +79,7 @@ export function Underpass({ onRealmSelect, onServerSelect, onRealmCardSelect, on
 // GridRealm.js
 export function Grid({ onRealmSelect, onServerSelect, onRealmCardSelect, onAbilityClick, onRezPlayerCard, playerState, enemyState }) {
     return (
-        <div className="realm grid" onClick={() => onRealmSelect('GRID')}>
+        <div className="realm grid" onClick={() => onRealmSelect('grid')}>
             <div className="realm-name">
                 NEXUS
                 <div className="server" onClick={() => onServerSelect('PANDORA')}>PANDORA</div>

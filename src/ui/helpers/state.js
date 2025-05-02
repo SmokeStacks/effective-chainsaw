@@ -63,6 +63,7 @@ export const state = {
     // Game flow
     currentPlayer: 'PLAYER',
     priorityLeft: true,
+    mode: 'BEGIN',
     
     // Other state
     playerFirstAttack: true,
@@ -141,6 +142,7 @@ const stateSetters = {
     // Game flow setters
     setCurrentPlayer: null,
     setPriorityLeft: null,
+    setMode: null,
 
     // Other setters
     setPlayerFirstAttack: null,
@@ -328,6 +330,7 @@ export const {
     setTargetSelection,
     setCurrentPlayer,
     setPriorityLeft,
+    setMode,
     setPlayerFirstAttack,
     setAwaitingImpostor,
     setImpostorRealm,

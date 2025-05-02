@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction } from './helpers/core';
+import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction, playerLoseBits, playerLoseActions, endPlayerTurn, returnToOriginalRealm, triggerRitualAbilities } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
-import { state, stateSetters, initializeSetters } from './helpers/state';
+import { state, stateSetters, initializeSetters, currentPlayer, enemyActions } from './helpers/state';
 import { createLibrary, createEnemyLibrary } from './helpers/setup';
-import { activateAbilities } from './abilities/glossary';
-import Gameboard from './Gameboard';
-import { draw } from './helpers/player';
-import { handleFocusSelect, handleCardSelect as selectionHandleCardSelect } from './helpers/selection';
+import { activateAbilities, abilitiesDefinitions } from './abilities/glossary';
+import { handleFocusSelect, handleCardSelect } from './helpers/selection';
 import { draw as enemyDraw } from './helpers/enemy';
 import { Solarium, Theater, Underpass, Grid, Elysium } from './renders/Board';
+import { calculateSoulsAvailable } from './helpers/activation';
+import Gameboard from './Gameboard';
+import { draw } from './helpers/player';
 
 export default function BoardContainer() {
     // Card state - using global state instead of local state
@@ -20,7 +21,6 @@ export default function BoardContainer() {
 
     // Realm state
     const [realms, setRealms] = useState({
-
         player: {
             solarium: { name: 'Solarium', people: [], places: [], things: [] },
             theater: { name: 'Theater', people: [], places: [], things: [] },
@@ -37,6 +37,25 @@ export default function BoardContainer() {
         }
     });
 
+    // Initialize state setters
+    useEffect(() => {
+        initializeSetters({
+            setPlayerAshes: (updater) => {
+                setGameState(prev => ({
+                    ...prev,
+                    playerAshes: typeof updater === 'function' ? updater(prev.playerAshes) : updater
+                }));
+            },
+            setPlayerSouls: (updater) => {
+                setGameState(prev => ({
+                    ...prev,
+                    playerSouls: typeof updater === 'function' ? updater(prev.playerSouls) : updater
+                }));
+            }
+            // Add other setters as needed
+        });
+    }, []);
+
     // Game state
     const [gameState, setGameState] = useState({
         mode: 'NONE',
@@ -47,7 +66,18 @@ export default function BoardContainer() {
         battleRealm: null,
         currentPlayer: 'PLAYER',
         rezCard: null,
-        targetType: null
+        targetType: null,
+        selectedCard: null,
+        selectedInHand: false,
+        focus: '',
+        playerBits: 0,
+        playerAshes: 0,
+        playerSouls: 0,
+        battleSelectedCard: null,
+        playerBattleSlots: [],
+        enemyBattleSlots: [],
+        draftSelected: false,
+        recruiterCount: 0
     });
 
     // UI state
@@ -124,6 +154,129 @@ export default function BoardContainer() {
             setEnemyLibrary: (value) => {
                 setEnemyLibrary(value);
                 state.enemyLibrary = value;
+            },
+            setMode: (value) => {
+                setGameState(prev => ({ ...prev, mode: value }));
+                state.mode = value;
+            },
+            setSelectedCard: (value) => {
+                setGameState(prev => ({ ...prev, selectedCard: value }));
+                state.selectedCard = value;
+            },
+            setSelectedInHand: (value) => {
+                setGameState(prev => ({ ...prev, selectedInHand: value }));
+                state.selectedInHand = value;
+            },
+            setTargetType: (value) => {
+                setGameState(prev => ({ ...prev, targetType: value }));
+                state.targetType = value;
+            },
+            setTargetSelection: (value) => {
+                setGameState(prev => ({ ...prev, targetSelection: value }));
+                state.targetSelection = value;
+            },
+            setPlayerTargetSelection: (value) => {
+                setGameState(prev => ({ ...prev, playerTargetSelection: value }));
+                state.playerTargetSelection = value;
+            },
+            setEnemyTargetSelection: (value) => {
+                setGameState(prev => ({ ...prev, enemyTargetSelection: value }));
+                state.enemyTargetSelection = value;
+            },
+            setDraftSelected: (value) => {
+                setGameState(prev => ({ ...prev, draftSelected: value }));
+                state.draftSelected = value;
+            },
+            setSelectedRealm: (value) => {
+                setGameState(prev => ({ ...prev, selectedRealm: value }));
+                state.selectedRealm = value;
+            },
+            setCurrentPlayer: (value) => {
+                setGameState(prev => ({ ...prev, currentPlayer: value }));
+                state.currentPlayer = value;
+            },
+            setPendingRitual: (value) => {
+                setGameState(prev => ({ ...prev, pendingRitual: value }));
+                state.pendingRitual = value;
+            },
+            setPendingManualAbility: (value) => {
+                setGameState(prev => ({ ...prev, pendingManualAbility: value }));
+                state.pendingManualAbility = value;
+            },
+            setAwaitingSacrifices: (value) => {
+                setGameState(prev => ({ ...prev, awaitingSacrifices: value }));
+                state.awaitingSacrifices = value;
+            },
+            setRezCard: (value) => {
+                setGameState(prev => ({ ...prev, rezCard: value }));
+                state.rezCard = value;
+            },
+            // Realm setters
+            setPlayerSolarium: (value) => {
+                setGameState(prev => ({ ...prev, playerSolarium: value }));
+                state.playerSolarium = value;
+            },
+            setPlayerTheater: (value) => {
+                setGameState(prev => ({ ...prev, playerTheater: value }));
+                state.playerTheater = value;
+            },
+            setPlayerUnderpass: (value) => {
+                setGameState(prev => ({ ...prev, playerUnderpass: value }));
+                state.playerUnderpass = value;
+            },
+            setPlayerGrid: (value) => {
+                setGameState(prev => ({ ...prev, playerGrid: value }));
+                state.playerGrid = value;
+            },
+            setEnemySolarium: (value) => {
+                setGameState(prev => ({ ...prev, enemySolarium: value }));
+                state.enemySolarium = value;
+            },
+            setEnemyTheater: (value) => {
+                setGameState(prev => ({ ...prev, enemyTheater: value }));
+                state.enemyTheater = value;
+            },
+            setEnemyUnderpass: (value) => {
+                setGameState(prev => ({ ...prev, enemyUnderpass: value }));
+                state.enemyUnderpass = value;
+            },
+            setEnemyGrid: (value) => {
+                setGameState(prev => ({ ...prev, enemyGrid: value }));
+                state.enemyGrid = value;
+            },
+            // Battle setters
+            setBattleRealm: (value) => {
+                setGameState(prev => ({ ...prev, battleRealm: value }));
+                state.battleRealm = value;
+            },
+            setPlayerBattleSlots: (value) => {
+                setGameState(prev => ({ ...prev, playerBattleSlots: value }));
+                state.playerBattleSlots = value;
+            },
+            setEnemyBattleSlots: (value) => {
+                setGameState(prev => ({ ...prev, enemyBattleSlots: value }));
+                state.enemyBattleSlots = value;
+            },
+            setBattleSelectedCard: (value) => {
+                setGameState(prev => ({ ...prev, battleSelectedCard: value }));
+                state.battleSelectedCard = value;
+            },
+            // Resource setters
+            setPlayerBits: (value) => {
+                setGameState(prev => ({ ...prev, playerBits: value }));
+                state.playerBits = value;
+            },
+            setPlayerActions: (value) => {
+                setGameState(prev => ({ ...prev, playerActions: value }));
+                state.playerActions = value;
+            },
+            setEnemyActions: (value) => {
+                setGameState(prev => ({ ...prev, enemyActions: value }));
+                state.enemyActions = value;
+            },
+            setEnemyWounds: (value) => {
+                setGameState(prev => ({ ...prev, enemyWounds: value }));
+                state.enemyWounds = value;
             },
         });
 
@@ -214,56 +367,51 @@ export default function BoardContainer() {
         if (state.playerBurden >= 10) {
             stateSetters.setMode('GAME_OVER');
         }
-    }, [state.playerBurden, stateSetters]);
+    }, []);
+
+    // Check for player loss
+    useEffect(() => {
+        // Only check for player loss after game has started and first turn has begun
+        if (gameState.mode !== 'NONE' && gameState.mode !== 'MULLIGAN') {
+            if (state.playerSolarium.people.length === 0 &&
+                state.playerTheater.people.length === 0 &&
+                state.playerUnderpass.people.length === 0 &&
+                state.playerGrid.people.length === 0 &&
+                state.playerElysium.people.length === 0) {
+                eventManager.publish('PLAYER_LOST');
+            }
+        }
+    }, [gameState.mode]);
 
     // Handle player realm updates
     useEffect(() => {
-        if (state.playerSolarium) {
-            setRealms(prev => ({
+        setRealms(prev => {
+            const playerRealmsChanged = state.playerSolarium || state.playerTheater || state.playerUnderpass || state.playerGrid || state.playerElysium;
+            const enemyRealmsChanged = state.enemySolarium || state.enemyTheater || state.enemyUnderpass || state.enemyGrid || state.enemyElysium;
+            
+            if (!playerRealmsChanged && !enemyRealmsChanged) {
+                return prev;
+            }
+
+            return {
                 ...prev,
                 player: {
-                    ...prev.player,
-                    solarium: state.playerSolarium
-                }
-            }));
-        }
-        if (state.playerTheater) {
-            setRealms(prev => ({
-                ...prev,
-                player: {
-                    ...prev.player,
-                    theater: state.playerTheater
-                }
-            }));
-        }
-        if (state.playerUnderpass) {
-            setRealms(prev => ({
-                ...prev,
-                player: {
-                    ...prev.player,
-                    underpass: state.playerUnderpass
-                }
-            }));
-        }
-        if (state.playerGrid) {
-            setRealms(prev => ({
-                ...prev,
-                player: {
-                    ...prev.player,
-                    grid: state.playerGrid
-                }
-            }));
-        }
-        if (state.playerElysium) {
-            setRealms(prev => ({
-                ...prev,
-                player: {
-                    ...prev.player,
+                    solarium: state.playerSolarium,
+                    theater: state.playerTheater,
+                    underpass: state.playerUnderpass,
+                    grid: state.playerGrid,
                     elysium: state.playerElysium
+                },
+                enemy: {
+                    solarium: state.enemySolarium,
+                    theater: state.enemyTheater,
+                    underpass: state.enemyUnderpass,
+                    grid: state.enemyGrid,
+                    elysium: state.enemyElysium
                 }
-            }));
-        }
-    }, [state.playerSolarium, state.playerTheater, state.playerUnderpass, state.playerGrid, state.playerElysium]);
+            };
+        });
+    }, []);
 
     // Effect to handle hand size limit
     useEffect(() => {
@@ -352,7 +500,17 @@ export default function BoardContainer() {
 
     // Effect to handle enemy turn
     useEffect(() => {
-        if (state.currentPlayer === 'ENEMY' && state.mode === 'NORMAL') {
+        const currentPlayerValue = currentPlayer();
+        const enemyActionsValue = enemyActions();
+        const modeValue = state.mode;
+        
+        console.log('Enemy turn check:', {
+            currentPlayer: currentPlayerValue,
+            enemyActions: enemyActionsValue,
+            mode: modeValue
+        });
+        if (currentPlayerValue === 'ENEMY' && enemyActionsValue > 0 && modeValue === 'NORMAL') {
+            console.log('Dispatching enemy action');
             enemyPerformAction();
         }
     }, []);
@@ -363,6 +521,8 @@ export default function BoardContainer() {
             console.log('begin game');
             playerGainBits(1);
             draw(1);
+            stateSetters.setMode('NORMAL');
+            console.log('Set mode to NORMAL');
         }
     }, []);
 
@@ -545,38 +705,333 @@ export default function BoardContainer() {
         }
     }, []);
 
-    // Action handlers
-    const handleCardSelect = useCallback((card, inHand = true) => {
-        // Use the selection helper to handle card selection
-        selectionHandleCardSelect(card, inHand);
-    }, []);
+    // Destructure state variables
+    const {
+        selectedCard,
+        playerBits,
+        playerAshes,
+        playerSouls
+    } = gameState;
 
-    const handleRealmSelect = useCallback((realmName) => {
-        if (uiState.selectedCard && uiState.selectedInHand) {
-            handleRezPlayerCard(uiState.selectedCard, realmName);
+    // Destructure setters from stateSetters
+    const {
+        setSelectedCard,
+        setDraftSelected,
+        setTargetType,
+        setCurrentPlayer,
+        setPendingRitual,
+        setTargetSelection,
+        setPlayerSolarium,
+        setPlayerTheater,
+        setPlayerUnderpass,
+        setPlayerGrid,
+        setPlayerElysium,
+        setPlayerBits,
+        setPlayerAshes,
+        setPlayerSouls
+    } = stateSetters;
+
+    const confirmRitualActivation = (target) => {
+        const { entity, ability } = gameState.pendingRitual;
+        triggerRitualAbilities(entity, target, 'PLAYER', ability);
+        endPlayerTurn();
+    };
+
+    const removeCardFromHand = (card) => {
+        setPlayerHand((prevHand) => prevHand.filter((c) => c.id !== card.id));
+    };
+
+    const handleRealmSelect = (realmName) => {
+        console.log('=== handleRealmSelect ===');
+        console.log('realmName:', realmName);
+        console.log('selectedCard:', selectedCard);
+        console.log('gameState:', gameState);
+        console.log('realms:', realms);
+
+        if (!selectedCard) {
+            console.log('No card selected');
+            return;
         }
-    }, [uiState.selectedCard, uiState.selectedInHand, handleRezPlayerCard]);
+
+        const { focus } = state;
+        console.log('Current focus:', focus);
+        
+        // Extract focus attributes from the card
+        const cardFocusAttrs = {
+            magi: selectedCard.card.magi || false,
+            tech: selectedCard.card.tech || false,
+            phys: selectedCard.card.phys || false
+        };
+
+        // Check if card matches current focus
+        const matchesFocus = cardFocusAttrs[focus] || false;
+
+        console.log('Card focus attributes:', cardFocusAttrs);
+        console.log('Matches current focus:', matchesFocus);
+
+        if (!matchesFocus) {
+            console.log('Focus does not match');
+            return;
+        }
+
+        // Set initial card state
+        let updatedCard = { 
+            ...selectedCard, 
+            realm: realmName, 
+            owner: 'PLAYER',
+            readied: false,  // Card starts unreadied
+            online: false,   // Card starts offline
+            activated: false // Card starts unactivated
+        };
+        console.log('Initial card state:', updatedCard);
+
+        // Handle activation based on card category
+        if (updatedCard.card.category === 'LOCATION' || updatedCard.card.category === 'LANDMARK') {
+            updatedCard = {
+                ...updatedCard,
+                online: true,     // Places and landmarks come online immediately
+                activated: false  // But still need to be activated
+            };
+        } else if (updatedCard.card.category === 'ENTITY') {
+            updatedCard = {
+                ...updatedCard,
+                online: false,    // Entities start offline
+                readied: false,   // Entities start unreadied
+                activated: false  // Entities start unactivated
+            };
+        }
+
+        console.log('Card state after activation rules:', updatedCard);
+
+        // Create new realm state
+        const updatedRealms = {
+            ...realms,
+            player: {
+                ...realms.player,
+                [realmName.toLowerCase()]: {
+                    ...realms.player[realmName.toLowerCase()],
+                    people: updatedCard.card.category === 'ENTITY' ? [...realms.player[realmName.toLowerCase()].people, updatedCard] : realms.player[realmName.toLowerCase()].people,
+                    places: (updatedCard.card.category === 'LOCATION' || updatedCard.card.category === 'LANDMARK') ? [...realms.player[realmName.toLowerCase()].places, updatedCard] : realms.player[realmName.toLowerCase()].places,
+                    things: updatedCard.card.category === 'THING' ? [...realms.player[realmName.toLowerCase()].things, updatedCard] : realms.player[realmName.toLowerCase()].things
+                }
+            }
+        };
+
+        // Update realm state
+        setRealms(updatedRealms);
+        console.log('Updated realms:', updatedRealms);
+
+        let canPlace = false;
+        let targetRealmSetter = null;
+        let placementArray = null;
+        const category = selectedCard.card.category;
+        // Re-use the focus attributes we already extracted
+        const { magi, tech, phys } = cardFocusAttrs;
+
+        // Handle ritual cards
+        if (category === 'RITUAL' && selectedCard.card.abilities) {
+            const ritualAbilities = selectedCard.card.abilities.filter(
+                (ability) => typeof ability === 'object' && ability.requiresTarget
+            );
+
+            if (ritualAbilities.length > 0) {
+                const ability = ritualAbilities[0];
+                const abilityDef = abilitiesDefinitions[ability.name];
+                if (abilityDef && abilityDef.targetFilter) {
+                    setPendingRitual({ entity: selectedCard, ability: abilityDef });
+                    setTargetSelection({
+                        enabled: true,
+                        side: 'PLAYER',
+                        filter: abilityDef.targetFilter,
+                        callback: (target) => {
+                            confirmRitualActivation(target);
+                            removeCardFromHand(selectedCard);
+                            setPlayerBits(prev => prev - selectedCard.card.rezCost);
+                            setPlayerAshes(prev => prev - selectedCard.card.ash);
+                        }
+                    });
+                    return;
+                }
+            }
+            return;
+        }
+
+        // Handle card placement based on realm
+        switch (realmName.toLowerCase()) {
+            case 'solarium':
+                if (category === 'ENTITY' && magi) {
+                    canPlace = true;
+                    targetRealmSetter = setPlayerSolarium;
+                    placementArray = 'people';
+                }
+                break;
+            case 'theater':
+                if (category === 'ENTITY' && (magi || phys)) {
+                    canPlace = true;
+                    targetRealmSetter = setPlayerTheater;
+                    placementArray = 'people';
+                } else if (category === 'LOCATION' || category === 'LANDMARK') {
+                    canPlace = true;
+                    targetRealmSetter = setPlayerTheater;
+                    placementArray = 'places';
+                    updatedCard.online = true;
+                }
+                break;
+            case 'underpass':
+                if (category === 'ENTITY' && (tech || phys)) {
+                    canPlace = true;
+                    targetRealmSetter = setPlayerUnderpass;
+                    placementArray = 'people';
+                } else if (category === 'LOCATION' || category === 'LANDMARK') {
+                    canPlace = true;
+                    targetRealmSetter = setPlayerUnderpass;
+                    placementArray = 'places';
+                    updatedCard.online = true;
+                } else if (category === 'SNIP' || category === 'SYM') {
+                    canPlace = true;
+                    targetRealmSetter = setPlayerUnderpass;
+                    placementArray = 'things';
+                    updatedCard.online = false;
+                }
+                break;
+            case 'grid':
+                if (category === 'ENTITY' && tech) {
+                    canPlace = true;
+                    targetRealmSetter = setPlayerGrid;
+                    placementArray = 'people';
+                } else if (category === 'SNIP' || category === 'SYM') {
+                    canPlace = true;
+                    targetRealmSetter = setPlayerGrid;
+                    placementArray = 'things';
+                    updatedCard.online = false;
+                }
+                break;
+            case 'elysium':
+                if (category === 'ENTITY' && (magi || tech || phys)) {
+                    canPlace = true;
+                    targetRealmSetter = setPlayerElysium;
+                    placementArray = 'people';
+                } else if (category === 'LOCATION' || category === 'LANDMARK') {
+                    canPlace = true;
+                    targetRealmSetter = setPlayerElysium;
+                    placementArray = 'places';
+                    updatedCard.online = true;
+                } else if (category === 'SNIP' || category === 'SYM') {
+                    canPlace = true;
+                    targetRealmSetter = setPlayerElysium;
+                    placementArray = 'things';
+                    updatedCard.online = false;
+                }
+                break;
+            default:
+                console.log('Invalid realm selected:', realmName);
+                return;
+        }
+
+        if (!canPlace || !targetRealmSetter || !placementArray) {
+            console.log('Cannot place the card in this realm.');
+            return;
+        }
+
+        // Add the card to the appropriate array in the realm
+        targetRealmSetter(prevRealm => ({
+            ...prevRealm,
+            [placementArray]: [...(prevRealm[placementArray] || []), updatedCard]
+        }));
+
+        // Deduct resources
+        if (selectedCard.card.rezCost) {
+            setPlayerBits(prev => prev - selectedCard.card.rezCost);
+        }
+        if (selectedCard.card.ash) {
+            setPlayerAshes(prev => prev - selectedCard.card.ash);
+        }
+        if (selectedCard.card.soul) {
+            setPlayerSouls(prev => prev - selectedCard.card.soul);
+        }
+
+        // Handle post-placement effects
+        removeCardFromHand(selectedCard);
+        setSelectedCard(null);
+        setDraftSelected(false);
+        setTargetType('none');
+        setCurrentPlayer('ENEMY');
+
+        // Handle rezzing for certain card types
+        if (category === 'LANDMARK' || category === 'LOCATION' || selectedCard.card.name === 'Dreamer') {
+            console.log('rez place');
+            handleRezPlayerCard(updatedCard);
+        }
+    };
 
     const handleBattleCardSelect = useCallback((card) => {
         setUiState(prev => ({
             ...prev,
             battleSelectedCard: card
         }));
+    }, [setUiState]);
+
+    const handleBattleTargetSelect = useCallback((target) => {
+        const { battleSelectedCard } = uiState;
+        if (!battleSelectedCard) return;
+
+        // Handle battle logic here
+        console.log('Battle between:', battleSelectedCard, 'and', target);
+
+        setUiState(prev => ({
+            ...prev,
+            battleSelectedCard: null
+        }));
+    }, [uiState, setUiState]);
+
+    const handleRealmCardSelect = useCallback((card, realmName) => {
+        console.log('Selected card in realm:', card, 'from realm:', realmName);
+        // Add your realm card selection logic here
     }, []);
+
+    const handleAbilityClick = useCallback((ability, card) => {
+        console.log('Clicked ability:', ability, 'on card:', card);
+        // Add your ability click logic here
+    }, []);
+
+    const handleBattleCancel = useCallback(() => {
+        setUiState(prev => ({
+            ...prev,
+            battleSelectedCard: null
+        }));
+    }, [setUiState]);
+
+    const handleBattleStart = useCallback(() => {
+        const { battleSelectedCard } = uiState;
+        if (!battleSelectedCard) return;
+
+        // Start battle logic here
+        console.log('Starting battle with:', battleSelectedCard);
+    }, [uiState]);
+
+    const handleBattleAction = useCallback((action) => {
+        const { battleSelectedCard } = uiState;
+        if (!battleSelectedCard) return;
+
+        // Handle battle action
+        console.log('Battle action:', action, 'for card:', battleSelectedCard);
+    }, [uiState]);
 
     const handleSlotSelect = useCallback((index) => {
         // Handle slot selection logic
+        console.log('Selected slot:', index);
     }, []);
 
     // Create a component for each realm type
-    const createRealmComponent = (RealmComponent) => {
-        const WrappedComponent = ({ onRealmSelect, onRealmCardSelect, onAbilityClick, onRezPlayerCard }) => {
-            const realmName = RealmComponent.realmName.toLowerCase();
-            const playerRealmState = realms.player[realmName];
-            const enemyRealmState = realms.enemy[realmName];
+    const createRealmComponent = (RealmComponent, realmName) => {
+        const WrappedComponent = ({ onRealmSelect, onServerSelect, onRealmCardSelect, onAbilityClick, onRezPlayerCard }) => {
+            const playerRealmState = realms.player[realmName.toLowerCase()];
+            const enemyRealmState = realms.enemy[realmName.toLowerCase()];
+
             return (
                 <RealmComponent
                     onRealmSelect={onRealmSelect}
+                    onServerSelect={onServerSelect}
                     onRealmCardSelect={onRealmCardSelect}
                     onAbilityClick={onAbilityClick}
                     onRezPlayerCard={onRezPlayerCard}
@@ -585,17 +1040,16 @@ export default function BoardContainer() {
                 />
             );
         };
-        WrappedComponent.realmName = RealmComponent.realmName;
         return WrappedComponent;
     };
 
-    const realmComponents = [
-        createRealmComponent(Solarium),
-        createRealmComponent(Theater),
-        createRealmComponent(Underpass),
-        createRealmComponent(Grid),
-        createRealmComponent(Elysium)
-    ];
+    const SolariumRealm = createRealmComponent(Solarium, 'Solarium');
+    const TheaterRealm = createRealmComponent(Theater, 'Theater');
+    const UnderpassRealm = createRealmComponent(Underpass, 'Underpass');
+    const GridRealm = createRealmComponent(Grid, 'Grid');
+    const ElysiumRealm = createRealmComponent(Elysium, 'Elysium');
+
+    const realmComponents = [SolariumRealm, TheaterRealm, UnderpassRealm, GridRealm, ElysiumRealm];
 
     return (
         <div className="board-container">
@@ -603,6 +1057,10 @@ export default function BoardContainer() {
                 realmComponents={realmComponents}
                 playerOneHand={state.playerHand}
                 enemyHand={state.enemyHand}
+                playerSolarium={realms.player.solarium}
+                playerTheater={realms.player.theater}
+                playerUnderpass={realms.player.underpass}
+                playerGrid={realms.player.grid}
                 playerElysium={realms.player.elysium}
                 enemySolarium={realms.enemy.solarium}
                 enemyTheater={realms.enemy.theater}
@@ -617,10 +1075,13 @@ export default function BoardContainer() {
                 battleRealm={gameState.battleRealm}
                 
                 // UI handlers
-                onCardSelect={handleCardSelect}
+                onCardSelect={(card) => handleCardSelect(card, true)}
                 onRealmSelect={handleRealmSelect}
-                onRealmCardSelect={handleCardSelect}
+                onRealmCardSelect={(card) => handleCardSelect(card, false)}
                 onBattleCardSelect={handleBattleCardSelect}
+                onBattleStart={handleBattleStart}
+                onBattleCancel={handleBattleCancel}
+                onBattleAction={handleBattleAction}
                 onSlotSelect={handleSlotSelect}
                 onConfirmDefenseSelection={() => {
                     setGameState(prev => ({ ...prev, mode: 'NONE' }));
