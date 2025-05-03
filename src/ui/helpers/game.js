@@ -63,6 +63,17 @@ export function enemyLoseSurge(amount) {
 // Re-export functions
 export { handleAscension };
 
+// Game state management
+export function setAttackMode(mode) {
+    // This function sets the current attack mode (e.g., 'ENEMY_magi', 'ENEMY_phys', 'ENEMY_tech')
+    stateSetters.setMode(mode);
+}
+
+export function setGameState(state) {
+    // This function sets the current game state (e.g., 'WAITING_FOR_PLAYER_DEFENSE')
+    stateSetters.setMode(state);
+}
+
 // Souls calculation
 export function calculateSoulsAvailable(id, side) {
     return side === 'PLAYER' ? calcSoulsPlayer(id) : calcSoulsEnemy(id);

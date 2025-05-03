@@ -146,6 +146,7 @@ const stateSetters = {
 
     // Other setters
     setPlayerFirstAttack: null,
+    setEnemyFirstAttack: null,
     setAwaitingImpostor: null,
     setImpostorRealm: null,
     setAwaitingSacrifices: null,
@@ -313,10 +314,12 @@ export const {
     setPlayerTheater,
     setPlayerUnderpass,
     setPlayerGrid,
+    setPlayerElysium,
     setEnemySolarium,
     setEnemyTheater,
     setEnemyUnderpass,
     setEnemyGrid,
+    setEnemyElysium,
     setBattleRealm,
     setPlayerBattleSlots,
     setEnemyBattleSlots,
@@ -332,6 +335,7 @@ export const {
     setPriorityLeft,
     setMode,
     setPlayerFirstAttack,
+    setEnemyFirstAttack,
     setAwaitingImpostor,
     setImpostorRealm,
     setAwaitingSacrifices,

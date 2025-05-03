@@ -228,6 +228,10 @@ export default function BoardContainer() {
                 setGameState(prev => ({ ...prev, playerGrid: value }));
                 state.playerGrid = value;
             },
+            setPlayerElysium: (value) => {
+                setGameState(prev => ({ ...prev, playerElysium: value }));
+                state.playerElysium = value;
+            },
             setEnemySolarium: (value) => {
                 setGameState(prev => ({ ...prev, enemySolarium: value }));
                 state.enemySolarium = value;
@@ -243,6 +247,10 @@ export default function BoardContainer() {
             setEnemyGrid: (value) => {
                 setGameState(prev => ({ ...prev, enemyGrid: value }));
                 state.enemyGrid = value;
+            },
+            setEnemyElysium: (value) => {
+                setGameState(prev => ({ ...prev, enemyElysium: value }));
+                state.enemyElysium = value;
             },
             // Battle setters
             setBattleRealm: (value) => {
