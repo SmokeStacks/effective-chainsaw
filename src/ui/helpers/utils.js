@@ -24,6 +24,8 @@ export function getRealmAndSetter(realmName, owner) {
                 return [state.playerUnderpass, stateSetters.setPlayerUnderpass];
             case 'Grid':
                 return [state.playerGrid, stateSetters.setPlayerGrid];
+            case 'Elysium':
+                return [state.playerElysium, stateSetters.setPlayerElysium];
             default:
                 console.error('Invalid realm:', realmName);
                 return [null, null];
@@ -38,6 +40,8 @@ export function getRealmAndSetter(realmName, owner) {
                 return [state.enemyUnderpass, stateSetters.setEnemyUnderpass];
             case 'Grid':
                 return [state.enemyGrid, stateSetters.setEnemyGrid];
+            case 'Elysium':
+                return [state.enemyElysium, stateSetters.setEnemyElysium];
             default:
                 console.error('Invalid realm:', realmName);
                 return [null, null];
