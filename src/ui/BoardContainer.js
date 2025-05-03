@@ -235,22 +235,62 @@ export default function BoardContainer() {
             setEnemySolarium: (value) => {
                 setGameState(prev => ({ ...prev, enemySolarium: value }));
                 state.enemySolarium = value;
+                // Sync with React component state
+                setRealms(prevRealms => ({
+                    ...prevRealms,
+                    enemy: {
+                        ...prevRealms.enemy,
+                        solarium: value
+                    }
+                }));
             },
             setEnemyTheater: (value) => {
                 setGameState(prev => ({ ...prev, enemyTheater: value }));
                 state.enemyTheater = value;
+                // Sync with React component state
+                setRealms(prevRealms => ({
+                    ...prevRealms,
+                    enemy: {
+                        ...prevRealms.enemy,
+                        theater: value
+                    }
+                }));
             },
             setEnemyUnderpass: (value) => {
                 setGameState(prev => ({ ...prev, enemyUnderpass: value }));
                 state.enemyUnderpass = value;
+                // Sync with React component state
+                setRealms(prevRealms => ({
+                    ...prevRealms,
+                    enemy: {
+                        ...prevRealms.enemy,
+                        underpass: value
+                    }
+                }));
             },
             setEnemyGrid: (value) => {
                 setGameState(prev => ({ ...prev, enemyGrid: value }));
                 state.enemyGrid = value;
+                // Sync with React component state
+                setRealms(prevRealms => ({
+                    ...prevRealms,
+                    enemy: {
+                        ...prevRealms.enemy,
+                        grid: value
+                    }
+                }));
             },
             setEnemyElysium: (value) => {
                 setGameState(prev => ({ ...prev, enemyElysium: value }));
                 state.enemyElysium = value;
+                // Sync with React component state
+                setRealms(prevRealms => ({
+                    ...prevRealms,
+                    enemy: {
+                        ...prevRealms.enemy,
+                        elysium: value
+                    }
+                }));
             },
             // Battle setters
             setBattleRealm: (value) => {
@@ -352,11 +392,14 @@ export default function BoardContainer() {
     useEffect(() => {
         // Only check for player loss after game has started and first turn has begun
         if (gameState.mode !== 'NONE' && gameState.mode !== 'MULLIGAN') {
-            if (state.playerSolarium.people.length === 0 &&
-                state.playerTheater.people.length === 0 &&
-                state.playerUnderpass.people.length === 0 &&
-                state.playerGrid.people.length === 0 &&
-                state.playerElysium.people.length === 0) {
+            // Add null checks to prevent undefined errors during initialization
+            const solariumEmpty = !state.playerSolarium?.people || state.playerSolarium.people.length === 0;
+            const theaterEmpty = !state.playerTheater?.people || state.playerTheater.people.length === 0;
+            const underpassEmpty = !state.playerUnderpass?.people || state.playerUnderpass.people.length === 0;
+            const gridEmpty = !state.playerGrid?.people || state.playerGrid.people.length === 0;
+            const elysiumEmpty = !state.playerElysium?.people || state.playerElysium.people.length === 0;
+            
+            if (solariumEmpty && theaterEmpty && underpassEmpty && gridEmpty && elysiumEmpty) {
                 eventManager.publish('PLAYER_LOST');
             }
         }
@@ -381,11 +424,14 @@ export default function BoardContainer() {
     useEffect(() => {
         // Only check for player loss after game has started and first turn has begun
         if (gameState.mode !== 'NONE' && gameState.mode !== 'MULLIGAN') {
-            if (state.playerSolarium.people.length === 0 &&
-                state.playerTheater.people.length === 0 &&
-                state.playerUnderpass.people.length === 0 &&
-                state.playerGrid.people.length === 0 &&
-                state.playerElysium.people.length === 0) {
+            // Add null checks to prevent undefined errors during initialization
+            const solariumEmpty = !state.playerSolarium?.people || state.playerSolarium.people.length === 0;
+            const theaterEmpty = !state.playerTheater?.people || state.playerTheater.people.length === 0;
+            const underpassEmpty = !state.playerUnderpass?.people || state.playerUnderpass.people.length === 0;
+            const gridEmpty = !state.playerGrid?.people || state.playerGrid.people.length === 0;
+            const elysiumEmpty = !state.playerElysium?.people || state.playerElysium.people.length === 0;
+            
+            if (solariumEmpty && theaterEmpty && underpassEmpty && gridEmpty && elysiumEmpty) {
                 eventManager.publish('PLAYER_LOST');
             }
         }
@@ -510,18 +556,28 @@ export default function BoardContainer() {
     useEffect(() => {
         const currentPlayerValue = currentPlayer();
         const enemyActionsValue = enemyActions();
-        const modeValue = state.mode;
+        const gameStateValue = state.mode;
         
         console.log('Enemy turn check:', {
             currentPlayer: currentPlayerValue,
             enemyActions: enemyActionsValue,
-            mode: modeValue
+            gameState: gameStateValue
         });
-        if (currentPlayerValue === 'ENEMY' && enemyActionsValue > 0 && modeValue === 'NORMAL') {
-            console.log('Dispatching enemy action');
-            enemyPerformAction();
+        
+        // If it's the enemy's turn and they have actions
+        if (currentPlayerValue === 'ENEMY' && enemyActionsValue > 0) {
+            // If in BEGIN mode, transition to NORMAL mode first
+            if (gameStateValue === 'BEGIN') {
+                console.log('Transitioning from BEGIN to NORMAL mode for enemy turn');
+                stateSetters.setMode('NORMAL');
+            }
+            // Then dispatch enemy action if in NORMAL mode
+            else if (gameStateValue === 'NORMAL') {
+                console.log('Dispatching enemy action');
+                enemyPerformAction();
+            }
         }
-    }, []);
+    });
 
     // Start the game or turn
     useEffect(() => {
@@ -703,16 +759,6 @@ export default function BoardContainer() {
         }
     }, [gameState, setRealms]);
 
-    const handleRezPlayerCard = useCallback((entity) => {
-        if (entity) {
-            setGameState(prev => ({ 
-                ...prev, 
-                rezCard: null,
-                awaitingSacrifices: false
-            }));
-        }
-    }, []);
-
     // Destructure state variables
     const {
         selectedCard,
@@ -720,6 +766,34 @@ export default function BoardContainer() {
         playerAshes,
         playerSouls
     } = gameState;
+    
+    const handleRezPlayerCard = useCallback((entity) => {
+        console.log('handle rez', entity);
+        const soulsAvailable = calculateSoulsAvailable(entity.id);
+        if ((entity.card.category !== 'LANDMARK' && entity.online) && (entity.card.category !== 'LOCATION' && entity.online)) {
+            console.log('already online');
+            return;
+        }
+
+        if (playerBits < entity.card.rezCost || playerAshes < entity.card.ash || soulsAvailable < entity.card.soul) {
+            console.log('no resources');
+            //console.error('Not enough resources to rez the card');
+            return;
+        }
+        console.log('rezzing now');
+        setGameState(prev => ({
+            ...prev,
+            rezCard: entity,
+            awaitingSacrifices: true
+        }));
+        if (!entity.card.soul || entity.card.soul === 0) {
+            console.log('no soul cost');
+            setGameState(prev => ({
+                ...prev,
+                awaitingSacrifices: false
+            }));
+        }
+    }, [playerBits, playerAshes, playerSouls]);
 
     // Destructure setters from stateSetters
     const {

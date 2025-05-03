@@ -1,38 +1,106 @@
-    import { 
-    enemySolarium, enemyTheater, enemyUnderpass, enemyGrid,
-    setEnemySolarium, setEnemyTheater, setEnemyUnderpass, setEnemyGrid,
-    getRealmAndSetter 
-} from '../state';
+    import { state, stateSetters, getRealmAndSetter } from '../state';
 import { activateAbilities } from '../../abilities/glossary';
 
-// Function to activate abilities for entities being rez'd
-const rezActiveEntities = async (cardList) => {
-    return Promise.all(cardList.map(async (cardEntity) => {
-        if (
-            cardEntity.card.timer &&
-            cardEntity.steps >= cardEntity.card.timer &&
-            cardEntity.freeze === 0 &&
-            !cardEntity.online
-        ) {
-            console.log(`ACTIVATING ABILITIES for entity "${cardEntity.card.name}" (ID: ${cardEntity.id}) in realm.`);
-            await activateAbilities(cardEntity, 'ENEMY');
-        }
-        return cardEntity;
-    }));
-};
+// Destructure state variables
+const { 
+    enemySolarium, enemyTheater, enemyUnderpass, enemyGrid 
+} = state;
 
-// Function to activate abilities for things being rez'd (traps)
-const rezActiveThings = async (cardList) => {
-    return Promise.all(cardList.map(async (cardEntity) => {
-        if (!cardEntity.card.trap && !cardEntity.online && cardEntity.card.category === 'SNIP') {
-            console.log(`ACTIVATING ABILITIES for thing "${cardEntity.card.name}" (ID: ${cardEntity.id}) in realm.`);
-            await activateAbilities(cardEntity, 'ENEMY');
+// Main function to handle enemy rez cards
+export async function enemyRezCards() {
+    console.log('--- enemyRezCards Invoked ---');
+
+    try {
+        // Function to activate abilities for entities being rez'd
+        const rezActiveEntities = async (cardList) => {
+            if (!cardList || !Array.isArray(cardList)) {
+                console.log('Warning: cardList is undefined or not an array in rezActiveEntities');
+                return Promise.resolve([]);
+            }
+            
+            return Promise.all(cardList.map(async (cardEntity) => {
+                if (
+                    cardEntity && 
+                    cardEntity.card && 
+                    cardEntity.card.timer &&
+                    cardEntity.steps >= cardEntity.card.timer &&
+                    cardEntity.freeze === 0 &&
+                    !cardEntity.online
+                ) {
+                    console.log(`ACTIVATING ABILITIES for entity "${cardEntity.card.name}" (ID: ${cardEntity.id}) in realm.`);
+                    await activateAbilities(cardEntity, 'ENEMY');
+                }
+                return cardEntity;
+            }));
+        };
+
+        // Function to activate abilities for things being rez'd (traps)
+        const rezActiveThings = async (cardList) => {
+            if (!cardList || !Array.isArray(cardList)) {
+                console.log('Warning: cardList is undefined or not an array in rezActiveThings');
+                return Promise.resolve([]);
+            }
+            
+            return Promise.all(cardList.map(async (cardEntity) => {
+                if (
+                    cardEntity && 
+                    cardEntity.card && 
+                    !cardEntity.card.trap && 
+                    !cardEntity.online && 
+                    cardEntity.card.category === 'SNIP'
+                ) {
+                    console.log(`ACTIVATING ABILITIES for thing "${cardEntity.card.name}" (ID: ${cardEntity.id}) in realm.`);
+                    await activateAbilities(cardEntity, 'ENEMY');
+                } else if (cardEntity && cardEntity.card) {
+                    console.log(`Trap skipped: "${cardEntity.card.name}"`);
+                }
+                return cardEntity;
+            }));
+        };
+
+        // Update Enemy Solarium Realm
+        if (enemySolarium) {
+            await rezActiveEntities(enemySolarium.people);
+            await rezActiveThings(enemySolarium.things);
+            stateSetters.setEnemySolarium(prevRealm => ({ ...prevRealm }));
         } else {
-            console.log(`Trap skipped: "${cardEntity.card.name}"`);
+            console.log('Warning: enemySolarium is undefined');
         }
-        return cardEntity;
-    }));
-};
+
+        // Update Enemy Theater Realm
+        if (enemyTheater) {
+            await rezActiveEntities(enemyTheater.people);
+            await rezActiveThings(enemyTheater.things);
+            stateSetters.setEnemyTheater(prevRealm => ({ ...prevRealm }));
+        } else {
+            console.log('Warning: enemyTheater is undefined');
+        }
+
+        // Update Enemy Underpass Realm
+        if (enemyUnderpass) {
+            await rezActiveEntities(enemyUnderpass.people);
+            await rezActiveThings(enemyUnderpass.things);
+            stateSetters.setEnemyUnderpass(prevRealm => ({ ...prevRealm }));
+        } else {
+            console.log('Warning: enemyUnderpass is undefined');
+        }
+
+        // Update Enemy Grid Realm
+        if (enemyGrid) {
+            await rezActiveEntities(enemyGrid.people);
+            await rezActiveThings(enemyGrid.things);
+            stateSetters.setEnemyGrid(prevRealm => ({ ...prevRealm }));
+        } else {
+            console.log('Warning: enemyGrid is undefined');
+        }
+        
+        console.log('--- enemyRezCards Completed ---');
+        return Promise.resolve(true);
+    } catch (error) {
+        console.error('Error in enemyRezCards:', error);
+        return Promise.resolve(false);
+    }
+}
 
 export async function handleRezPlayerCard(card, realm) {
     if (!card || !realm) {
@@ -65,27 +133,4 @@ export async function handleRezPlayerCard(card, realm) {
     }
 }
 
-export async function enemyRezCards() {
-    console.log('--- enemyRezCards Invoked ---');
-
-    // Update Enemy Solarium Realm
-    await rezActiveEntities(enemySolarium.people);
-    await rezActiveThings(enemySolarium.things);
-    setEnemySolarium(prevRealm => ({ ...prevRealm }));
-
-    // Update Enemy Theater Realm
-    await rezActiveEntities(enemyTheater.people);
-    await rezActiveThings(enemyTheater.things);
-    setEnemyTheater(prevRealm => ({ ...prevRealm }));
-
-    // Update Enemy Underpass Realm
-    await rezActiveEntities(enemyUnderpass.people);
-    await rezActiveThings(enemyUnderpass.things);
-    setEnemyUnderpass(prevRealm => ({ ...prevRealm }));
-
-    // Update Enemy Grid Realm
-    await rezActiveEntities(enemyGrid.people);
-    await rezActiveThings(enemyGrid.things);
-    setEnemyGrid(prevRealm => ({ ...prevRealm }));
-    console.log('--- enemyRezCards Completed ---');
-}
+// This is a duplicate declaration that was removed

@@ -11,14 +11,15 @@ import {
 import { handleDamage } from './damage';
 import { handleDominationPhase } from './domination';
 import { handleRezPlayerCard } from './enemy/rez';
-import { abilitiesDefinitions } from '../abilities/glossary';
+import { enemyRezCards as performEnemyRez } from './enemy/rez';
+import { enemyPlanAttack as planEnemyAttack } from './enemy/attack';
+import { getAbilityDefinition, activateAbilities, abilitiesDefinitions } from '../abilities/glossary';
 import { 
     removeEffect,
     playerGainOverload,
     enemyGainOverload
 } from './effects';
 
-import { getAbilityDefinition } from './abilities';
 import { 
     calculateSoulsAvailable,
     handleAscension,
@@ -112,6 +113,7 @@ const {
     setEnemyUnderpass,
     setEnemyGrid,
     setPlayerHand,
+    setEnemyHand,
     setCurrentPlayer,
 
     setPlayerElysium,
@@ -604,111 +606,316 @@ export function enemyDraw(num) {
     }
 }
 
-function enemyPlayCard() {
-    if (enemyHand.length === 0) return;
+export function enemyPlayCard() {
+    console.log('--- enemyPlayCard Invoked ---');
+    
+    // Debug the state to find discrepancies
+    console.log('enemyPlayCard - Hand state check:', {
+        stateEnemyHand: state.enemyHand,
+        stateEnemyHandLength: state.enemyHand.length,
+        localEnemyHand: enemyHand,
+        localEnemyHandLength: enemyHand.length
+    });
+    
+    // Use state.enemyHand instead of the local enemyHand variable
+    if (state.enemyHand.length === 0) {
+        console.log('Enemy hand is empty, cannot play a card');
+        return false;
+    }
 
-    const cardToPlay = enemyHand[0];
+    // Select the first card in the hand to play (matching original implementation)
+    const cardToPlay = state.enemyHand[0];
+    console.log('Card to play:', {
+        id: cardToPlay.id,
+        name: cardToPlay.card.name,
+        category: cardToPlay.card.category,
+        magi: cardToPlay.card.magi,
+        phys: cardToPlay.card.phys,
+        tech: cardToPlay.card.tech
+    });
+
     const { category, magi, phys, tech } = cardToPlay.card;
 
-    let realmToPlayIn = null;
+    // Determine which realm to play the card in
     const priorityList = priorityLeft ? ['Solarium', 'Theater', 'Underpass', 'Grid'] : ['Grid', 'Underpass', 'Theater', 'Solarium'];
+    console.log('Priority list for playing card:', priorityList);
+
+    let realmToPlayIn = null;
 
     for (let realmName of priorityList) {
+        console.log(`Checking if card can be played in realm: ${realmName}`);
+        console.log(`Card is an ${category} with aspects - magi: ${magi}, phys: ${phys}, tech: ${tech}`);
+
         if (category === 'ENTITY') {
             if ((realmName === 'Solarium' && magi) ||
                 (realmName === 'Theater' && (magi || phys)) ||
                 (realmName === 'Underpass' && (tech || phys)) ||
                 (realmName === 'Grid' && tech)) {
                 realmToPlayIn = realmName;
+                console.log(`Selected realm for ${category}: ${realmToPlayIn}`);
                 break;
             }
         } else if (category === 'LANDMARK' || category === 'LOCATION') {
             if (realmName === 'Theater' || realmName === 'Underpass') {
                 realmToPlayIn = realmName;
+                console.log(`Selected realm for ${category}: ${realmToPlayIn}`);
                 break;
             }
         } else if (category === 'SYM' || category === 'SNIP') {
             if (realmName === 'Grid' || realmName === 'Underpass') {
                 realmToPlayIn = realmName;
+                console.log(`Selected realm for ${category}: ${realmToPlayIn}`);
                 break;
             }
         }
     }
 
     if (realmToPlayIn) {
-        const updatedCard = { ...cardToPlay, realm: realmToPlayIn, owner: 'ENEMY' };
+        console.log(`Playing card in realm: ${realmToPlayIn}`);
+        let updatedCard = { ...cardToPlay, realm: realmToPlayIn, owner: 'ENEMY' };
+        console.log('Updated card:', updatedCard);
 
         switch (category) {
             case 'ENTITY':
                 switch (realmToPlayIn) {
                     case 'Solarium':
-                        stateSetters.setEnemySolarium(prevRealm => ({
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCard]
-                        }));
+                        // Create a copy of the current state to avoid function references
+                        const currentSolariumState = { ...state.enemySolarium };
+                        
+                        // Ensure the people array exists
+                        if (!currentSolariumState.people) {
+                            currentSolariumState.people = [];
+                        }
+                        
+                        // Create the updated state
+                        const updatedSolariumState = {
+                            ...currentSolariumState,
+                            people: [...currentSolariumState.people, updatedCard]
+                        };
+                        
+                        // Update the state using the object directly, not a function
+                        stateSetters.setEnemySolarium(updatedSolariumState);
                         break;
                     case 'Theater':
-                        stateSetters.setEnemyTheater(prevRealm => ({
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCard]
-                        }));
+                        // Create a copy of the current state to avoid function references
+                        const currentTheaterState = { ...state.enemyTheater };
+                        console.log('Enemy Theater before update:', currentTheaterState);
+                        
+                        // Ensure the people array exists
+                        if (!currentTheaterState.people) {
+                            currentTheaterState.people = [];
+                        }
+                        
+                        // Create the updated state
+                        const updatedTheaterState = {
+                            ...currentTheaterState,
+                            people: [...currentTheaterState.people, updatedCard]
+                        };
+                        
+                        console.log('Enemy Theater updated state:', updatedTheaterState);
+                        
+                        // Update the state using the object directly, not a function
+                        stateSetters.setEnemyTheater(updatedTheaterState);
+                        
+                        // Log the state after update
+                        setTimeout(() => {
+                            console.log('Enemy Theater after update (actual):', state.enemyTheater);
+                        }, 0);
                         break;
                     case 'Underpass':
-                        stateSetters.setEnemyUnderpass(prevRealm => ({
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCard]
-                        }));
+                        // Create a copy of the current state to avoid function references
+                        const currentUnderpassState = { ...state.enemyUnderpass };
+                        
+                        // Ensure the people array exists
+                        if (!currentUnderpassState.people) {
+                            currentUnderpassState.people = [];
+                        }
+                        
+                        // Create the updated state
+                        const updatedUnderpassState = {
+                            ...currentUnderpassState,
+                            people: [...currentUnderpassState.people, updatedCard]
+                        };
+                        
+                        // Update the state using the object directly, not a function
+                        stateSetters.setEnemyUnderpass(updatedUnderpassState);
                         break;
                     case 'Grid':
-                        stateSetters.setEnemyGrid(prevRealm => ({
-                            ...prevRealm,
-                            people: [...prevRealm.people, updatedCard]
-                        }));
+                        // Create a copy of the current state to avoid function references
+                        const currentGridState = { ...state.enemyGrid };
+                        
+                        // Ensure the people array exists
+                        if (!currentGridState.people) {
+                            currentGridState.people = [];
+                        }
+                        
+                        // Create the updated state
+                        const updatedGridState = {
+                            ...currentGridState,
+                            people: [...currentGridState.people, updatedCard]
+                        };
+                        
+                        // Update the state using the object directly, not a function
+                        stateSetters.setEnemyGrid(updatedGridState);
                         break;
                     default:
-                        console.log('Unknown realm:', realmToPlayIn);
+                        console.log('card not placed');
+                }
+                break;
+            case 'LANDMARK':
+            case 'LOCATION':
+                switch (realmToPlayIn) {
+                    case 'Solarium':
+                        // Create a copy of the current state to avoid function references
+                        const currentSolariumState = { ...state.enemySolarium };
+                        
+                        // Ensure the places array exists
+                        if (!currentSolariumState.places) {
+                            currentSolariumState.places = [];
+                        }
+                        
+                        // Create the updated state
+                        const updatedSolariumState = {
+                            ...currentSolariumState,
+                            places: [...currentSolariumState.places, updatedCard]
+                        };
+                        
+                        // Update the state using the object directly, not a function
+                        stateSetters.setEnemySolarium(updatedSolariumState);
                         break;
+                    case 'Theater':
+                        // Create a copy of the current state to avoid function references
+                        const currentTheaterState = { ...state.enemyTheater };
+                        
+                        // Ensure the places array exists
+                        if (!currentTheaterState.places) {
+                            currentTheaterState.places = [];
+                        }
+                        
+                        // Create the updated state
+                        const updatedTheaterState = {
+                            ...currentTheaterState,
+                            places: [...currentTheaterState.places, updatedCard]
+                        };
+                        
+                        // Update the state using the object directly, not a function
+                        stateSetters.setEnemyTheater(updatedTheaterState);
+                        break;
+                    case 'Underpass':
+                        // Create a copy of the current state to avoid function references
+                        const currentUnderpassState = { ...state.enemyUnderpass };
+                        
+                        // Ensure the places array exists
+                        if (!currentUnderpassState.places) {
+                            currentUnderpassState.places = [];
+                        }
+                        
+                        // Create the updated state
+                        const updatedUnderpassState = {
+                            ...currentUnderpassState,
+                            places: [...currentUnderpassState.places, updatedCard]
+                        };
+                        
+                        // Update the state using the object directly, not a function
+                        stateSetters.setEnemyUnderpass(updatedUnderpassState);
+                        break;
+                    case 'Grid':
+                        // Create a copy of the current state to avoid function references
+                        const currentGridState = { ...state.enemyGrid };
+                        
+                        // Ensure the places array exists
+                        if (!currentGridState.places) {
+                            currentGridState.places = [];
+                        }
+                        
+                        // Create the updated state
+                        const updatedGridState = {
+                            ...currentGridState,
+                            places: [...currentGridState.places, updatedCard]
+                        };
+                        
+                        // Update the state using the object directly, not a function
+                        stateSetters.setEnemyGrid(updatedGridState);
+                        break;
+                    default:
+                        console.log('card not placed');
                 }
                 break;
             case 'SYM':
             case 'SNIP':
                 switch (realmToPlayIn) {
                     case 'Grid':
-                        stateSetters.setEnemyGrid(prevRealm => ({
-                            ...prevRealm,
-                            things: [...prevRealm.things, updatedCard]
-                        }));
+                        console.log('Placing SYM/SNIP in Grid');
+                        // Create a copy of the current state to avoid function references
+                        const currentGridState = { ...state.enemyGrid };
+                        
+                        // Ensure the things array exists
+                        if (!currentGridState.things) {
+                            currentGridState.things = [];
+                        }
+                        
+                        // Create the updated state
+                        const updatedGridState = {
+                            ...currentGridState,
+                            things: [...currentGridState.things, updatedCard]
+                        };
+                        
+                        // Update the state using the object directly, not a function
+                        stateSetters.setEnemyGrid(updatedGridState);
                         break;
                     case 'Underpass':
-                        stateSetters.setEnemyUnderpass(prevRealm => ({
-                            ...prevRealm,
-                            things: [...prevRealm.things, updatedCard]
-                        }));
+                        console.log('Placing SYM/SNIP in Underpass');
+                        // Create a copy of the current state to avoid function references
+                        const currentUnderpassState = { ...state.enemyUnderpass };
+                        
+                        // Ensure the things array exists
+                        if (!currentUnderpassState.things) {
+                            currentUnderpassState.things = [];
+                        }
+                        
+                        // Create the updated state
+                        const updatedUnderpassState = {
+                            ...currentUnderpassState,
+                            things: [...currentUnderpassState.things, updatedCard]
+                        };
+                        
+                        // Update the state using the object directly, not a function
+                        stateSetters.setEnemyUnderpass(updatedUnderpassState);
                         break;
                     default:
-                        console.log('Unknown realm:', realmToPlayIn);
-                        break;
+                        console.log('card not placed');
                 }
-                break;
-            default:
-                console.log('Unknown category:', category);
                 break;
         }
 
-        // Trigger any on-play effects
-        if (cardToPlay.abilities) {
-            cardToPlay.abilities.forEach(ability => {
-                const abilityDef = getAbilityDefinition(ability);
-                if (abilityDef && abilityDef.onPlay) {
-                    abilityDef.onPlay(updatedCard, null, 'ENEMY');
-                }
-            });
-        }
+        // Remove the played card from the enemy's hand
+        // Create a copy of the current state to avoid function references
+        const currentHandState = [...state.enemyHand];
+        
+        // Filter out the played card
+        const updatedHandState = currentHandState.filter(card => card.id !== cardToPlay.id);
+        
+        // Update the state using the object directly, not a function
+        stateSetters.setEnemyHand(updatedHandState);
 
-        // Remove the card from the enemy's hand
-        stateSetters.setEnemyHand(prevHand => prevHand.filter(card => card.id !== cardToPlay.id));
+        // Automatically activate landmarks and locations
+        if (category === 'LANDMARK' || category === 'LOCATION') {
+            // Log the activation
+            console.log(`Activating abilities for ${updatedCard.card.name} (${updatedCard.id})`);
+            
+            // In the original code, this would call a function to activate abilities
+            // We'll just log it for now since activateAbilities might not be defined
+            if (typeof activateAbilities === 'function') {
+                activateAbilities(updatedCard, 'ENEMY');
+            } else {
+                console.log('activateAbilities function not available, skipping activation');
+            }
+        }
+        
+        return true;
     } else {
         console.log('No realm to play in');
+        return false;
     }
 }
 
@@ -918,29 +1125,81 @@ function processEndOfTurnEffects() {
     });
 }
 
-export function enemyPerformAction() {
+export async function enemyPerformAction() {
     console.log('Enemy perform action:', {
         enemyActions: state.enemyActions,
         enemyHandSize: state.enemyHand.length,
+        enemyHandContents: state.enemyHand,
         currentPlayer: state.currentPlayer
     });
-    if (state.enemyActions > 0) {
-        enemyRezCards().then(() => {
-            enemyPlanAttack().then(attackPlanned => {
-                if (attackPlanned) {
-                    enemyLoseActions(1);
-                    return;
-                }
-                if (state.enemyHand.length > 0) {
-                    enemyPlayCard();
-                    enemyLoseActions(1);
+    
+    // Debug the state to find discrepancies
+    console.log('State debug - enemyHand:', {
+        stateEnemyHand: state.enemyHand,
+        stateEnemyHandLength: state.enemyHand.length,
+        localEnemyHand: enemyHand,
+        localEnemyHandLength: enemyHand.length
+    });
+    
+    try {
+        if (state.enemyActions > 0) {
+            // First try to rez cards
+            await performEnemyRez();
+            
+            // Then try to plan an attack
+            const attackPlanned = await Promise.resolve(planEnemyAttack());
+            
+            if (attackPlanned) {
+                console.log('Enemy planned an attack, consuming 1 action');
+                enemyLoseActions(1);
+                
+                // Continue the enemy turn without passing back to player
+                // This allows the enemy to use remaining actions
+                if (state.enemyActions > 0) {
+                    setTimeout(() => enemyPerformAction(), 1000); // Schedule next enemy action
                 } else {
-                    setCurrentPlayer('PLAYER');
+                    console.log('Enemy has no more actions, ending turn');
+                    stateSetters.setCurrentPlayer('PLAYER');
                 }
-            });
-        });
-    } else {
-        setCurrentPlayer('PLAYER');
+                return;
+            } 
+            
+            // If no attack was planned, try to play a card
+            if (state.enemyHand.length > 0) {
+                console.log('Enemy attempting to play a card from hand');
+                enemyPlayCard();
+                enemyLoseActions(1);
+                
+                // Continue the enemy turn if there are actions left
+                if (state.enemyActions > 0) {
+                    setTimeout(() => enemyPerformAction(), 1000); // Schedule next enemy action
+                } else {
+                    console.log('Enemy has no more actions, ending turn');
+                    stateSetters.setCurrentPlayer('PLAYER');
+                }
+            } else {
+                // If no cards in hand, draw a card
+                console.log('Enemy has no cards in hand, drawing a card');
+                enemyDraw(1);
+                enemyLoseActions(1);
+                
+                // Continue the enemy turn if there are actions left
+                if (state.enemyActions > 0) {
+                    setTimeout(() => enemyPerformAction(), 1000); // Schedule next enemy action
+                } else {
+                    console.log('Enemy has no more actions, ending turn');
+                    stateSetters.setCurrentPlayer('PLAYER');
+                }
+            }
+        } else {
+            // No actions left, end turn
+            console.log('Enemy has no actions, ending turn');
+            stateSetters.setCurrentPlayer('PLAYER');
+        }
+    } catch (error) {
+        console.error('Error in enemyPerformAction:', error);
+        // Make sure we always pass the turn to the player in case of an error
+        stateSetters.setCurrentPlayer('PLAYER');
     }
 }
 
