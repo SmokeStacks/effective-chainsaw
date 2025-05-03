@@ -40,6 +40,9 @@ import {
 // Import state and setters
 import { state, stateSetters } from './state';
 
+// Import draft list
+import { draftList } from '../../systemDecks/draft';
+
 // Re-export resource management functions
 export {
     // Bits
@@ -1019,11 +1022,57 @@ export function playerDraw(num) {
     }
 }
 
-const playerDraft = () => {
-    setSelectedCard(draft[0]);
-    setDraftSelected(true);
-    setSelectedInHand(true);
-};
+// Create a draft deck
+export function createDraft() {
+    const draftInstanceArray = [];
+    for (let i = 0; i < draftList.length; i++) {
+        const card = draftList[i];
+        const cardEntityInstance = {
+            id: `c${i.toString()}`,
+            card: card,
+            power: card.power || 0,
+            HP: card.HP || 0,
+            wounds: 0,
+            exposed: false,
+            scored: false,
+            online: false,
+            readied: false,
+            ascended: false,
+            steps: 0,
+            freeze: 0,
+            decay: 0,
+            venom: 0,
+            charge: card.charge || 0,
+            sacrificed: false,
+            cosmic: card.cosmic || 1,
+            deathless: card.deathless || 0,
+            pounce: card.pounce || 0,
+            override: card.override || 0,
+            stealth: card.stealth || 0,
+            armored: card.armored || 0,
+            solo: card.solo || 0,
+            development: card.development || 0,
+            plot: card.plot || 0,
+            owner: 'ENEMY',
+        };
+        draftInstanceArray.push(cardEntityInstance);
+    }
+    return draftInstanceArray;
+}
+
+// Initialize draft array
+let draftArray = createDraft();
+
+export function playerDraft() {
+    // Use the draft array
+    if (draftArray && draftArray.length > 0) {
+        stateSetters.setSelectedCard(draftArray[0]);
+        stateSetters.setDraftSelected(true);
+        stateSetters.setSelectedInHand(true);
+    } else {
+        console.error('Cannot draft: draft deck is empty or undefined');
+    }
+}
 
 export function handlePlayerMine() {
     playerGainBits(1);

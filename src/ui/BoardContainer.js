@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction, playerLoseBits, playerLoseActions, endPlayerTurn, returnToOriginalRealm, triggerRitualAbilities } from './helpers/core';
+import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction, playerLoseBits, playerLoseActions, endPlayerTurn, returnToOriginalRealm, triggerRitualAbilities, playerDraft } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { state, stateSetters, initializeSetters, currentPlayer, enemyActions } from './helpers/state';
@@ -1209,6 +1209,7 @@ export default function BoardContainer() {
                 awaitingSacrifices={gameState.awaitingSacrifices}
                 onSacrificeConfirmation={handleSacrificeConfirmation}
                 playerDraw={draw}
+                playerDraft={playerDraft}
             />
         </div>
     );
