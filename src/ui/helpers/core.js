@@ -197,7 +197,7 @@ export function playerGainActions(amount) {
 }
 
 export function playerLoseActions(amount) {
-    stateSetters.setPlayerActions(prevActions => Math.max(0, prevActions - amount));
+    stateSetters.setPlayerActions(Math.max(0, state.playerActions - amount));
 }
 
 export function enemyGainActions(amount) {
@@ -205,7 +205,7 @@ export function enemyGainActions(amount) {
 }
 
 export function enemyLoseActions(amount) {
-    stateSetters.setEnemyActions(prevActions => Math.max(0, prevActions - amount));
+    stateSetters.setEnemyActions(Math.max(0, state.enemyActions - amount));
 }
 
 export function returnToOriginalRealm(cardEntity, side) {
@@ -1009,19 +1009,28 @@ function detoxEntities(side) { // todo apply effect
 }
 
 export const handleBoostButton = () => {
+    if (state.playerActions < 1 || state.playerBits < 1) {
+        console.log('Not enough resources to boost.');
+        return;
+    }
     playerLoseActions(1);
     playerLoseBits(1);
-    stateSetters.setAttackMode('BOOST')
+    stateSetters.setMode('BOOST');
+    // Directly set the attackMode property in the state object
+    state.attackMode = 'BOOST';
+    console.log('Select a card to boost.');
 }
 
 export const handleDevelopButton = () => {
-    if (playerActions < 1 || playerBits < 1) {
+    if (state.playerActions < 1 || state.playerBits < 1) {
         console.log('Not enough resources to develop a card.');
         return;
     }
     playerLoseActions(1);
     playerLoseBits(1);
-    stateSetters.setAttackMode('DEVELOP');
+    stateSetters.setMode('DEVELOP');
+    // Directly set the attackMode property in the state object
+    state.attackMode = 'DEVELOP';
     console.log('Select a card to develop.');
 }
 

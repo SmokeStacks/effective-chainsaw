@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction, playerLoseBits, playerLoseActions, endPlayerTurn, returnToOriginalRealm, triggerRitualAbilities, playerDraft, removeCardFromHand } from './helpers/core';
+import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction, playerLoseBits, playerLoseActions, endPlayerTurn, returnToOriginalRealm, triggerRitualAbilities, playerDraft, removeCardFromHand, handleBoostButton, handleDevelopButton } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { state, stateSetters, initializeSetters, currentPlayer, enemyActions } from './helpers/state';
 import { createLibrary, createEnemyLibrary } from './helpers/setup';
 import { activateAbilities, abilitiesDefinitions } from './abilities/glossary';
-import { handleFocusSelect, handleCardSelect } from './helpers/selection';
+import { handleFocusSelect, handleCardSelect, handleRealmCardSelect as handleRealmCardSelectFromHelper } from './helpers/selection';
 import { draw as enemyDraw } from './helpers/enemy';
 import { Solarium, Theater, Underpass, Grid, Elysium } from './renders/Board';
 import { calculateSoulsAvailable } from './helpers/activation';
@@ -840,13 +840,211 @@ export default function BoardContainer() {
 
     // Using removeCardFromHand imported from core.js
 
+    // New function to handle boost functionality correctly
+    const handleBoostInRealm = (cardId, realmName) => {
+        console.log('=== handleBoostInRealm ===');
+        console.log('cardId:', cardId);
+        console.log('realmName:', realmName);
+        
+        // Find the card in the realm
+        const realmData = realms.player[realmName.toLowerCase()];
+        if (!realmData) {
+            console.error(`Realm ${realmName} not found`);
+            return;
+        }
+        
+        // Look in people, places, and things arrays
+        const arrays = ['people', 'places', 'things'];
+        let cardEntity = null;
+        let arrayName = null;
+        
+        for (const array of arrays) {
+            const found = realmData[array].find(card => card.id === cardId);
+            if (found) {
+                cardEntity = found;
+                arrayName = array;
+                break;
+            }
+        }
+        
+        if (!cardEntity) {
+            console.error(`Card ${cardId} not found in realm ${realmName}`);
+            return;
+        }
+        
+        console.log('Found card in realm:', cardEntity);
+        
+        // Update the card directly in the realm
+        let newSteps = cardEntity.steps || 0;
+        let newFreeze = cardEntity.freeze || 0;
+        
+        // Handle freeze reduction or step gain
+        if (newFreeze > 0) {
+            newFreeze -= 1;
+            console.log(`${cardEntity.card.name} reduces Freeze by 1. Remaining Freeze: ${newFreeze}`);
+        } else {
+            newSteps += 1;
+            console.log(`${cardEntity.card.name} gains 1 step. Total steps: ${newSteps}`);
+        }
+        
+        // Check if card should be readied
+        const isReady = cardEntity.card.timer && newSteps >= cardEntity.card.timer;
+        
+        // Update the realm state
+        const updatedCard = {
+            ...cardEntity,
+            steps: newSteps,
+            freeze: newFreeze,
+            readied: isReady
+        };
+        
+        // Update the realm
+        const updatedRealm = {
+            ...realmData,
+            [arrayName]: realmData[arrayName].map(card => 
+                card.id === cardId ? updatedCard : card
+            )
+        };
+        
+        // Update the realms state
+        setRealms(prev => ({
+            ...prev,
+            player: {
+                ...prev.player,
+                [realmName.toLowerCase()]: updatedRealm
+            }
+        }));
+        
+        // Reset attack mode
+        state.attackMode = 'NONE';
+        
+        // Emit event for readied status change if needed
+        if (isReady && !cardEntity.readied) {
+            const { eventManager } = require('./helpers/eventManager');
+            eventManager.publish('cardReadied', { cardEntity: updatedCard });
+        }
+    };
+    
+    // New function to handle develop functionality correctly
+    const handleDevelopInRealm = (cardId, realmName) => {
+        console.log('=== handleDevelopInRealm ===');
+        console.log('cardId:', cardId);
+        console.log('realmName:', realmName);
+        
+        // Find the card in the realm
+        const realmData = realms.player[realmName.toLowerCase()];
+        if (!realmData) {
+            console.error(`Realm ${realmName} not found`);
+            return;
+        }
+        
+        // Look in people, places, and things arrays
+        const arrays = ['people', 'places', 'things'];
+        let cardEntity = null;
+        let arrayName = null;
+        
+        for (const array of arrays) {
+            const found = realmData[array].find(card => card.id === cardId);
+            if (found) {
+                cardEntity = found;
+                arrayName = array;
+                break;
+            }
+        }
+        
+        if (!cardEntity) {
+            console.error(`Card ${cardId} not found in realm ${realmName}`);
+            return;
+        }
+        
+        console.log('Found card in realm:', cardEntity);
+        
+        // Reset attack mode
+        state.attackMode = 'NONE';
+        
+        // Check if the card can be developed
+        if (
+            cardEntity.owner !== 'PLAYER' ||
+            !(
+                cardEntity.card.category === 'SYM' ||
+                cardEntity.card.category === 'LANDMARK' ||
+                cardEntity.scheming
+            )
+        ) {
+            console.log('This card cannot be developed.');
+            return;
+        }
+        
+        let updatedCard = { ...cardEntity };
+        
+        // Increase Development or Scheme points
+        if (cardEntity.card.category === 'SYM' || cardEntity.card.category === 'LANDMARK') {
+            const newDevelopment = (cardEntity.development || 0) + 1;
+            
+            // Check for Ascension
+            if (newDevelopment >= cardEntity.card.plot) {
+                // Import handleAscension from advancement.js
+                const { handleAscension } = require('./helpers/advancement');
+                handleAscension(cardEntity, 'PLAYER');
+                return; // handleAscension will update the state
+            } else {
+                // Update development
+                updatedCard.development = newDevelopment;
+            }
+        } else if (cardEntity.scheming) {
+            const newScheme = (cardEntity.scheme || 0) + 1;
+            
+            // Check for Scheme Threshold
+            if (newScheme >= cardEntity.card.schemeThreshold) {
+                // Unlock Scheme Ability
+                updatedCard.scheme = newScheme;
+                updatedCard.schemeUnlocked = true;
+                console.log(`${cardEntity.card.name} has unlocked its Scheme ability.`);
+            } else {
+                // Update scheme
+                updatedCard.scheme = newScheme;
+            }
+        }
+        
+        // Update the realm
+        const updatedRealm = {
+            ...realmData,
+            [arrayName]: realmData[arrayName].map(card => 
+                card.id === cardId ? updatedCard : card
+            )
+        };
+        
+        // Update the realms state
+        setRealms(prev => ({
+            ...prev,
+            player: {
+                ...prev.player,
+                [realmName.toLowerCase()]: updatedRealm
+            }
+        }));
+    };
+
     const handleRealmSelect = (realmName) => {
         console.log('=== handleRealmSelect ===');
         console.log('realmName:', realmName);
         console.log('selectedCard:', selectedCard);
         console.log('gameState:', gameState);
         console.log('realms:', realms);
+        console.log('state.attackMode:', state.attackMode);
+        console.log('state.selectedCard:', state.selectedCard);
 
+        // Check if we're in BOOST or DEVELOP mode
+        if (state.attackMode === 'BOOST' && state.selectedCard) {
+            console.log('Handling boost for card:', state.selectedCard);
+            handleBoostInRealm(state.selectedCard.id, realmName);
+            return;
+        } else if (state.attackMode === 'DEVELOP' && state.selectedCard) {
+            console.log('Handling develop for card:', state.selectedCard);
+            handleDevelopInRealm(state.selectedCard.id, realmName);
+            return;
+        }
+
+        // Continue with normal realm selection logic
         if (!selectedCard) {
             console.log('No card selected');
             return;
@@ -1086,7 +1284,8 @@ export default function BoardContainer() {
 
     const handleRealmCardSelect = useCallback((card, realmName) => {
         console.log('Selected card in realm:', card, 'from realm:', realmName);
-        // Add your realm card selection logic here
+        // Call the implemented handleRealmCardSelect from selection.js
+        handleRealmCardSelectFromHelper(card);
     }, []);
 
     const handleAbilityClick = useCallback((ability, card) => {
@@ -1204,6 +1403,10 @@ export default function BoardContainer() {
                 onHack={() => {
                     setGameState(prev => ({ ...prev, attackMode: 'PLAYER_HACK' }));
                 }}
+                
+                // Action handlers
+                playerBoost={handleBoostButton}
+                playerDevelop={handleDevelopButton}
 
                 // Focus state
                 awaitingFocus={uiState.awaitingFocus}

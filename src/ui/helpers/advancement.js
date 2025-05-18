@@ -17,7 +17,8 @@ const {
 } = stateSetters;
 
 export function handleDevelopCard(cardEntity) {
-        setAttackMode('NONE');
+        // Directly set the attackMode property in the state object
+        state.attackMode = 'NONE';
 
         // Check if the card can be developed
         if (
@@ -221,7 +222,8 @@ export function handleBoostCard(cardEntity) {
         return;
     }
 
-    setAttackMode('NONE');
+    // Directly set the attackMode property in the state object
+    state.attackMode = 'NONE';
 
     let newSteps = cardEntity.steps || 0;
     let newFreeze = cardEntity.freeze || 0;

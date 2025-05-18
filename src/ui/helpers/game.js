@@ -3,28 +3,21 @@ import { calculateSoulsAvailable as calcSoulsPlayer } from './player';
 import { calculateSoulsAvailable as calcSoulsEnemy } from './enemy';
 import { handleAscension } from './advancement';
 
-const {
-    playerBits = 0,
-    enemyBits = 0,
-    setPlayerBits,
-    setEnemyBits,
-} = state;
-
 // Bits management
 export function playerGainBits(amount) {
-    setPlayerBits(playerBits + amount);
+    stateSetters.setPlayerBits(state.playerBits + amount);
 }
 
 export function playerLoseBits(amount) {
-    setPlayerBits(Math.max(0, playerBits - amount));
+    stateSetters.setPlayerBits(Math.max(0, state.playerBits - amount));
 }
 
 export function enemyGainBits(amount) {
-    setEnemyBits(enemyBits + amount);
+    stateSetters.setEnemyBits(state.enemyBits + amount);
 }
 
 export function enemyLoseBits(amount) {
-    setEnemyBits(Math.max(0, enemyBits - amount));
+    stateSetters.setEnemyBits(Math.max(0, state.enemyBits - amount));
 }
 
 // Ash management
