@@ -1367,6 +1367,29 @@ export default function BoardContainer() {
                 enemyGrid={realms.enemy.grid}
                 enemyElysium={realms.enemy.elysium}
                 
+                // Player resources
+                playerBits={state.playerBits}
+                playerAshes={state.playerAshes}
+                playerBurden={state.playerBurden}
+                playerFate={state.playerFate}
+                playerWounds={state.playerWounds}
+                playerOverload={state.playerOverload}
+                playerLag={state.playerLag}
+                playerActions={state.playerActions}
+                playerSurge={state.playerSurge}
+                
+                // Enemy resources
+                enemyBits={state.enemyBits}
+                enemyAshes={state.enemyAshes}
+                enemyBurden={state.enemyBurden}
+                enemyFate={state.enemyFate}
+                enemyWounds={state.enemyWounds}
+                enemyOverload={state.enemyOverload}
+                enemyLag={state.enemyLag}
+                enemyActions={state.enemyActions}
+                enemySurge={state.enemySurge}
+                enemyDebt={state.enemyDebt || 0}
+                
                 // Battle state
                 enemyBattleSlots={uiState.enemyBattleSlots}
                 playerBattleSlots={uiState.playerBattleSlots}
