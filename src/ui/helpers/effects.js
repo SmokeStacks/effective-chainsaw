@@ -29,15 +29,51 @@ export function applySoloEffect(entity, location) {
 }
 
 export async function applyEffect(entityId, realmName, owner, effect) {
-    const [realm, setRealm] = getRealmAndSetter(realmName, owner);
-    const entityIndex = realm.people.findIndex((e) => e.id === entityId);
+    console.log('________APPLY EFFECT', effect);
+
+    const [realm, setRealmFunction] = getRealmAndSetter(realmName, owner);
     
-    if (entityIndex === -1) {
-        console.error(`Entity with ID ${entityId} not found in realm ${realmName}`);
+    if (!realm) {
+        console.error(`Realm ${realmName} not found for owner ${owner}`);
         return;
     }
 
-    const entity = realm.people[entityIndex];
+    setRealmFunction(prevRealm => {
+        const newRealm = {
+            ...prevRealm,
+            people: prevRealm.people.map(entity => {
+                if (entity.id === entityId) {
+                    return applyEffectToEntity(entity, effect);
+                }
+                return entity;
+            }),
+            things: (prevRealm.things || []).map(entity => {
+                if (entity.id === entityId) {
+                    return applyEffectToEntity(entity, effect);
+                }
+                return entity;
+            }),
+            places: (prevRealm.places || []).map(entity => {
+                if (entity.id === entityId) {
+                    return applyEffectToEntity(entity, effect);
+                }
+                return entity;
+            }),
+        };
+
+        return newRealm;
+    });
+
+    eventManager.publish('effectApplied', {
+        entityId,
+        realmName,
+        owner,
+        effect
+    });
+}
+
+// Helper function to apply an effect to an entity
+function applyEffectToEntity(entity, effect) {
     const updatedEntity = { ...entity };
 
     switch (effect.type) {
@@ -55,23 +91,10 @@ export async function applyEffect(entityId, realmName, owner, effect) {
             break;
         default:
             console.error(`Unknown effect type: ${effect.type}`);
-            return;
+            return entity; // Return original entity if effect type is unknown
     }
 
-    const newPeople = [...realm.people];
-    newPeople[entityIndex] = updatedEntity;
-
-    setRealm({
-        ...realm,
-        people: newPeople
-    });
-
-    eventManager.publish('effectApplied', {
-        entityId,
-        realmName,
-        owner,
-        effect
-    });
+    return updatedEntity;
 }
 
 export function applyFreezeToAllEntities(amount) {

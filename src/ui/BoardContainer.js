@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction, playerLoseBits, playerLoseActions, endPlayerTurn, returnToOriginalRealm, triggerRitualAbilities, playerDraft } from './helpers/core';
+import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction, playerLoseBits, playerLoseActions, endPlayerTurn, returnToOriginalRealm, triggerRitualAbilities, playerDraft, removeCardFromHand } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { state, stateSetters, initializeSetters, currentPlayer, enemyActions } from './helpers/state';
@@ -140,8 +140,27 @@ export default function BoardContainer() {
         // Initialize state setters
         initializeSetters({
             setPlayerHand: (value) => {
-                setPlayerHand(value);
-                state.playerHand = value;
+                // Calculate the new hand value
+                const newValue = typeof value === 'function' 
+                    ? value(state.playerHand) 
+                    : value;
+                
+                // Log the change for debugging
+                console.log('setPlayerHand - Old hand:', JSON.stringify(state.playerHand));
+                console.log('setPlayerHand - New hand:', JSON.stringify(newValue));
+                
+                // Update global state
+                state.playerHand = newValue;
+                
+                // Update the React state directly
+                setGameState(prev => {
+                    const updatedState = {
+                        ...prev,
+                        playerHand: newValue
+                    };
+                    console.log('setPlayerHand - Updated React state:', updatedState.playerHand);
+                    return updatedState;
+                });
             },
             setPlayerLibrary: (value) => {
                 setPlayerLibrary(value);
@@ -819,9 +838,7 @@ export default function BoardContainer() {
         endPlayerTurn();
     };
 
-    const removeCardFromHand = (card) => {
-        setPlayerHand((prevHand) => prevHand.filter((c) => c.id !== card.id));
-    };
+    // Using removeCardFromHand imported from core.js
 
     const handleRealmSelect = (realmName) => {
         console.log('=== handleRealmSelect ===');
@@ -948,7 +965,7 @@ export default function BoardContainer() {
                 }
                 break;
             case 'theater':
-                if (category === 'ENTITY' && (magi || phys)) {
+                if (category === 'ENTITY' && (magi || tech || phys)) {
                     canPlace = true;
                     targetRealmSetter = setPlayerTheater;
                     placementArray = 'people';
@@ -1034,6 +1051,7 @@ export default function BoardContainer() {
 
         // Handle post-placement effects
         removeCardFromHand(selectedCard);
+        
         setSelectedCard(null);
         setDraftSelected(false);
         setTargetType('none');

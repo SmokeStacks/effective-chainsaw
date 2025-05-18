@@ -78,7 +78,7 @@ export const state = {
 };
 
 // State setters
-const stateSetters = {
+export const stateSetters = {
     setSelectedCard: null,
     setPlayerHand: null,
     setPlayerLibrary: null,
@@ -181,6 +181,8 @@ export function getRealmAndSetter(realmName, side) {
                     return [state.playerUnderpass, stateSetters.setPlayerUnderpass];
                 case 'Grid':
                     return [state.playerGrid, stateSetters.setPlayerGrid];
+                case 'Elysium':
+                    return [state.playerElysium, stateSetters.setPlayerElysium];
                 default:
                     console.error(`Invalid realm name: ${realmName}`);
                     return [null, null];
@@ -195,6 +197,8 @@ export function getRealmAndSetter(realmName, side) {
                     return [state.enemyUnderpass, stateSetters.setEnemyUnderpass];
                 case 'Grid':
                     return [state.enemyGrid, stateSetters.setEnemyGrid];
+                case 'Elysium':
+                    return [state.enemyElysium, stateSetters.setEnemyElysium];
                 default:
                     console.error(`Invalid realm name: ${realmName}`);
                     return [null, null];
@@ -349,5 +353,4 @@ export const {
     endTurn
 } = stateSetters;
 
-// Export state objects
-export { stateSetters };
+// stateSetters is already exported above

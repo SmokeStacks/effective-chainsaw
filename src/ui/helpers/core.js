@@ -231,6 +231,12 @@ export function endPlayerTurn() {
 }
 
 export const handleRealmSelect = (realmName) => {
+    console.log('!!! HANDLE REALM SELECT CALLED !!!');
+    console.log('!!! REALM NAME:', realmName, '!!!');
+    console.log('!!! SELECTED CARD:', selectedCard, '!!!');
+    console.log('!!! GAME STATE:', state, '!!!');
+    console.log('!!! REALMS:', { player: state.playerSolarium, enemy: state.enemySolarium }, '!!!');
+
     console.log('selectedCard', selectedCard)
     if (!selectedCard) return;
     if (!selectedCard.card.focus) {
@@ -387,7 +393,16 @@ export const handleRealmSelect = (realmName) => {
         if (draftSelected) {
             setDraft((prevDraft) => prevDraft.slice(1));
         } else {
-            setPlayerHand((prevHand) => prevHand.filter((card) => card.id !== selectedCard.id));
+            // Direct approach to fix card removal
+            
+            // 1. Update the global state directly
+            state.playerHand = state.playerHand.filter(card => card.id !== selectedCard.id);
+            
+            // 2. Use stateSetters to ensure UI updates
+            stateSetters.setPlayerHand(state.playerHand);
+            
+            // 3. Force a re-render by calling setSelectedCard
+            setSelectedCard(null);
         }
         setSelectedCard(null);
         setDraftSelected(false);
@@ -428,9 +443,28 @@ function confirmRitualActivation(target) {
     endPlayerTurn();
 }
 
-function removeCardFromHand(card) {
-    stateSetters.setPlayerHand((prevHand) => prevHand.filter((c) => c.id !== card.id));
-    //playerLoseActions(1);
+export function removeCardFromHand(card) {
+    console.log('REMOVE CARD FROM HAND CALLED');
+    console.log('Card to remove:', card);
+    console.log('Current state.playerHand:', state.playerHand);
+    
+    // Get the current player hand from state
+    const currentHand = [...state.playerHand];
+    
+    // Filter out the card to be removed
+    const newHand = currentHand.filter(c => c.id !== card.id);
+    console.log('New hand after filtering:', newHand);
+    
+    // Directly update the state.playerHand
+    state.playerHand = newHand;
+    console.log('Updated state.playerHand directly:', state.playerHand);
+    
+    // Use stateSetters.setPlayerHand to update the state
+    stateSetters.setPlayerHand(newHand);
+    console.log('Called stateSetters.setPlayerHand with:', newHand);
+    
+    // Deduct an action point
+    playerLoseActions(1);
 }
 
 export function triggerRitualAbilities(entity, target, side) {

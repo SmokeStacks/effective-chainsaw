@@ -3,6 +3,7 @@ import { sleep } from './utils';
 import { showModal } from '../components/Modal';
 import { CardDisplay } from '../components/CardDisplay';
 import { eventManager } from './eventManager';
+import { stateSetters } from './state';
 
 const {
     enemyLibrary, enemyHand, playerLibrary, playerHand,
@@ -217,7 +218,7 @@ export const handleStolenCard = (card, location, side, scrap, callback) => {
         if (side === 'PLAYER') {
             setEnemyHand(prevHand => prevHand.filter(item => item.id !== card.id));
         } else {
-            setPlayerHand(prevHand => prevHand.filter(item => item.id !== card.id));
+            stateSetters.setPlayerHand(prevHand => prevHand.filter(item => item.id !== card.id));
         }
     } else if (location === 'PANDORA') {
         // Handle cards in the player's or enemy's library
@@ -325,7 +326,7 @@ export async function handleExposedCard(card, location, side, callback) {
                     if (side === 'PLAYER') {
                         setEnemyHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
                     } else {
-                        setPlayerHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
+                        stateSetters.setPlayerHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
                     }
                 } else if (location === 'PANDORA') {
                     if (side === 'PLAYER') {
@@ -346,7 +347,7 @@ export async function handleExposedCard(card, location, side, callback) {
                         setEnemyHand(prevHand => prevHand.filter(c => c.id !== card.id));
                         setEnemyGraveyard(prev => [...prev, card]);
                     } else {
-                        setPlayerHand(prevHand => prevHand.filter(c => c.id !== card.id));
+                        stateSetters.setPlayerHand(prevHand => prevHand.filter(c => c.id !== card.id));
                         setPlayerGraveyard(prev => [...prev, card]);
                     }
                 } else if (location === 'PANDORA') {
