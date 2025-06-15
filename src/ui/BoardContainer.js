@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction, playerLoseBits, playerLoseActions, endPlayerTurn, returnToOriginalRealm, triggerRitualAbilities, playerDraft, removeCardFromHand, handleBoostButton, handleDevelopButton } from './helpers/core';
+import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction, endPlayerTurn, triggerRitualAbilities, playerDraft, removeCardFromHand, handleBoostButton, handleDevelopButton, handlePlayerMine } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { state, stateSetters, initializeSetters, currentPlayer, enemyActions } from './helpers/state';
@@ -39,7 +39,8 @@ export default function BoardContainer() {
 
     // Initialize state setters
     useEffect(() => {
-        initializeSetters({
+        console.log('[BoardContainer useEffect] Running to initialize setters.');
+        const settersForInitialization = {
             setPlayerAshes: (updater) => {
                 setGameState(prev => ({
                     ...prev,
@@ -51,9 +52,36 @@ export default function BoardContainer() {
                     ...prev,
                     playerSouls: typeof updater === 'function' ? updater(prev.playerSouls) : updater
                 }));
-            }
+            },
+            setPlayerBits: (updater) => {
+                console.log(`[BoardContainer setPlayerBits] Called with updater:`, updater);
+                setGameState(prev => {
+                    console.log(`[BoardContainer setPlayerBits] Previous gameState.playerBits: ${prev.playerBits}`);
+                    const newPlayerBits = typeof updater === 'function' ? updater(prev.playerBits) : (prev.playerBits + updater);
+                    console.log(`[BoardContainer setPlayerBits] New playerBits: ${newPlayerBits}`);
+                    return {
+                        ...prev,
+                        playerBits: newPlayerBits
+                    };
+                });
+            },
+            setPlayerActions: (updater) => {
+                console.log(`[BoardContainer setPlayerActions] Called with updater:`, updater);
+                setGameState(prev => {
+                    console.log(`[BoardContainer setPlayerActions] Previous gameState.playerActions: ${prev.playerActions}`);
+                    const newPlayerActions = typeof updater === 'function' ? updater(prev.playerActions) : updater;
+                    console.log(`[BoardContainer setPlayerActions] New playerActions: ${newPlayerActions}`);
+                    return {
+                        ...prev,
+                        playerActions: newPlayerActions
+                    };
+                });
+            },
             // Add other setters as needed
-        });
+        };
+        console.log('[BoardContainer useEffect] setPlayerBits function being passed to initializeSetters:', settersForInitialization.setPlayerBits.toString());
+        console.log('[BoardContainer useEffect] setPlayerActions function being passed to initializeSetters:', settersForInitialization.setPlayerActions.toString());
+        initializeSetters(settersForInitialization);
     }, []);
 
     // Game state
@@ -65,12 +93,13 @@ export default function BoardContainer() {
         awaitingSacrifices: false,
         battleRealm: null,
         currentPlayer: 'PLAYER',
+        playerBits: state.playerBits, // Initialize from global state
+        playerActions: state.playerActions, // Initialize from global state
         rezCard: null,
         targetType: null,
         selectedCard: null,
         selectedInHand: false,
         focus: '',
-        playerBits: 0,
         playerAshes: 0,
         playerSouls: 0,
         battleSelectedCard: null,
@@ -328,15 +357,8 @@ export default function BoardContainer() {
                 setGameState(prev => ({ ...prev, battleSelectedCard: value }));
                 state.battleSelectedCard = value;
             },
-            // Resource setters
-            setPlayerBits: (value) => {
-                setGameState(prev => ({ ...prev, playerBits: value }));
-                state.playerBits = value;
-            },
-            setPlayerActions: (value) => {
-                setGameState(prev => ({ ...prev, playerActions: value }));
-                state.playerActions = value;
-            },
+
+            // Resource setters from second useEffect, ensuring playerBits/Actions are not overwritten
             setEnemyActions: (value) => {
                 setGameState(prev => ({ ...prev, enemyActions: value }));
                 state.enemyActions = value;
@@ -782,8 +804,7 @@ export default function BoardContainer() {
     const {
         selectedCard,
         playerBits,
-        playerAshes,
-        playerSouls
+        playerAshes
     } = gameState;
     
     const handleRezPlayerCard = useCallback((entity) => {
@@ -812,7 +833,7 @@ export default function BoardContainer() {
                 awaitingSacrifices: false
             }));
         }
-    }, [playerBits, playerAshes, playerSouls]);
+    }, [playerBits, playerAshes]);
 
     // Destructure setters from stateSetters
     const {
@@ -1348,6 +1369,7 @@ export default function BoardContainer() {
     const GridRealm = createRealmComponent(Grid, 'Grid');
     const ElysiumRealm = createRealmComponent(Elysium, 'Elysium');
 
+
     const realmComponents = [SolariumRealm, TheaterRealm, UnderpassRealm, GridRealm, ElysiumRealm];
 
     return (
@@ -1368,14 +1390,14 @@ export default function BoardContainer() {
                 enemyElysium={realms.enemy.elysium}
                 
                 // Player resources
-                playerBits={state.playerBits}
+                playerBits={gameState.playerBits}
                 playerAshes={state.playerAshes}
                 playerBurden={state.playerBurden}
                 playerFate={state.playerFate}
                 playerWounds={state.playerWounds}
                 playerOverload={state.playerOverload}
                 playerLag={state.playerLag}
-                playerActions={state.playerActions}
+                playerActions={gameState.playerActions}
                 playerSurge={state.playerSurge}
                 
                 // Enemy resources
@@ -1430,6 +1452,7 @@ export default function BoardContainer() {
                 // Action handlers
                 playerBoost={handleBoostButton}
                 playerDevelop={handleDevelopButton}
+                playerMine={handlePlayerMine}
 
                 // Focus state
                 awaitingFocus={uiState.awaitingFocus}

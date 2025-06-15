@@ -104,7 +104,6 @@ const {
 // Get setters
 const {
     setSelectedCard,
-    setSelectedInHand,
     setDraftSelected,
     setDraft,
     setPlayerSolarium,
@@ -115,8 +114,6 @@ const {
     setEnemyTheater,
     setEnemyUnderpass,
     setEnemyGrid,
-    setPlayerHand,
-    setEnemyHand,
     setCurrentPlayer,
 
     setPlayerElysium,
@@ -386,7 +383,7 @@ export const handleRealmSelect = (realmName) => {
         }));
 
         console.log('Actions before decrement:', playerActions);
-        playerLoseActions(1); // Deduct an action point
+        stateSetters.setPlayerActions(Math.max(0, state.playerActions - 1)); // Use stateSetters
         console.log('Actions after decrement:', playerActions);
 
         // Remove the card from the player's hand
@@ -464,7 +461,7 @@ export function removeCardFromHand(card) {
     console.log('Called stateSetters.setPlayerHand with:', newHand);
     
     // Deduct an action point
-    playerLoseActions(1);
+    stateSetters.setPlayerActions(Math.max(0, state.playerActions - 1));
 }
 
 export function triggerRitualAbilities(entity, target, side) {
@@ -1013,8 +1010,8 @@ export const handleBoostButton = () => {
         console.log('Not enough resources to boost.');
         return;
     }
-    playerLoseActions(1);
-    playerLoseBits(1);
+    stateSetters.setPlayerActions(prev => prev - 1);
+    stateSetters.setPlayerBits(prev => prev - 1);
     stateSetters.setMode('BOOST');
     // Directly set the attackMode property in the state object
     state.attackMode = 'BOOST';
@@ -1026,8 +1023,8 @@ export const handleDevelopButton = () => {
         console.log('Not enough resources to develop a card.');
         return;
     }
-    playerLoseActions(1);
-    playerLoseBits(1);
+    stateSetters.setPlayerActions(prev => prev - 1);
+    stateSetters.setPlayerBits(prev => prev - 1);
     stateSetters.setMode('DEVELOP');
     // Directly set the attackMode property in the state object
     state.attackMode = 'DEVELOP';
@@ -1118,9 +1115,22 @@ export function playerDraft() {
 }
 
 export function handlePlayerMine() {
-    playerGainBits(1);
-    playerLoseActions(1);
-    setCurrentPlayer('ENEMY');
+    if (state.playerActions <= 0) {
+        console.log('[Core handlePlayerMine] Not enough actions to Phish.');
+        eventManager.publish('actionFailed', { action: 'PHISH', reason: 'insufficient_actions' });
+        return false;
+    }
+
+    playerGainBits(1); // From game.js, calls stateSetters.setPlayerBits
+    stateSetters.setPlayerActions(prev => prev - 1); // Use stateSetters directly
+    
+    eventManager.publish('actionTaken', { action: 'PHISH', cost: 1 });
+    
+    // Decision point: Should mining always end the turn?
+    // If yes, uncomment the next line:
+    // stateSetters.setCurrentPlayer('ENEMY'); // optional, use stateSetters directly if uncommented
+    console.log('[Core handlePlayerMine] Phish action performed.');
+    return true;
 }
 
 
@@ -1243,7 +1253,7 @@ export async function enemyPerformAction() {
             
             if (attackPlanned) {
                 console.log('Enemy planned an attack, consuming 1 action');
-                enemyLoseActions(1);
+                stateSetters.setEnemyActions(prev => prev - 1);
                 
                 // Continue the enemy turn without passing back to player
                 // This allows the enemy to use remaining actions
@@ -1260,7 +1270,7 @@ export async function enemyPerformAction() {
             if (state.enemyHand.length > 0) {
                 console.log('Enemy attempting to play a card from hand');
                 enemyPlayCard();
-                enemyLoseActions(1);
+                stateSetters.setEnemyActions(prev => prev - 1);
                 
                 // Continue the enemy turn if there are actions left
                 if (state.enemyActions > 0) {
@@ -1273,7 +1283,7 @@ export async function enemyPerformAction() {
                 // If no cards in hand, draw a card
                 console.log('Enemy has no cards in hand, drawing a card');
                 enemyDraw(1);
-                enemyLoseActions(1);
+                stateSetters.setEnemyActions(prev => prev - 1);
                 
                 // Continue the enemy turn if there are actions left
                 if (state.enemyActions > 0) {
@@ -1299,8 +1309,8 @@ export async function enemyPerformAction() {
 export function startTurn(currentPriorityLeft) {
     console.log('start turn', currentPriorityLeft);
     const startingPlayer = currentPriorityLeft ? 'PLAYER' : 'ENEMY';
+    const { setCurrentPlayer } = stateSetters; // Destructure for convenience
     setCurrentPlayer(startingPlayer);
-    stateSetters.setCurrentPlayer(startingPlayer);
     stateSetters.setMode('NORMAL');
     eventManager.publish('turnStart', { side: 'PLAYER' });
     eventManager.publish('turnStart', { side: 'ENEMY' });
