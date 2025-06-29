@@ -1164,8 +1164,7 @@ export default function BoardContainer() {
                         callback: (target) => {
                             confirmRitualActivation(target);
                             removeCardFromHand(selectedCard);
-                            setPlayerBits(prev => prev - selectedCard.card.rezCost);
-                            setPlayerAshes(prev => prev - selectedCard.card.ash);
+                            // Resources will be deducted when the card is activated, not when it's placed
                         }
                     });
                     return;
@@ -1257,16 +1256,7 @@ export default function BoardContainer() {
             [placementArray]: [...(prevRealm[placementArray] || []), updatedCard]
         }));
 
-        // Deduct resources
-        if (selectedCard.card.rezCost) {
-            setPlayerBits(prev => prev - selectedCard.card.rezCost);
-        }
-        if (selectedCard.card.ash) {
-            setPlayerAshes(prev => prev - selectedCard.card.ash);
-        }
-        if (selectedCard.card.soul) {
-            setPlayerSouls(prev => prev - selectedCard.card.soul);
-        }
+        // Resources will be deducted when the card is activated, not when it's placed
 
         // Handle post-placement effects
         removeCardFromHand(selectedCard);
@@ -1276,11 +1266,8 @@ export default function BoardContainer() {
         setTargetType('none');
         setCurrentPlayer('ENEMY');
 
-        // Handle rezzing for certain card types
-        if (category === 'LANDMARK' || category === 'LOCATION' || selectedCard.card.name === 'Dreamer') {
-            console.log('rez place');
-            handleRezPlayerCard(updatedCard);
-        }
+        // Cards will be activated manually later, not automatically when placed
+        // This allows the player to choose when to pay the activation cost
     };
 
     const handleBattleCardSelect = useCallback((card) => {

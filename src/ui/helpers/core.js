@@ -10,7 +10,7 @@ import {
 // Import game mechanics
 import { handleDamage } from './damage';
 import { handleDominationPhase } from './domination';
-import { handleRezPlayerCard } from './enemy/rez';
+
 import { enemyRezCards as performEnemyRez } from './enemy/rez';
 import { enemyPlanAttack as planEnemyAttack } from './enemy/attack';
 import { getAbilityDefinition, activateAbilities, abilitiesDefinitions } from '../abilities/glossary';
@@ -247,7 +247,7 @@ export const handleRealmSelect = (realmName) => {
             return;
         }
     }
-    const { category, magi, phys, tech, activationCost } = selectedCard.card;
+        const { category, magi, phys, tech } = selectedCard.card;
     console.log(realmName);
 
     if (category === 'RITUAL') {
@@ -367,14 +367,7 @@ export const handleRealmSelect = (realmName) => {
 
     if (canPlace) {
         console.log('can place');
-        if (category === 'LOCATION' && activationCost > 0) {
-            if (playerBits >= activationCost) {
-                playerLoseBits(activationCost); // Deduct bits
-            } else {
-                console.log('Not enough bits to play Location with cost of: ', activationCost)
-                return;
-            }
-        }
+
 
         // Add the card to the appropriate array in the realm
         targetRealmSetter((prevRealm) => ({
@@ -405,10 +398,7 @@ export const handleRealmSelect = (realmName) => {
         setDraftSelected(false);
         setTargetType('none');
         setCurrentPlayer('ENEMY');
-        if (updatedCard.card.category === 'LANDMARK' || updatedCard.card.category === 'LOCATION' || updatedCard.card.name === 'Dreamer') {
-            console.log('rez place')
-            handleRezPlayerCard(updatedCard)
-        }
+
     } else {
         // Cannot place the card in this realm
         console.log('Cannot place the card in this realm.');
@@ -1410,6 +1400,13 @@ export function startTurn(currentPriorityLeft) {
     setEnemyFirstAttack(true);
     playerAdvanceCards();
     enemyAdvanceCards();
+
+    // If it's the enemy's turn, perform their action
+    if (state.currentPlayer === 'ENEMY') {
+        setTimeout(() => {
+            enemyPerformAction();
+        }, 1000); // Add a 1-second delay for a more natural feel
+    }
 }
 
 export function endTurn() {
