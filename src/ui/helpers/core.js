@@ -101,33 +101,8 @@ const {
     enemyDividendAmount = 0
 } = state;
 
-// Get setters
-const {
-    setSelectedCard,
-    setDraftSelected,
-    setDraft,
-    setPlayerSolarium,
-    setPlayerTheater,
-    setPlayerUnderpass,
-    setPlayerGrid,
-    setEnemySolarium,
-    setEnemyTheater,
-    setEnemyUnderpass,
-    setEnemyGrid,
-    setCurrentPlayer,
-
-    setPlayerElysium,
-    setEnemyElysium,
-    setPlayerFirstAttack,
-    setEnemyFirstAttack,
-    setPriorityLeft,
-    setPendingRitual,
-    setTargetType,
-    setPlayerOverload,
-    setEnemyOverload,
-    setPlayerEntitiesDiedThisTurn,
-    setEnemyEntitiesDiedThisTurn
-} = stateSetters;
+// We no longer destructure setters here as we access them directly via stateSetters object
+// This prevents stale references and ensures we always use the most up-to-date setters
 
 // Export functions
 export function adjustEntityPowerExternal(entity, side) {
@@ -315,18 +290,18 @@ export const handleRealmSelect = (realmName) => {
         case 'Solarium':
             if (category === 'ENTITY' && magi) {
                 canPlace = true;
-                targetRealmSetter = setPlayerSolarium;
+                targetRealmSetter = stateSetters.setPlayerSolarium;
                 placementArray = 'people';
             }
             break;
         case 'Theater':
             if (category === 'ENTITY' && (magi || phys)) {
                 canPlace = true;
-                targetRealmSetter = setPlayerTheater;
+                targetRealmSetter = stateSetters.setPlayerTheater;
                 placementArray = 'people';
             } else if (category === 'LOCATION' || category === 'LANDMARK') {
                 canPlace = true;
-                targetRealmSetter = setPlayerTheater;
+                targetRealmSetter = stateSetters.setPlayerTheater;
                 placementArray = 'places';
                 updatedCard.online = true;
             }
@@ -334,16 +309,16 @@ export const handleRealmSelect = (realmName) => {
         case 'Underpass':
             if (category === 'ENTITY' && (tech || phys)) {
                 canPlace = true;
-                targetRealmSetter = setPlayerUnderpass;
+                targetRealmSetter = stateSetters.setPlayerUnderpass;
                 placementArray = 'people';
             } else if (category === 'LOCATION' || category === 'LANDMARK') {
                 canPlace = true;
-                targetRealmSetter = setPlayerUnderpass;
+                targetRealmSetter = stateSetters.setPlayerUnderpass;
                 placementArray = 'places';
                 updatedCard.online = true;
             } else if (category === 'SNIP' || category === 'SYM') {
                 canPlace = true;
-                targetRealmSetter = setPlayerUnderpass;
+                targetRealmSetter = stateSetters.setPlayerUnderpass;
                 placementArray = 'things';
                 updatedCard.online = false;
             }
@@ -351,11 +326,11 @@ export const handleRealmSelect = (realmName) => {
         case 'Grid':
             if (category === 'ENTITY' && tech) {
                 canPlace = true;
-                targetRealmSetter = setPlayerGrid;
+                targetRealmSetter = stateSetters.setPlayerGrid;
                 placementArray = 'people';
             } else if (category === 'SNIP' || category === 'SYM') {
                 canPlace = true;
-                targetRealmSetter = setPlayerGrid;
+                targetRealmSetter = stateSetters.setPlayerGrid;
                 placementArray = 'things';
                 updatedCard.online = false;
             }
@@ -381,7 +356,7 @@ export const handleRealmSelect = (realmName) => {
 
         // Remove the card from the player's hand
         if (draftSelected) {
-            setDraft((prevDraft) => prevDraft.slice(1));
+            stateSetters.setDraft((prevDraft) => prevDraft.slice(1));
         } else {
             // Direct approach to fix card removal
             
@@ -392,12 +367,12 @@ export const handleRealmSelect = (realmName) => {
             stateSetters.setPlayerHand(state.playerHand);
             
             // 3. Force a re-render by calling setSelectedCard
-            setSelectedCard(null);
+            stateSetters.setSelectedCard(null);
         }
-        setSelectedCard(null);
-        setDraftSelected(false);
-        setTargetType('none');
-        setCurrentPlayer('ENEMY');
+        stateSetters.setSelectedCard(null);
+        stateSetters.setDraftSelected(false);
+        stateSetters.setTargetType('none');
+        stateSetters.setCurrentPlayer('ENEMY');
 
     } else {
         // Cannot place the card in this realm
@@ -413,8 +388,15 @@ export const handleRealmSelect = (realmName) => {
 // }
 
 function confirmRitualActivation(target) {
-    const { entity, ability } = stateSetters.pendingRitual;
+    // Access pendingRitual from state, not stateSetters
+    if (!state.pendingRitual) {
+        console.error('No pending ritual found in state');
+        return;
+    }
+    
+    const { entity, ability } = state.pendingRitual;
     removeCardFromHand(entity);
+    
     // First trigger non-targeting abilities
     entity.card.abilities.forEach(ab => {
         if (typeof ab === 'string') {
@@ -425,8 +407,13 @@ function confirmRitualActivation(target) {
             }
         }
     });
+    
     // Then trigger the targeting ability with the selected target
     triggerRitualAbilities(entity, target, 'PLAYER', ability);
+    
+    // Reset pendingRitual after activation
+    stateSetters.setPendingRitual(null);
+    
     endPlayerTurn();
 }
 
@@ -1153,22 +1140,22 @@ export function getEnemyEntities(side, realmName = null) {
 
 function processEndOfTurnEffects() {
     // Reset death counters
-    setPlayerEntitiesDiedThisTurn(0);
-    setEnemyEntitiesDiedThisTurn(0);
+    stateSetters.setPlayerEntitiesDiedThisTurn(0);
+    stateSetters.setEnemyEntitiesDiedThisTurn(0);
 
     // Get all realms and their setters
     const playerRealms = [
-        { realm: playerSolarium, setRealm: setPlayerSolarium },
-        { realm: playerTheater, setRealm: setPlayerTheater },
-        { realm: playerUnderpass, setRealm: setPlayerUnderpass },
-        { realm: playerGrid, setRealm: setPlayerGrid },
+        { realm: playerSolarium, setRealm: stateSetters.setPlayerSolarium },
+        { realm: playerTheater, setRealm: stateSetters.setPlayerTheater },
+        { realm: playerUnderpass, setRealm: stateSetters.setPlayerUnderpass },
+        { realm: playerGrid, setRealm: stateSetters.setPlayerGrid },
     ];
 
     const enemyRealms = [
-        { realm: enemySolarium, setRealm: setEnemySolarium },
-        { realm: enemyTheater, setRealm: setEnemyTheater },
-        { realm: enemyUnderpass, setRealm: setEnemyUnderpass },
-        { realm: enemyGrid, setRealm: setEnemyGrid },
+        { realm: enemySolarium, setRealm: stateSetters.setEnemySolarium },
+        { realm: enemyTheater, setRealm: stateSetters.setEnemyTheater },
+        { realm: enemyUnderpass, setRealm: stateSetters.setEnemyUnderpass },
+        { realm: enemyGrid, setRealm: stateSetters.setEnemyGrid },
     ];
 
     const allRealms = [...playerRealms, ...enemyRealms];
@@ -1207,7 +1194,8 @@ function processEndOfTurnEffects() {
             return newEntity;
         });
 
-        // Update the realm state
+        // Update the realm state using the appropriate setter from stateSetters directly
+        // The setRealm variable already contains the correct stateSetters function reference
         setRealm({
             ...realm,
             people: newPeople,
@@ -1299,15 +1287,16 @@ export async function enemyPerformAction() {
 export function startTurn(currentPriorityLeft) {
     console.log('start turn', currentPriorityLeft);
     const startingPlayer = currentPriorityLeft ? 'PLAYER' : 'ENEMY';
-    const { setCurrentPlayer } = stateSetters; // Destructure for convenience
-    setCurrentPlayer(startingPlayer);
+    
+    // Always use stateSetters object directly to avoid stale references
+    stateSetters.setCurrentPlayer(startingPlayer);
     stateSetters.setMode('NORMAL');
     eventManager.publish('turnStart', { side: 'PLAYER' });
     eventManager.publish('turnStart', { side: 'ENEMY' });
     
     // Reset game state
-    setDraftSelected(false);
-    setPendingRitual(null);
+    stateSetters.setDraftSelected(false);
+    stateSetters.setPendingRitual(null);
     
     // Reset UI state via event manager
     eventManager.publish('resetUIState', {
@@ -1328,53 +1317,53 @@ export function startTurn(currentPriorityLeft) {
         });
     };
 
-    setPlayerSolarium(prevRealm => ({
+    stateSetters.setPlayerSolarium(prevRealm => ({
         ...prevRealm,
         people: resetTurnFlags(prevRealm.people),
     }));
-    setPlayerTheater(prevRealm => ({
-        ...prevRealm,
-        people: resetTurnFlags(prevRealm.people),
-        places: resetTurnFlags(prevRealm.places),
-    }));
-    setPlayerUnderpass(prevRealm => ({
+    stateSetters.setPlayerTheater(prevRealm => ({
         ...prevRealm,
         people: resetTurnFlags(prevRealm.people),
         places: resetTurnFlags(prevRealm.places),
-        things: resetTurnFlags(prevRealm.things),
     }));
-    setPlayerGrid(prevRealm => ({
-        ...prevRealm,
-        people: resetTurnFlags(prevRealm.people),
-        things: resetTurnFlags(prevRealm.things),
-    }));
-    setPlayerElysium(prevRealm => ({
+    stateSetters.setPlayerUnderpass(prevRealm => ({
         ...prevRealm,
         people: resetTurnFlags(prevRealm.people),
         places: resetTurnFlags(prevRealm.places),
         things: resetTurnFlags(prevRealm.things),
     }));
-    setEnemySolarium(prevRealm => ({
+    stateSetters.setPlayerGrid(prevRealm => ({
         ...prevRealm,
         people: resetTurnFlags(prevRealm.people),
+        things: resetTurnFlags(prevRealm.things),
     }));
-    setEnemyTheater(prevRealm => ({
-        ...prevRealm,
-        people: resetTurnFlags(prevRealm.people),
-        places: resetTurnFlags(prevRealm.places),
-    }));
-    setEnemyUnderpass(prevRealm => ({
+    stateSetters.setPlayerElysium(prevRealm => ({
         ...prevRealm,
         people: resetTurnFlags(prevRealm.people),
         places: resetTurnFlags(prevRealm.places),
         things: resetTurnFlags(prevRealm.things),
     }));
-    setEnemyGrid(prevRealm => ({
+    stateSetters.setEnemySolarium(prevRealm => ({
+        ...prevRealm,
+        people: resetTurnFlags(prevRealm.people),
+    }));
+    stateSetters.setEnemyTheater(prevRealm => ({
+        ...prevRealm,
+        people: resetTurnFlags(prevRealm.people),
+        places: resetTurnFlags(prevRealm.places),
+    }));
+    stateSetters.setEnemyUnderpass(prevRealm => ({
+        ...prevRealm,
+        people: resetTurnFlags(prevRealm.people),
+        places: resetTurnFlags(prevRealm.places),
+        things: resetTurnFlags(prevRealm.things),
+    }));
+    stateSetters.setEnemyGrid(prevRealm => ({
         ...prevRealm,
         people: resetTurnFlags(prevRealm.people),
         things: resetTurnFlags(prevRealm.things),
     }));
-    setEnemyElysium(prevRealm => ({
+    stateSetters.setEnemyElysium(prevRealm => ({
         ...prevRealm,
         people: resetTurnFlags(prevRealm.people),
         places: resetTurnFlags(prevRealm.places),
@@ -1384,11 +1373,11 @@ export function startTurn(currentPriorityLeft) {
     // Handle start of turn effects
     playerGainActions(3 + playerDriftCount);
     if (playerGlitchyAmount > 0) {
-        setPlayerOverload((prev) => prev + playerGlitchyAmount);
+        stateSetters.setPlayerOverload((prev) => prev + playerGlitchyAmount);
         console.log(`Player gains ${playerGlitchyAmount} Overload due to Glitchy abilities.`);
     }
     if (enemyGlitchyAmount > 0) {
-        setEnemyOverload((prev) => prev + enemyGlitchyAmount);
+        stateSetters.setEnemyOverload((prev) => prev + enemyGlitchyAmount);
         console.log(`Enemy gains ${enemyGlitchyAmount} Overload due to Glitchy abilities.`);
     }
     enemyGainActions(2 + enemyDriftCount);
@@ -1396,8 +1385,8 @@ export function startTurn(currentPriorityLeft) {
     playerGainBits(playerDividendAmount);
     playerDraw(1);
     enemyDraw(3); // Enemy draws 3 cards at start of turn
-    setPlayerFirstAttack(true);
-    setEnemyFirstAttack(true);
+    stateSetters.setPlayerFirstAttack(true);
+    stateSetters.setEnemyFirstAttack(true);
     playerAdvanceCards();
     enemyAdvanceCards();
 
@@ -1413,7 +1402,7 @@ export function endTurn() {
     console.log('end turn');
     processEndOfTurnEffects();
     const newPriorityLeft = !priorityLeft;
-    setPriorityLeft(newPriorityLeft);
+    stateSetters.setPriorityLeft(newPriorityLeft);
     handleDominationPhase().then(() => {
         startTurn(newPriorityLeft);
     });

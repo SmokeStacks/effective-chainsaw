@@ -37,52 +37,7 @@ export default function BoardContainer() {
         }
     });
 
-    // Initialize state setters
-    useEffect(() => {
-        console.log('[BoardContainer useEffect] Running to initialize setters.');
-        const settersForInitialization = {
-            setPlayerAshes: (updater) => {
-                setGameState(prev => ({
-                    ...prev,
-                    playerAshes: typeof updater === 'function' ? updater(prev.playerAshes) : updater
-                }));
-            },
-            setPlayerSouls: (updater) => {
-                setGameState(prev => ({
-                    ...prev,
-                    playerSouls: typeof updater === 'function' ? updater(prev.playerSouls) : updater
-                }));
-            },
-            setPlayerBits: (updater) => {
-                console.log(`[BoardContainer setPlayerBits] Called with updater:`, updater);
-                setGameState(prev => {
-                    console.log(`[BoardContainer setPlayerBits] Previous gameState.playerBits: ${prev.playerBits}`);
-                    const newPlayerBits = typeof updater === 'function' ? updater(prev.playerBits) : (prev.playerBits + updater);
-                    console.log(`[BoardContainer setPlayerBits] New playerBits: ${newPlayerBits}`);
-                    return {
-                        ...prev,
-                        playerBits: newPlayerBits
-                    };
-                });
-            },
-            setPlayerActions: (updater) => {
-                console.log(`[BoardContainer setPlayerActions] Called with updater:`, updater);
-                setGameState(prev => {
-                    console.log(`[BoardContainer setPlayerActions] Previous gameState.playerActions: ${prev.playerActions}`);
-                    const newPlayerActions = typeof updater === 'function' ? updater(prev.playerActions) : updater;
-                    console.log(`[BoardContainer setPlayerActions] New playerActions: ${newPlayerActions}`);
-                    return {
-                        ...prev,
-                        playerActions: newPlayerActions
-                    };
-                });
-            },
-            // Add other setters as needed
-        };
-        console.log('[BoardContainer useEffect] setPlayerBits function being passed to initializeSetters:', settersForInitialization.setPlayerBits.toString());
-        console.log('[BoardContainer useEffect] setPlayerActions function being passed to initializeSetters:', settersForInitialization.setPlayerActions.toString());
-        initializeSetters(settersForInitialization);
-    }, []);
+    // State setters will be initialized in the main initialization useEffect below
 
     // Game state
     const [gameState, setGameState] = useState({
@@ -166,8 +121,133 @@ export default function BoardContainer() {
         console.log('Initial playerLibrary:', playerLib);
         console.log('Initial enemyLibrary:', enemyLib);
 
-        // Initialize state setters
+        // Initialize all state setters in one place to avoid conflicts
+        console.log('[BoardContainer useEffect] Running to initialize all setters.');
         initializeSetters({
+            // Resource setters
+            setPlayerAshes: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerAshes) : updater;
+                state.playerAshes = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    playerAshes: newValue
+                }));
+            },
+            setPlayerSouls: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerSouls) : updater;
+                state.playerSouls = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    playerSouls: newValue
+                }));
+            },
+            setPlayerBits: (updater) => {
+                console.log(`[BoardContainer setPlayerBits] Called with updater:`, updater);
+                const newValue = typeof updater === 'function' ? updater(state.playerBits) : updater;
+                state.playerBits = newValue;
+                setGameState(prev => {
+                    console.log(`[BoardContainer setPlayerBits] Previous gameState.playerBits: ${prev.playerBits}`);
+                    console.log(`[BoardContainer setPlayerBits] New playerBits: ${newValue}`);
+                    return {
+                        ...prev,
+                        playerBits: newValue
+                    };
+                });
+            },
+            setPlayerActions: (updater) => {
+                console.log(`[BoardContainer setPlayerActions] Called with updater:`, updater);
+                const newValue = typeof updater === 'function' ? updater(state.playerActions) : updater;
+                state.playerActions = newValue;
+                setGameState(prev => {
+                    console.log(`[BoardContainer setPlayerActions] Previous gameState.playerActions: ${prev.playerActions}`);
+                    console.log(`[BoardContainer setPlayerActions] New playerActions: ${newValue}`);
+                    return {
+                        ...prev,
+                        playerActions: newValue
+                    };
+                });
+            },
+            setPlayerOverload: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerOverload) : updater;
+                state.playerOverload = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    playerOverload: newValue
+                }));
+            },
+            setEnemyOverload: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.enemyOverload) : updater;
+                state.enemyOverload = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    enemyOverload: newValue
+                }));
+            },
+            setPlayerWounds: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerWounds) : updater;
+                state.playerWounds = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    playerWounds: newValue
+                }));
+            },
+            setEnemyWounds: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.enemyWounds) : updater;
+                state.enemyWounds = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    enemyWounds: newValue
+                }));
+            },
+            setPlayerBurden: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerBurden) : updater;
+                state.playerBurden = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    playerBurden: newValue
+                }));
+            },
+            setPlayerFate: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerFate) : updater;
+                state.playerFate = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    playerFate: newValue
+                }));
+            },
+            setPlayerSurge: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerSurge) : updater;
+                state.playerSurge = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    playerSurge: newValue
+                }));
+            },
+            setEnemyBits: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.enemyBits) : updater;
+                state.enemyBits = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    enemyBits: newValue
+                }));
+            },
+            setEnemyActions: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.enemyActions) : updater;
+                state.enemyActions = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    enemyActions: newValue
+                }));
+            },
+            setEnemySurge: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.enemySurge) : updater;
+                state.enemySurge = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    enemySurge: newValue
+                }));
+            },
+            // Card setters
             setPlayerHand: (value) => {
                 // Calculate the new hand value
                 const newValue = typeof value === 'function' 
@@ -358,14 +438,32 @@ export default function BoardContainer() {
                 state.battleSelectedCard = value;
             },
 
-            // Resource setters from second useEffect, ensuring playerBits/Actions are not overwritten
-            setEnemyActions: (value) => {
-                setGameState(prev => ({ ...prev, enemyActions: value }));
-                state.enemyActions = value;
+            // Additional setters for player/enemy entities died this turn
+            setPlayerEntitiesDiedThisTurn: (value) => {
+                const newValue = typeof value === 'function' ? value(state.playerEntitiesDiedThisTurn || []) : value;
+                state.playerEntitiesDiedThisTurn = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    playerEntitiesDiedThisTurn: newValue
+                }));
             },
-            setEnemyWounds: (value) => {
-                setGameState(prev => ({ ...prev, enemyWounds: value }));
-                state.enemyWounds = value;
+            setEnemyEntitiesDiedThisTurn: (value) => {
+                const newValue = typeof value === 'function' ? value(state.enemyEntitiesDiedThisTurn || []) : value;
+                state.enemyEntitiesDiedThisTurn = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    enemyEntitiesDiedThisTurn: newValue
+                }));
+            },
+            
+            // Turn management setter
+            setPriorityLeft: (value) => {
+                const newValue = typeof value === 'function' ? value(state.priorityLeft) : value;
+                state.priorityLeft = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    priorityLeft: newValue
+                }));
             },
         });
 

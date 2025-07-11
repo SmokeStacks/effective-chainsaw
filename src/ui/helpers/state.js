@@ -1,6 +1,6 @@
 // Game State
 export const state = {
-    playerBits: 0,
+    playerBits: 5,
     playerAshes: 0,
     playerBurden: 0,
     playerFate: 0,
