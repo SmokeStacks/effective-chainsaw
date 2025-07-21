@@ -55,7 +55,9 @@ const {
     setPlayerDefenseConfirmed,
     setEnemyDefenseConfirmed,
     setEnemyInterfacedHeadSpace,
-    setEnemyInterfacedPandora
+    setEnemyInterfacedPandora,
+    setPlayerInterfacedHeadSpace,
+    setPlayerInterfacedPandora
 } = stateSetters;
 
 /**
@@ -428,8 +430,78 @@ function applyOverrideDamage(attacker, excessDamage, side, currentRealm) {
 const handleConfirmDefenseSelection = (side) => {
     if (side === 'ENEMY') {
         handleEnemyBattle();
+    } else if (side === 'PLAYER') {
+        handlePlayerBattle();
     }
-    // Add player battle handling if needed
+};
+
+/**
+ * Handles the player battle logic after defense selection is confirmed.
+ */
+const handlePlayerBattle = () => {
+    const updatedBattleSlots = playerBattleSlots.map(attacker => {
+        if (attacker) {
+            let isReadied = attacker.charge < attacker.card.timer ? false : true;
+            return {
+                ...attacker,
+                readied: isReadied,
+                steps: attacker.charge
+            };
+        } else {
+            return attacker;
+        }
+    });
+
+    // Update the state with the modified battle slots
+    setPlayerBattleSlots(updatedBattleSlots);
+
+    let unblockedHacking = false;
+
+    // Determine if only one attacker is present
+    const attackers = updatedBattleSlots.filter(a => a !== null);
+    const isSoloAttack = attackers.length === 1;
+
+    // Proceed with the battle using the updated battle slots
+    for (let i = 0; i < 6; i++) {
+        const attacker = updatedBattleSlots[i];
+        const defender = enemyBattleSlots[i] || null;
+
+        if (attacker) {
+            // Implement solo event dispatch here
+            if (isSoloAttack && attacker.solo > 0) {
+                applySoloEffect(attacker, battleRealm)
+            }
+
+            const attackResult = commitAttack(attacker, defender, 'PLAYER', playerTargetSelection, targetType);
+            if (attackResult.unblockedHacking) {
+                unblockedHacking = true;
+            }
+        }
+    }
+
+    if (unblockedHacking && attackMode === 'PLAYER_HACK') {
+        setPlayerInterfaced(true);
+        if (enemyTargetType === 'HEADSPACE') {
+            setPlayerInterfacedHeadSpace(true);
+        }
+        if (enemyTargetType === 'PANDORA') {
+            setPlayerInterfacedPandora(true);
+        }
+        eventManager.publish('successfulHack', {
+            side: 'PLAYER',
+            targetType: targetType,
+            success: true,
+        });
+        handleAccessPhase('PLAYER');
+    } else {
+        eventManager.publish('failedHack', {
+            side: 'PLAYER',
+            targetType: targetType,
+            success: false,
+        });
+    }
+
+    handleEndOfBattle();
 };
 
 // Export functions
@@ -444,6 +516,7 @@ export {
     applyOverrideDamage,
     commitAttack,
     handleEnemyBattle,
+    handlePlayerBattle,
     handleSuccessfulHack,
     setBattleRealm
 };
