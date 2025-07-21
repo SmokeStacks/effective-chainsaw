@@ -1,5 +1,5 @@
 import { eventManager } from './eventManager';
-import { getOppositeSide } from './utils';
+import { getOppositeSide, getRealmAndSetter } from './utils';
 import { state, stateSetters } from './state';
 import { applySoloEffect } from './effects';
 import { handleAccessPhase } from './interfacing';
@@ -14,6 +14,7 @@ import {
     playerGainFate,
     enemyGainFate
 } from './core';
+import { clearVengeance } from '../abilities/glossary';
 
 // Get state variables
 const {
@@ -61,6 +62,46 @@ const {
 } = stateSetters;
 
 /**
+ * Decreases the stealth value of an entity by 1.
+ * @param {Object} entity - The entity whose stealth should be decreased
+ * @param {string} side - The side of the entity ('PLAYER' or 'ENEMY')
+ */
+function decreaseStealth(entity, side) {
+    if (!entity.stealth || entity.stealth <= 0) {
+        return;
+    }
+
+    const realmName = entity.realm; // Ensure the entity has a 'realm' property
+    const [realm, setRealm] = getRealmAndSetter(realmName, side);
+
+    const entityIndex = realm.people.findIndex((e) => e.id === entity.id);
+    if (entityIndex === -1) {
+        console.error(`Entity with ID ${entity.id} not found in realm ${realmName}`);
+        return;
+    }
+
+    const updatedEntity = { ...realm.people[entityIndex] };
+    updatedEntity.stealth = updatedEntity.stealth - 1;
+
+    // Ensure stealth doesn't go below 0
+    if (updatedEntity.stealth < 0) {
+        updatedEntity.stealth = 0;
+    }
+
+    // Update the realm's people array
+    const newPeople = [...realm.people];
+    newPeople[entityIndex] = updatedEntity;
+
+    // Update the realm state
+    setRealm({
+        ...realm,
+        people: newPeople,
+    });
+
+    console.log(`${entity.card.name}'s Stealth decreased by 1. New Stealth: ${updatedEntity.stealth}`);
+}
+
+/**
  * Commits an attack between an attacker and defender.
  * @param {Object} attacker - The attacking entity
  * @param {Object} defender - The defending entity
@@ -82,13 +123,13 @@ const commitAttack = (attacker, defender = null, side, target = null, targetType
 
     // Handle stealth
     if (defender?.stealth > 0) {
-        // Removed decreaseStealth function call
+        decreaseStealth(defender, getOppositeSide(side));
         return { unblockedHacking: false };
     }
 
     // Handle vengeance
     if (defender?.vengeance > 0) {
-        // Removed clearVengeance function call
+        clearVengeance(defender, getOppositeSide(side));
         handleDamage(battleRealm, attacker.id, defender.vengeance, side);
         return { unblockedHacking: false };
     }
@@ -96,6 +137,14 @@ const commitAttack = (attacker, defender = null, side, target = null, targetType
     // If no defender, handle unblocked attack
     if (!defender) {
         const unblocked = handleUnblockedAttack(attacker, side, slotIndex);
+        // Decrease attacker's stealth if they have it
+        if (attacker.stealth > 0) {
+            decreaseStealth(attacker, side);
+        }
+        // Clear attacker's vengeance if they have it
+        if (attacker.vengeance > 0) {
+            clearVengeance(attacker, side);
+        }
         return { unblockedHacking: unblocked.unblockedHacking };
     }
 
@@ -106,12 +155,44 @@ const commitAttack = (attacker, defender = null, side, target = null, targetType
         if (excessDamage > 0) {
             applyOverrideDamage(attacker, excessDamage, side, battleRealm);
         }
+        // Decrease attacker's stealth if they have it
+        if (attacker.stealth > 0) {
+            decreaseStealth(attacker, side);
+        }
+        // Clear attacker's vengeance if they have it
+        if (attacker.vengeance > 0) {
+            clearVengeance(attacker, side);
+        }
     } else if (defenderPower > attackerPower) {
         handleDamage(battleRealm, attacker.id, defenderPower, side);
+        // Decrease defender's stealth if they have it
+        if (defender.stealth > 0) {
+            decreaseStealth(defender, getOppositeSide(side));
+        }
+        // Clear defender's vengeance if they have it
+        if (defender.vengeance > 0) {
+            clearVengeance(defender, getOppositeSide(side));
+        }
     } else {
         // Equal power, mutual destruction
         handleDamage(battleRealm, attacker.id, defenderPower, side);
         handleDamage(battleRealm, defender.id, attackerPower, getOppositeSide(side));
+        
+        // Decrease both entities' stealth if they have it
+        if (attacker.stealth > 0) {
+            decreaseStealth(attacker, side);
+        }
+        if (defender.stealth > 0) {
+            decreaseStealth(defender, getOppositeSide(side));
+        }
+        
+        // Clear both entities' vengeance if they have it
+        if (attacker.vengeance > 0) {
+            clearVengeance(attacker, side);
+        }
+        if (defender.vengeance > 0) {
+            clearVengeance(defender, getOppositeSide(side));
+        }
     }
 
     // Publish combat result event
@@ -518,5 +599,6 @@ export {
     handleEnemyBattle,
     handlePlayerBattle,
     handleSuccessfulHack,
-    setBattleRealm
+    setBattleRealm,
+    decreaseStealth
 };
