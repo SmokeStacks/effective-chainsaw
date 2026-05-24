@@ -23,10 +23,10 @@
 
 /* Left Side */
 .left-side {
-  width: 89%;
+  width: 85%; /* Adjusted width to balance with status menu */
   display: flex;
   flex-direction: column;
-  overflow: visible; /* Allow overflow */
+  overflow: hidden; /* Prevent overflow */
 }
 
 .realms {
@@ -37,6 +37,7 @@
 .buttons-container {
   display: flex;
   flex-direction: row;
+  margin-bottom: 5px;
 }
 
 .action-menu {
@@ -65,12 +66,30 @@
 }
 
 .hand {
-  flex: 1;
   display: flex;
-  justify-content: center;
-  align-items: flex-start; /* Align items to the top */
-  background-color: black; /* Placeholder background */
-  overflow: visible; /* Allow overflow */
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  margin-top: 5px;
+  width: 100%;
+  height: 150px; /* Fixed height for hand */
+  overflow-x: auto; /* Allow horizontal scrolling */
+  padding: 10px 5px; /* Add padding for better spacing */
+  scrollbar-width: thin; /* Thinner scrollbar for Firefox */
+  scrollbar-color: #23d620 #333; /* Scrollbar colors for Firefox */
+}
+
+.hand::-webkit-scrollbar {
+  height: 8px; /* Height of the scrollbar */
+}
+
+.hand::-webkit-scrollbar-track {
+  background: #333; /* Track color */
+}
+
+.hand::-webkit-scrollbar-thumb {
+  background-color: #23d620; /* Thumb color */
+  border-radius: 4px; /* Rounded corners */
 }
 
 /* Card */
@@ -81,11 +100,13 @@
   display: flex;
   flex-direction: column;
   margin: 2px 5px;
-  max-width: 135px; /* Increased size */
-  flex: 1;
+  width: 120px; /* Fixed width */
+  height: auto;
   position: relative; /* For positioning overlay content */
   overflow: visible; /* Change from hidden to visible */
   border: 3px solid #23d620; /* Added #23d620 border */
+  flex-shrink: 0; /* Prevent cards from shrinking */
+  box-sizing: border-box; /* Include border in width calculation */
 }
 
 .white-border.timer {
@@ -149,6 +170,29 @@
   display: flex;
   justify-content: end;
   align-items: start;
+}
+
+.overlay-content.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Player hand container */
+.player-hand-container {
+  position: relative;
+  width: 100%;
+  min-height: 150px; /* Ensure enough space for cards */
+  margin-top: 10px;
+  border-top: 1px solid #23d620;
+  padding-top: 10px;
 }
 
 .top-container,
@@ -383,13 +427,12 @@
 
 /* Status Menu */
 .status-menu {
-  width: 11%;
-  display: flex;
-  flex-direction: column;
+  width: 15%; /* Increased width for better balance */
+  background-color: black; /* Placeholder background */
   font-family: "Press Start 2P", sans-serif;
-  font-size: 14px;
+  font-size: 14px; /* Restored font size */
   color: white;
-  padding: 0 2px;
+  padding: 0 5px; /* Increased padding */
 }
 
 .status-menu p,
@@ -497,6 +540,7 @@ p {
   flex: 1 1 50%;
   flex-direction: row;
   display: flex;
+  overflow: hidden; /* Prevent overflow */
 }
 
 .realms-container {
@@ -504,16 +548,73 @@ p {
   display: flex;
 }
 
-.creatures-container, .places-container, .things-places-container, .things-container {
-  height: 33.3%;
+/* New layout structure */
+.cards-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  justify-content: space-between;
 }
 
-.enemy-things-places-container, .player-things-places-container {
+/* Non-entity containers (top and bottom rows) */
+.non-entity-container {
   display: flex;
+  height: 32%;
+  width: 100%;
 }
 
-.things-places-container {
+/* Entity container (middle row) */
+.entities-container {
   display: flex;
+  height: 36%; /* Slightly larger for entities */
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Player entities aligned left */
+.player-entities-left {
+  display: flex;
+  justify-content: flex-start;
+  width: 50%;
+  height: 100%;
+  align-items: flex-end; /* Offset toward bottom */
+}
+
+/* Enemy entities aligned right */
+.enemy-entities-right {
+  display: flex;
+  justify-content: flex-end;
+  width: 50%;
+  height: 100%;
+  align-items: flex-start; /* Offset toward top */
+}
+
+/* Places and things containers */
+.places-container, .things-container {
+  display: flex;
+  width: 50%;
+}
+
+/* Places aligned left */
+.places-container {
+  justify-content: flex-start;
+}
+
+/* Things aligned right */
+.things-container {
+  justify-content: flex-end;
+}
+
+/* Enemy non-entity container */
+.enemy-non-entity-container {
+  margin-bottom: 5px;
+}
+
+/* Player non-entity container */
+.player-non-entity-container {
+  margin-top: 5px;
 }
 
 /* Specific realm styles */
@@ -563,7 +664,7 @@ p {
 
 .board-top {
   display: flex;
-  height: 622px;
+  height: 90vh; /* Use viewport height for better responsiveness */
   margin: 2px;
 }
 
@@ -584,6 +685,11 @@ p {
   display: flex;
   writing-mode: vertical-rl;
   text-orientation: upright;
+  width: 30px; /* Fixed width to save space */
+  font-size: 10px; /* Smaller font size */
+  letter-spacing: 3px; /* Add spacing between letters */
+  line-height: 1.5; /* Increase line height */
+  padding: 5px 0; /* Add padding top and bottom */
 }
 
 .server {
@@ -601,11 +707,31 @@ p {
 .realm-creatures {
   display: flex;
   flex-direction: row;
+  max-width: 100%;
+  overflow-x: auto; /* Allow horizontal scrolling if needed */
+  overflow-y: hidden; /* No vertical scrolling */
+  min-height: 180px; /* Ensure minimum height for cards */
+  padding: 5px 0; /* Add padding for better spacing */
+  scrollbar-width: thin; /* Thinner scrollbar for Firefox */
+  scrollbar-color: #23d620 #333; /* Scrollbar colors for Firefox */
+}
+
+.realm-creatures::-webkit-scrollbar {
+  height: 8px; /* Height of the scrollbar */
+}
+
+.realm-creatures::-webkit-scrollbar-track {
+  background: #333; /* Track color */
+}
+
+.realm-creatures::-webkit-scrollbar-thumb {
+  background-color: #23d620; /* Thumb color */
+  border-radius: 4px; /* Rounded corners */
 }
 
 .player-container {
   display: flex;
-  justify-content: end;
+  justify-content: flex-start;
 }
 
 .modal {

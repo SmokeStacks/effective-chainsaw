@@ -1,21 +1,40 @@
 import RealmCreatures from "../RealmCreatures";
-
 import RealmStuff from "../RealmStuff";
 
-// todo
 // SolariumRealm.js
 export function Solarium({ onRealmSelect, onRealmCardSelect, onAbilityClick, onRezPlayerCard, playerState, enemyState }) {
     return (
         <div className="realm solarium" onClick={() => onRealmSelect('solarium')}>
             <div className="realm-name">SOLARIUM</div>
             <div className="cards-container">
-                <div className="creatures-container">
-                    <RealmCreatures onCardSelect={onRealmCardSelect} cards={enemyState.people} isPlayerCard={false} />
+                {/* Enemy non-entity cards (top row) */}
+                <div className="non-entity-container enemy-non-entity-container">
+                    <div className="places-container enemy-places-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} cards={enemyState.places} isPlayerCard={false} />
+                    </div>
+                    <div className="things-container enemy-things-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} cards={enemyState.things} isPlayerCard={false} />
+                    </div>
                 </div>
-                <div className="places-container">
+                
+                {/* Entities (middle row) */}
+                <div className="entities-container">
+                    <div className="player-entities-left">
+                        <RealmCreatures cards={playerState.people} onCardSelect={onRealmCardSelect} onAbilityClick={onAbilityClick} onRezPlayerCard={onRezPlayerCard} isPlayerCard={true} />
+                    </div>
+                    <div className="enemy-entities-right">
+                        <RealmCreatures onCardSelect={onRealmCardSelect} cards={enemyState.people} isPlayerCard={false} />
+                    </div>
                 </div>
-                <div className="creatures-container player-container">
-                    <RealmCreatures cards={playerState.people} onCardSelect={onRealmCardSelect} onAbilityClick={onAbilityClick} onRezPlayerCard={onRezPlayerCard} isPlayerCard={true} />
+                
+                {/* Player non-entity cards (bottom row) */}
+                <div className="non-entity-container player-non-entity-container">
+                    <div className="places-container player-places-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.places} isPlayerCard={true} />
+                    </div>
+                    <div className="things-container player-things-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.things} isPlayerCard={true} />
+                    </div>
                 </div>
             </div>
         </div>
@@ -27,19 +46,34 @@ export function Theater({ onRealmSelect, onRealmCardSelect, onAbilityClick, onRe
         <div className="realm theater" onClick={() => onRealmSelect('theater')}>
             <div className="realm-name">TRENCHES</div>
             <div className="cards-container">
-                <div className="creatures-container">
-                    <RealmCreatures onCardSelect={onRealmCardSelect} cards={enemyState.people} isPlayerCard={false} />
-                </div>
-                <div className="places-container">
-                    <div className="enemy-places-container">
+                {/* Enemy non-entity cards (top row) */}
+                <div className="non-entity-container enemy-non-entity-container">
+                    <div className="places-container enemy-places-container">
                         <RealmStuff onCardSelect={onRealmCardSelect} cards={enemyState.places} isPlayerCard={false} />
                     </div>
-                    <div className="player-places-container player-container">
-                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.places} isPlayerCard={true} />
+                    <div className="things-container enemy-things-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} cards={enemyState.things} isPlayerCard={false} />
                     </div>
                 </div>
-                <div className="creatures-container player-container">
-                    <RealmCreatures cards={playerState.people} onCardSelect={onRealmCardSelect} onAbilityClick={onAbilityClick} onRezPlayerCard={onRezPlayerCard} isPlayerCard={true} />
+                
+                {/* Entities (middle row) */}
+                <div className="entities-container">
+                    <div className="player-entities-left">
+                        <RealmCreatures cards={playerState.people} onCardSelect={onRealmCardSelect} onAbilityClick={onAbilityClick} onRezPlayerCard={onRezPlayerCard} isPlayerCard={true} />
+                    </div>
+                    <div className="enemy-entities-right">
+                        <RealmCreatures onCardSelect={onRealmCardSelect} cards={enemyState.people} isPlayerCard={false} />
+                    </div>
+                </div>
+                
+                {/* Player non-entity cards (bottom row) */}
+                <div className="non-entity-container player-non-entity-container">
+                    <div className="places-container player-places-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.places} isPlayerCard={true} />
+                    </div>
+                    <div className="things-container player-things-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.things} isPlayerCard={true} />
+                    </div>
                 </div>
             </div>
         </div>
@@ -55,21 +89,34 @@ export function Underpass({ onRealmSelect, onServerSelect, onRealmCardSelect, on
                 <div className="server" onClick={() => onServerSelect('HEADSPACE')}>HEADSPACE</div>
             </div>
             <div className="cards-container">
-                <div className="creatures-container">
-                    <RealmCreatures onCardSelect={onRealmCardSelect} cards={enemyState.people} isPlayerCard={false} />
-                </div>
-                <div className="things-places-container">
-                    <div className="enemy-things-places-container">
+                {/* Enemy non-entity cards (top row) */}
+                <div className="non-entity-container enemy-non-entity-container">
+                    <div className="places-container enemy-places-container">
                         <RealmStuff onCardSelect={onRealmCardSelect} cards={enemyState.places} isPlayerCard={false} />
+                    </div>
+                    <div className="things-container enemy-things-container">
                         <RealmStuff onCardSelect={onRealmCardSelect} cards={enemyState.things} isPlayerCard={false} />
                     </div>
-                    <div className="player-things-places-container player-container">
-                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.places} isPlayerCard={true} />
-                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.things} isPlayerCard={true} />
+                </div>
+                
+                {/* Entities (middle row) */}
+                <div className="entities-container">
+                    <div className="player-entities-left">
+                        <RealmCreatures cards={playerState.people} onCardSelect={onRealmCardSelect} onAbilityClick={onAbilityClick} onRezPlayerCard={onRezPlayerCard} isPlayerCard={true} />
+                    </div>
+                    <div className="enemy-entities-right">
+                        <RealmCreatures onCardSelect={onRealmCardSelect} cards={enemyState.people} isPlayerCard={false} />
                     </div>
                 </div>
-                <div className="creatures-container player-container">
-                    <RealmCreatures cards={playerState.people} onCardSelect={onRealmCardSelect} onAbilityClick={onAbilityClick} onRezPlayerCard={onRezPlayerCard} isPlayerCard={true} />
+                
+                {/* Player non-entity cards (bottom row) */}
+                <div className="non-entity-container player-non-entity-container">
+                    <div className="places-container player-places-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.places} isPlayerCard={true} />
+                    </div>
+                    <div className="things-container player-things-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.things} isPlayerCard={true} />
+                    </div>
                 </div>
             </div>
         </div>
@@ -85,19 +132,34 @@ export function Grid({ onRealmSelect, onServerSelect, onRealmCardSelect, onAbili
                 <div className="server" onClick={() => onServerSelect('PANDORA')}>PANDORA</div>
             </div>
             <div className="cards-container">
-                <div className="creatures-container">
-                    <RealmCreatures onCardSelect={onRealmCardSelect} cards={enemyState.people} isPlayerCard={false} />
-                </div>
-                <div className="things-container">
-                    <div className="enemy-things-container">
+                {/* Enemy non-entity cards (top row) */}
+                <div className="non-entity-container enemy-non-entity-container">
+                    <div className="places-container enemy-places-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} cards={enemyState.places} isPlayerCard={false} />
+                    </div>
+                    <div className="things-container enemy-things-container">
                         <RealmStuff onCardSelect={onRealmCardSelect} cards={enemyState.things} isPlayerCard={false} />
                     </div>
-                    <div className="player-things-container player-container">
-                        <RealmStuff onCardSelect={onRealmCardSelect} onAbilityClick={onAbilityClick} onRezPlayerCard={onRezPlayerCard} cards={playerState.things} isPlayerCard={true} />
+                </div>
+                
+                {/* Entities (middle row) */}
+                <div className="entities-container">
+                    <div className="player-entities-left">
+                        <RealmCreatures cards={playerState.people} onAbilityClick={onAbilityClick} onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} isPlayerCard={true} />
+                    </div>
+                    <div className="enemy-entities-right">
+                        <RealmCreatures onCardSelect={onRealmCardSelect} cards={enemyState.people} isPlayerCard={false} />
                     </div>
                 </div>
-                <div className="creatures-container player-container">
-                    <RealmCreatures cards={playerState.people} onAbilityClick={onAbilityClick} onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} isPlayerCard={true} />
+                
+                {/* Player non-entity cards (bottom row) */}
+                <div className="non-entity-container player-non-entity-container">
+                    <div className="places-container player-places-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.places} isPlayerCard={true} />
+                    </div>
+                    <div className="things-container player-things-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.things} isPlayerCard={true} />
+                    </div>
                 </div>
             </div>
         </div>
@@ -106,15 +168,36 @@ export function Grid({ onRealmSelect, onServerSelect, onRealmCardSelect, onAbili
 
 export function Elysium({ onRealmSelect, onServerSelect, onRealmCardSelect, onAbilityClick, onRezPlayerCard, playerState, enemyState }) {
     return (
-        <div className="realm elysium">
+        <div className="realm elysium" onClick={() => onRealmSelect('elysium')}>
             <div className="realm-name">ELYSIUM</div>
             <div className="cards-container">
-                <div className="things-container">
-                    <div className="enemy-things-container">
-                        <RealmStuff cards={enemyState.things} isPlayerCard={false} />
+                {/* Enemy non-entity cards (top row) */}
+                <div className="non-entity-container enemy-non-entity-container">
+                    <div className="places-container enemy-places-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} cards={enemyState.places} isPlayerCard={false} />
                     </div>
-                    <div className="player-things-container player-container">
-                        <RealmStuff cards={playerState.things} onAbilityClick={onAbilityClick} isPlayerCard={true} />
+                    <div className="things-container enemy-things-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} cards={enemyState.things} isPlayerCard={false} />
+                    </div>
+                </div>
+                
+                {/* Entities (middle row) */}
+                <div className="entities-container">
+                    <div className="player-entities-left">
+                        <RealmCreatures cards={playerState.people} onCardSelect={onRealmCardSelect} onAbilityClick={onAbilityClick} onRezPlayerCard={onRezPlayerCard} isPlayerCard={true} />
+                    </div>
+                    <div className="enemy-entities-right">
+                        <RealmCreatures onCardSelect={onRealmCardSelect} cards={enemyState.people} isPlayerCard={false} />
+                    </div>
+                </div>
+                
+                {/* Player non-entity cards (bottom row) */}
+                <div className="non-entity-container player-non-entity-container">
+                    <div className="places-container player-places-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.places} isPlayerCard={true} />
+                    </div>
+                    <div className="things-container player-things-container">
+                        <RealmStuff onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.things} isPlayerCard={true} />
                     </div>
                 </div>
             </div>

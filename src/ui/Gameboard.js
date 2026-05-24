@@ -3,14 +3,16 @@ import React, { Component } from 'react';
 //import { Graveyard, Hand, Realm, Library, Focus, Card, CardEntity } from '../rules/cards';
 
 import PlayerHandDisplay from "./PlayerHandDisplay";
-import EnemyHandDisplay from "./PlayerHandDisplay";
+// EnemyHandDisplay not currently used
+// import EnemyHandDisplay from "./PlayerHandDisplay";
 import Actions from "./Actions";
 import HUD from './HUD';
 import FocusDisplay from './FocusDisplay';
 //import ConfirmButton from './ConfirmButton';
 import BattlefieldCreatures from './BattlefieldCreatures';
 import Modal from './Modal';
-import { Elysium } from './renders/Board';
+// Elysium not currently used
+// import { Elysium } from './renders/Board';
 
 class Gameboard extends Component {
     constructor(props) {
@@ -95,8 +97,9 @@ class Gameboard extends Component {
             onQuest,
             onRaid,
             onHack,
-            trashPromptVisible,
-            currentPromptCard,
+            // trashPromptVisible and currentPromptCard not currently used
+            // trashPromptVisible,
+            // currentPromptCard,
             modalVisible,
             modalProps
         } = this.props;
@@ -182,9 +185,9 @@ class Gameboard extends Component {
                         />
                         <FocusDisplay awaitingFocus={awaitingFocus} focus={focus} onFocusSelect={onFocusSelect} awaitingSacrifices={awaitingSacrifices} onSacrificeConfirmation={onSacrificeConfirmation} />
                     </div>
-                    {attackMode === 'PLAYER_QUEST' || attackMode === 'PLAYER_RAID' || attackMode === 'PLAYER_HACK' || attackMode === 'ENEMY_magi' || attackMode === 'ENEMY_phys' || attackMode === 'ENEMY_tech' ?
-                        null :
-                        <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />}
+                    <div className="player-hand-container">
+                        <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />
+                    </div>
                 </div>
                 <div className="status-menu">
                     <HUD

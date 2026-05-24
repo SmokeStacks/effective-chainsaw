@@ -1,0 +1,230 @@
+How to Win
+You can win the game in one of three ways:
+Ascend to Divinity: Accumulate 8 Fate. It's true that technology has given people all the answers. But after 8 lifetimes, you’re finally ready to start asking the right questions.
+
+
+Destroy their Corporeal Form: Inflict a total of 8 Burden and/or Wounds on your opponent. The horrors of what you have done preclude you from ever reaching divinity. But the only feat greater than becoming a god is killing one.
+
+
+Trigger a System Meltdown: Inflict 8 Overload on your opponent. Reality is ex posto facto. Virtual reality, doubly so.
+
+
+At the start of the game, you may secretly choose a Devotion that lowers one of these thresholds by 1. Devotion is only revealed when the game ends.
+
+Core Concepts
+Realms
+The battlefield is divided into four Realms, each representing a different simulated time period.
+Solarium (distant past): Magical entities. In the chaotic and tumbling aether, astronomical knowledge is a must since destructive mana storms require constant navigation. This layer is intended strictly as a bootstrap mechanism for conscious thought and is not designed for occupation by actual users.
+
+
+Trenches (late 19th century): Magical & Physical entities. The primordial storms have quieted. In their wake organic life and rigid physical structures take hold. Regressive hologram technology and DNA analysis allows users to explore the lives of their ancestors and past selves. Caution is urged however, as unearthing generational trauma can cause severe mental strain.
+
+
+Intravenous Reality Layer – IRL (present/2005): Physical & Tech entities. Clinical trials have shown that users experience far less adverse psychological effects during extended sessions if they believe themselves to be in control of a digital avatar who is experiencing regressions and simulations, rather than viewing them “raw”. Without this buffer, serious injuries can be “transferred” to the user’s own nervous system and felt as phantom pain. Users should use this “reality layer” strictly to load programs for further regression or simulation. Exploration outside the confines of the “living room” construct is extremely dangerous. In addition, use of embedded historical technology such as cell phones and personal computers to exploit System hardware can result in user death or permanent severance.
+
+
+Nexus (distant future): Tech entities. With the safety offered by the IRL layer, users can experience living thousands or even millions of years in the future, exploring any number of possible realities. Unfortunately, due to hardware restraints the simulation is only capable of rendering realities which are physically possible, therefore most versions of Earth of course cease to possess organic life after the year 2050. Reality is therefore experienced via deep-core tech that is fully capable of outlasting the sun’s expiration. Again these embedded servers should in no way be used to interface with System processes, as doing so can cause severe layer instability. Retrieval of user consciousness in the event of severance is impossible, see appendix C18 for articles related to “mandelbrot syndrome”, including autopsy reports.
+
+
+Realm Tactics:
+Entities can only be placed in Realms that match at least one of their Affinities.
+
+
+Landmarks and Locations only appear in Trenches and IRL.
+
+
+Syms and Snips only appear in IRL and Nexus.
+
+
+Combat is localized—attackers and blockers apply only within their Realm. Likewise any card with “Locality” can only affect a single chosen Realm.
+
+Affinities
+Affinities represent the research, resources, and mental state required to interact with the world:
+Magi – mystical knowledge, prophecy, wisdom
+
+
+Phys – combat, survival, political favor
+
+
+Tech – hacking, data processing, coding
+
+
+Your Focus each turn determines which Affinity you can use:
+It sets which cards you may play from your HeadSpace (hand).
+
+
+It determines your Dominance Reward that round.
+
+Game Setup
+Deck Construction
+
+
+Build a 40-card deck of Entities, Landmarks, Syms, Locations, Snips, and Rituals.
+Include at least 20 Runes worth of Landmarks and/or Syms (modified by Cursed and Karmic cards).
+May include up to 5 cards from either of the other two main factions
+May include up to 5 cards from the Neutral faction
+
+Draft Deck
+A deck of 5 Dreamers is shared by each player. They have 1/1, Timer 1, and all 3 affinities. They are in tune with the rhythm of the universe but their limited strength offers little influence over it. They make excellent building blocks for more sophisticated organisms, however.
+
+Starting Resources
+
+
+Each player begins with 4 Bits.
+Draw 4 cards to form your starting hand (HeadSpace).
+Going second awards +1 Bit
+
+
+Devotion
+
+
+Secretly choose a Devotion that reduces one victory threshold by 1.
+
+Turn Structure
+Turns are shared—players alternate actions within the same turn until both run out.
+1. Maintenance Phase
+-Trigger all Decay, perform any "Beginning of turn” effects, grant all entities 1 Boost.
+-If a player has 2 or more Wounds, they gain 1 Wound from infection. Likewise for Burden which causes depression.
+-Draw 1 card.
+2. Focus Phase
+Choose your Focus Affinity for this turn.
+3. Action Phase
+You have 3 actions per turn, alternating with your opponent. Possible actions:
+Play a Card
+
+
+Entities, Snips, and Syms enter face-down in the chosen Realm offline, with no cost paid.
+
+
+Landmarks, Locations, and Rituals are played face-up and activated immediately.
+
+
+Draw a Card (from Pandora / your deck).
+
+
+Draft a Dreamer (once per turn, costs 1 Bit).
+
+
+Gain 1 Bit (“Mine”).
+
+
+Boost an Entity (pay 1 Bit to reduce its Timer by 1).
+
+
+Develop a non-Entity (add Developments toward Plot/Scheme).
+
+
+Detox (spend 3 actions to cleanse all Freeze, Decay and enemy Venom).
+
+
+Attack (declare a Quest, Raid, or Hack with Online and Readied Entities).
+
+
+Looting: The first uncontested attack (0 blockers) each turn also awards the attacker 2 Bits.
+3. Dominance Phase
+Compare the total Skill of your Readied Online Entities plus any Surge (extra Bits from unblocked Hack damage). Secretly spend any number of bits to add to your total Dominance score.
+Dominance Reward depends on your Focus:
+Magi: Prophecy – Gain 1 Fate & inflict 1 Burden.
+
+
+Physical: Guillotine – Opponent sacrifices 1 Entity of their choice.
+
+
+Tech: Overclock – Gain 2 Actions & 1 Bit next turn.
+
+Resources
+Bits – digital currency (activation, actions, domination).
+
+
+Souls & Ashes – alternative activation costs for entities.
+Soul: Consciousness and free will, sacrifice the specified number of entities
+Ash: Crystalized organic data, increments by 1 for each friendly entity that dies
+
+
+Fate – path to victory.
+
+
+Burden, Wounds, Overload, Freeze – status effects that lock resources until reduced.
+Cannot gain Fate if Burdened, draw cards if Wounded, gain Bits if Overloaded, or gain Boost if the entity is Frozen. Each point you would gain decreases the status by the same amount. 
+
+
+Card Types
+Entity: Creatures that attack and defend in battles. Cannot attack or defend unless Online (activation costs paid) and Readied (timer is 0).
+Ritual: Has an immediate effect and is then discarded.
+Location: Has an ongoing effect. Players cannot be targeted directly by Raid if they control a Location or Landmark in that Realm. Destroyed when Health reaches 0.
+Snip: Has an ongoing effect like Location but is played facedown. Can optionally be targeted by Hack in that Realm.
+Landmark: Like location but awards Fate when destroyed or stolen (from HeadSpace or Pandora).
+Sym: Like snip but awards Fate when stolen.
+
+Combat
+General Rules
+Attacks are declared per Realm and must use Entities matching the attack’s Affinity.
+
+
+Defenders may block with Entities from the same Realm that share at least one Affinity with the attack type.
+
+
+Each attacker can be blocked by one defender.
+
+
+Attacking and blocking Entities deal damage to each other simultaneously equal to their Skill. Destroy if damage ≥ Health.
+
+
+Unblocked Damage
+If an attacker is unblocked, it deals unblocked damage to the opponent or target. The amount of Fate, Wounds/Burden, or Surge gained always equals the total unblocked damage dealt.
+Attack Types
+Quest (Magi Entities)
+
+
+Objective: Gain Fate.
+
+
+Effect: Unblocked damage grants that much Fate.
+
+
+Raid (Physical Entities)
+
+
+Objective: Destroy Landmarks/Locations and inflict Wounds/Burden.
+
+
+Effect:
+
+
+If the Realm contains no enemy Landmarks or Locations, unblocked damage inflicts Burden (Trenches) or Wounds (IRL).
+
+
+If a Landmark is destroyed, its controller loses it and the attacker gains Fate equal to that Landmark’s Runes. A single attack may only have 1 target, either the player or a Landmark/ Location.
+
+
+Hack (Tech Entities)
+
+
+Objective: Interface with opponent’s cards.
+
+
+Effect:
+
+
+Every successful Hack inflicts 2 Overload (regardless of damage dealt).
+
+
+You Interface with 1 card (random from HeadSpace, top card of Pandora, or specific Snip/ Sym). The card is revealed and then immediately stolen, exposed, or possibly deleted if the Snip type. Any “Interface” effects trigger on the Interfaced card.
+
+
+Surge is gained equal to unblocked damage; Surge are special Bits that can only be spent during the Dominance Phase to increase your “bid.”
+
+
+If you Interface with:
+
+
+Sym: Stolen instantly, Fate equal to its Runes (no HP). Syms are face-down, making them harder to find.
+
+
+Landmark: Gain Fate equal to its Runes (if already played to a realm, they cannot be hacked, only raided)
+
+
+Snip: May pay its Delete cost in Bits to discard it; otherwise it returns with no effect.
+
+
+Entity/Location/Ritual: Gains the Exposed status. If already Exposed, it is discarded.
