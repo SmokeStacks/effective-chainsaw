@@ -43,6 +43,11 @@ import { state, stateSetters } from './state';
 // Import draft list
 import { draftList } from '../../systemDecks/draft';
 
+// `draw` from player.js is the canonical implementation; we re-export it as
+// `playerDraw` below so existing call sites keep working without the
+// stale-destructuring bug the local implementation had.
+import { draw as playerDraw } from './player';
+
 // Re-export resource management functions
 export {
     // Bits
@@ -1014,30 +1019,9 @@ export const handleDraftButton = () => {
     playerDraft();
 }
 
-export function playerDraw(num) {
-    console.log('draw ', num);
-    let remainingCards = num;
-
-    if (playerWounds > 0) {
-        const newWounds = playerWounds - num;
-        remainingCards = Math.max(0, -newWounds);
-        stateSetters.setPlayerWounds(prevWounds => Math.max(0, prevWounds - newWounds));
-    }
-
-    if (remainingCards > 0) {
-        stateSetters.setPlayerLibrary(prevLibrary => {
-            const newHandCards = prevLibrary.slice(0, remainingCards);
-            const newLibrary = prevLibrary.slice(remainingCards);
-
-            stateSetters.setPlayerHand(prevHand => [
-                ...prevHand,
-                ...newHandCards
-            ]);
-
-            return newLibrary;
-        });
-    }
-}
+// See top of file: playerDraw is an alias for player.draw to fix the
+// stale-destructuring bug the old local implementation had.
+export { playerDraw };
 
 // Create a draft deck
 export function createDraft() {

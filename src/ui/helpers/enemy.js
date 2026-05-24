@@ -2,16 +2,22 @@ import { state, stateSetters } from './state';
 import { activateAbilities } from '../abilities/glossary';
 
 // Resource Management
+// See player.js for semantics: gains are absorbed 1-for-1 by their paired
+// status, and the status itself is decremented by the absorbed amount.
 export function gainBits(num) {
-    let remainingBits = num;
-    if (state.enemyOverload > 0) {
-        remainingBits = Math.max(0, remainingBits - state.enemyOverload);
+    if (num <= 0) return;
+    const absorbed = Math.min(num, state.enemyOverload);
+    const gained = num - absorbed;
+    if (absorbed > 0) {
+        stateSetters.setEnemyOverload(prev => Math.max(0, prev - absorbed));
     }
-    stateSetters.setEnemyBits(prevBits => prevBits + remainingBits);
+    if (gained > 0) {
+        stateSetters.setEnemyBits(prev => prev + gained);
+    }
 }
 
 export function loseBits(num) {
-    stateSetters.setEnemyBits(prevBits => prevBits - num);
+    stateSetters.setEnemyBits(prev => Math.max(0, prev - num));
 }
 
 export function gainAshes(num) {
@@ -19,7 +25,7 @@ export function gainAshes(num) {
 }
 
 export function loseAshes(num) {
-    stateSetters.setEnemyAshes(prevAshes => prevAshes - num);
+    stateSetters.setEnemyAshes(prev => Math.max(0, prev - num));
 }
 
 export function gainActions(num) {
@@ -39,19 +45,23 @@ export function gainBurden(num) {
 }
 
 export function loseBurden(num) {
-    stateSetters.setEnemyBurden(prevBurden => prevBurden - num);
+    stateSetters.setEnemyBurden(prev => Math.max(0, prev - num));
 }
 
 export function gainFate(num) {
-    let remainingPoints = num;
-    if (state.enemyBurden > 0) {
-        remainingPoints = Math.max(0, remainingPoints - state.enemyBurden);
+    if (num <= 0) return;
+    const absorbed = Math.min(num, state.enemyBurden);
+    const gained = num - absorbed;
+    if (absorbed > 0) {
+        stateSetters.setEnemyBurden(prev => Math.max(0, prev - absorbed));
     }
-    stateSetters.setEnemyFate(prevFate => prevFate + remainingPoints);
+    if (gained > 0) {
+        stateSetters.setEnemyFate(prev => prev + gained);
+    }
 }
 
 export function loseFate(num) {
-    stateSetters.setEnemyFate(prevFate => prevFate - num);
+    stateSetters.setEnemyFate(prev => Math.max(0, prev - num));
 }
 
 export function gainWounds(num) {
@@ -59,7 +69,7 @@ export function gainWounds(num) {
 }
 
 export function loseWounds(num) {
-    stateSetters.setEnemyWounds(prevWounds => prevWounds - num);
+    stateSetters.setEnemyWounds(prev => Math.max(0, prev - num));
 }
 
 export function gainOverload(num) {
@@ -71,11 +81,15 @@ export function gainLag(num) {
 }
 
 export function loseLag(num) {
-    stateSetters.setEnemyLag(prevLag => prevLag - num);
+    stateSetters.setEnemyLag(prev => Math.max(0, prev - num));
 }
 
 export function gainSurge(num) {
     stateSetters.setEnemySurge(prev => prev + num);
+}
+
+export function loseSurge(num) {
+    stateSetters.setEnemySurge(prev => Math.max(0, prev - num));
 }
 
 // Card Management

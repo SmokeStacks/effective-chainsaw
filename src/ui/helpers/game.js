@@ -1,57 +1,41 @@
-import { state, stateSetters } from './state';
-import { calculateSoulsAvailable as calcSoulsPlayer } from './player';
-import { calculateSoulsAvailable as calcSoulsEnemy } from './enemy';
+import { stateSetters } from './state';
+import {
+    gainBits as _pGainBits, loseBits as _pLoseBits,
+    gainAshes as _pGainAshes, loseAshes as _pLoseAshes,
+    gainSurge as _pGainSurge, loseSurge as _pLoseSurge,
+    calculateSoulsAvailable as calcSoulsPlayer,
+} from './player';
+import {
+    gainBits as _eGainBits, loseBits as _eLoseBits,
+    gainAshes as _eGainAshes, loseAshes as _eLoseAshes,
+    gainSurge as _eGainSurge, loseSurge as _eLoseSurge,
+    calculateSoulsAvailable as calcSoulsEnemy,
+} from './enemy';
 import { handleAscension } from './advancement';
 
-// Bits management
-export function playerGainBits(amount) {
-    stateSetters.setPlayerBits(state.playerBits + amount);
-}
+// game.js used to contain a second, simpler implementation of these resource
+// helpers that ignored Overload absorption and other status rules. It is now
+// a thin re-export of the canonical implementations in player.js / enemy.js
+// so that callers using `playerGainBits` (via game.js or core.js) get the
+// same behavior as callers using `player.gainBits` directly.
 
-export function playerLoseBits(amount) {
-    stateSetters.setPlayerBits(Math.max(0, state.playerBits - amount));
-}
+// Bits
+export const playerGainBits = _pGainBits;
+export const playerLoseBits = _pLoseBits;
+export const enemyGainBits = _eGainBits;
+export const enemyLoseBits = _eLoseBits;
 
-export function enemyGainBits(amount) {
-    stateSetters.setEnemyBits(state.enemyBits + amount);
-}
+// Ashes
+export const playerGainAshes = _pGainAshes;
+export const playerLoseAshes = _pLoseAshes;
+export const enemyGainAshes = _eGainAshes;
+export const enemyLoseAshes = _eLoseAshes;
 
-export function enemyLoseBits(amount) {
-    stateSetters.setEnemyBits(Math.max(0, state.enemyBits - amount));
-}
-
-// Ash management
-export function playerGainAshes(amount) {
-    stateSetters.setPlayerAshes(prev => prev + amount);
-}
-
-export function playerLoseAshes(amount) {
-    stateSetters.setPlayerAshes(prev => Math.max(0, prev - amount));
-}
-
-export function enemyGainAshes(amount) {
-    stateSetters.setEnemyAshes(prev => prev + amount);
-}
-
-export function enemyLoseAshes(amount) {
-    stateSetters.setEnemyAshes(prev => Math.max(0, prev - amount));
-}
-
-export function playerGainSurge(amount) {
-    stateSetters.setPlayerSurge(prev => prev + amount);
-}
-
-export function playerLoseSurge(amount) {
-    stateSetters.setPlayerSurge(prev => Math.max(0, prev - amount));
-}
-
-export function enemyGainSurge(amount) {
-    stateSetters.setEnemySurge(prev => prev + amount);
-}
-
-export function enemyLoseSurge(amount) {
-    stateSetters.setEnemySurge(prev => Math.max(0, prev - amount));
-}
+// Surge
+export const playerGainSurge = _pGainSurge;
+export const playerLoseSurge = _pLoseSurge;
+export const enemyGainSurge = _eGainSurge;
+export const enemyLoseSurge = _eLoseSurge;
 
 // Re-export functions
 export { handleAscension };
