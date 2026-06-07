@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startTurn, playerGainBits, enemyLoseBits, enemyPerformAction, endPlayerTurn, triggerRitualAbilities, playerDraft, removeCardFromHand, handleBoostButton, handleDevelopButton, handlePlayerMine } from './helpers/core';
+import { startTurn, endTurn, playerGainBits, enemyLoseBits, enemyPerformAction, endPlayerTurn, triggerRitualAbilities, playerDraft, removeCardFromHand, handleBoostButton, handleDevelopButton, handlePlayerMine } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { state, stateSetters, initializeSetters, currentPlayer, enemyActions } from './helpers/state';
@@ -11,6 +11,42 @@ import { Solarium, Theater, Underpass, Grid, Elysium } from './renders/Board';
 import { calculateSoulsAvailable } from './helpers/activation';
 import Gameboard from './Gameboard';
 import { draw } from './helpers/player';
+import { canPlaceInRealm } from './helpers/placement';
+
+// Factory for the 10 realm setters (player & enemy x 5 realms each). Each
+// returned setter:
+//   1. Supports both `setX(value)` and `setX(prev => ...)` (updater form).
+//   2. Writes the new value into `state.<key>` (used by game logic).
+//   3. Writes the new value into `gameState.<key>` (used by some components).
+//   4. Mirrors the new value into `realms.<side>.<lowerName>` (rendered UI).
+// Side effect of the previous bug: player setters did NONE of 1, 3, 4. They
+// stored updater functions literally and never updated `realms`, so the UI
+// only reflected placements thanks to a redundant write in handleRealmSelect.
+function buildRealmSetters({ setGameState, setRealms }) {
+    const REALMS = [
+        { side: 'player', key: 'playerSolarium',  lower: 'solarium',  name: 'setPlayerSolarium' },
+        { side: 'player', key: 'playerTheater',   lower: 'theater',   name: 'setPlayerTheater' },
+        { side: 'player', key: 'playerUnderpass', lower: 'underpass', name: 'setPlayerUnderpass' },
+        { side: 'player', key: 'playerGrid',      lower: 'grid',      name: 'setPlayerGrid' },
+        { side: 'player', key: 'playerElysium',   lower: 'elysium',   name: 'setPlayerElysium' },
+        { side: 'enemy',  key: 'enemySolarium',   lower: 'solarium',  name: 'setEnemySolarium' },
+        { side: 'enemy',  key: 'enemyTheater',    lower: 'theater',   name: 'setEnemyTheater' },
+        { side: 'enemy',  key: 'enemyUnderpass',  lower: 'underpass', name: 'setEnemyUnderpass' },
+        { side: 'enemy',  key: 'enemyGrid',       lower: 'grid',      name: 'setEnemyGrid' },
+        { side: 'enemy',  key: 'enemyElysium',    lower: 'elysium',   name: 'setEnemyElysium' },
+    ];
+    const setters = {};
+    for (const { side, key, lower, name } of REALMS) {
+        setters[name] = (value) => {
+            const prev = state[key];
+            const next = typeof value === 'function' ? value(prev) : value;
+            state[key] = next;
+            setGameState(g => ({ ...g, [key]: next }));
+            setRealms(r => ({ ...r, [side]: { ...r[side], [lower]: next } }));
+        };
+    }
+    return setters;
+}
 
 export default function BoardContainer() {
     // Card state - using global state instead of local state
@@ -339,87 +375,15 @@ export default function BoardContainer() {
                 setGameState(prev => ({ ...prev, rezCard: value }));
                 state.rezCard = value;
             },
-            // Realm setters
-            setPlayerSolarium: (value) => {
-                setGameState(prev => ({ ...prev, playerSolarium: value }));
-                state.playerSolarium = value;
-            },
-            setPlayerTheater: (value) => {
-                setGameState(prev => ({ ...prev, playerTheater: value }));
-                state.playerTheater = value;
-            },
-            setPlayerUnderpass: (value) => {
-                setGameState(prev => ({ ...prev, playerUnderpass: value }));
-                state.playerUnderpass = value;
-            },
-            setPlayerGrid: (value) => {
-                setGameState(prev => ({ ...prev, playerGrid: value }));
-                state.playerGrid = value;
-            },
-            setPlayerElysium: (value) => {
-                setGameState(prev => ({ ...prev, playerElysium: value }));
-                state.playerElysium = value;
-            },
-            setEnemySolarium: (value) => {
-                setGameState(prev => ({ ...prev, enemySolarium: value }));
-                state.enemySolarium = value;
-                // Sync with React component state
-                setRealms(prevRealms => ({
-                    ...prevRealms,
-                    enemy: {
-                        ...prevRealms.enemy,
-                        solarium: value
-                    }
-                }));
-            },
-            setEnemyTheater: (value) => {
-                setGameState(prev => ({ ...prev, enemyTheater: value }));
-                state.enemyTheater = value;
-                // Sync with React component state
-                setRealms(prevRealms => ({
-                    ...prevRealms,
-                    enemy: {
-                        ...prevRealms.enemy,
-                        theater: value
-                    }
-                }));
-            },
-            setEnemyUnderpass: (value) => {
-                setGameState(prev => ({ ...prev, enemyUnderpass: value }));
-                state.enemyUnderpass = value;
-                // Sync with React component state
-                setRealms(prevRealms => ({
-                    ...prevRealms,
-                    enemy: {
-                        ...prevRealms.enemy,
-                        underpass: value
-                    }
-                }));
-            },
-            setEnemyGrid: (value) => {
-                setGameState(prev => ({ ...prev, enemyGrid: value }));
-                state.enemyGrid = value;
-                // Sync with React component state
-                setRealms(prevRealms => ({
-                    ...prevRealms,
-                    enemy: {
-                        ...prevRealms.enemy,
-                        grid: value
-                    }
-                }));
-            },
-            setEnemyElysium: (value) => {
-                setGameState(prev => ({ ...prev, enemyElysium: value }));
-                state.enemyElysium = value;
-                // Sync with React component state
-                setRealms(prevRealms => ({
-                    ...prevRealms,
-                    enemy: {
-                        ...prevRealms.enemy,
-                        elysium: value
-                    }
-                }));
-            },
+            // Realm setters. Each one:
+            //   1. Supports both direct-value and updater-function form
+            //      (callers do `setPlayerSolarium(prev => ({...prev, people: [...]}))`).
+            //   2. Writes to `state.<realm>` and `gameState.<realm>` (game logic).
+            //   3. Mirrors into `realms.<side>.<lowerName>` (rendered UI).
+            // Previously the player setters did neither (1) nor (3), causing
+            // updater functions to be stored literally in state.playerX, and
+            // game-logic mutations to never show up in the UI.
+            ...buildRealmSetters({ setGameState, setRealms }),
             // Battle setters
             setBattleRealm: (value) => {
                 setGameState(prev => ({ ...prev, battleRealm: value }));
@@ -514,231 +478,101 @@ export default function BoardContainer() {
         return () => eventManager.unsubscribe('resetUIState', resetUIStateHandler);
     }, [setUiState]);
 
-    // Start first turn after hands are drawn
+    // Start first turn once both hands reach 5 cards (after mulligan draw).
+    // Wired to gameState.playerHand/enemyHand so it fires when the draw completes,
+    // not just at mount where the hands are still empty.
     useEffect(() => {
-        if (state.playerHand.length === 5 && state.enemyHand.length === 5 && state.attackMode) {
+        if (
+            gameState.playerHand?.length === 5 &&
+            gameState.enemyHand?.length === 5 &&
+            gameState.mode === 'MULLIGAN'
+        ) {
             startTurn(true);
         }
-    }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gameState.playerHand?.length, gameState.enemyHand?.length, gameState.mode]);
 
+    // Win conditions (notes.txt: threshold = 8, not 10).
+    // Fires whenever the tracked resource changes.
     useEffect(() => {
-        if (state.playerBurden >= 10) {
+        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
+        // Player wins: Fate >= 8 (Ascend to Divinity)
+        if (gameState.playerFate >= 8) {
+            console.log('Player wins by Fate (Ascend to Divinity)!');
             stateSetters.setMode('GAME_OVER');
         }
-    }, []);
-
-    // Handle player realm updates
-    useEffect(() => {
-        // Only check for player loss after game has started and first turn has begun
-        if (gameState.mode !== 'NONE' && gameState.mode !== 'MULLIGAN') {
-            // Add null checks to prevent undefined errors during initialization
-            const solariumEmpty = !state.playerSolarium?.people || state.playerSolarium.people.length === 0;
-            const theaterEmpty = !state.playerTheater?.people || state.playerTheater.people.length === 0;
-            const underpassEmpty = !state.playerUnderpass?.people || state.playerUnderpass.people.length === 0;
-            const gridEmpty = !state.playerGrid?.people || state.playerGrid.people.length === 0;
-            const elysiumEmpty = !state.playerElysium?.people || state.playerElysium.people.length === 0;
-            
-            if (solariumEmpty && theaterEmpty && underpassEmpty && gridEmpty && elysiumEmpty) {
-                eventManager.publish('PLAYER_LOST');
-            }
-        }
-    }, [gameState.mode]);
+    }, [gameState.playerFate, gameState.mode]);
 
     useEffect(() => {
-        if (state.mode === 'GAME_OVER') {
-            if (state.currentPlayer === 'ENEMY') {
-                state.enemyBits = 0;
-            }
-        }
-    }, []);
-
-    // Handle burden effects
-    useEffect(() => {
-        if (state.playerBurden >= 10) {
+        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
+        // Enemy loses: enemy Fate >= 8
+        if (gameState.enemyFate >= 8) {
+            console.log('Enemy loses by Fate — player wins!');
             stateSetters.setMode('GAME_OVER');
         }
-    }, []);
+    }, [gameState.enemyFate, gameState.mode]);
 
-    // Check for player loss
+    // Loss conditions: Burden + Wounds >= 8 (Destroy their Corporeal Form)
     useEffect(() => {
-        // Only check for player loss after game has started and first turn has begun
-        if (gameState.mode !== 'NONE' && gameState.mode !== 'MULLIGAN') {
-            // Add null checks to prevent undefined errors during initialization
-            const solariumEmpty = !state.playerSolarium?.people || state.playerSolarium.people.length === 0;
-            const theaterEmpty = !state.playerTheater?.people || state.playerTheater.people.length === 0;
-            const underpassEmpty = !state.playerUnderpass?.people || state.playerUnderpass.people.length === 0;
-            const gridEmpty = !state.playerGrid?.people || state.playerGrid.people.length === 0;
-            const elysiumEmpty = !state.playerElysium?.people || state.playerElysium.people.length === 0;
-            
-            if (solariumEmpty && theaterEmpty && underpassEmpty && gridEmpty && elysiumEmpty) {
-                eventManager.publish('PLAYER_LOST');
-            }
+        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
+        if ((gameState.playerBurden || 0) + (gameState.playerWounds || 0) >= 8) {
+            console.log('Player loses by Burden + Wounds!');
+            stateSetters.setMode('GAME_OVER');
         }
+    }, [gameState.playerBurden, gameState.playerWounds, gameState.mode]);
+
+    useEffect(() => {
+        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
+        if ((gameState.enemyBurden || 0) + (gameState.enemyWounds || 0) >= 8) {
+            console.log('Enemy loses by Burden + Wounds — player wins!');
+            stateSetters.setMode('GAME_OVER');
+        }
+    }, [gameState.enemyBurden, gameState.enemyWounds, gameState.mode]);
+
+    // Loss conditions: Overload >= 8 (System Meltdown)
+    useEffect(() => {
+        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
+        if (gameState.playerOverload >= 8) {
+            console.log('Player loses by Overload (System Meltdown)!');
+            stateSetters.setMode('GAME_OVER');
+        }
+    }, [gameState.playerOverload, gameState.mode]);
+
+    useEffect(() => {
+        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
+        if (gameState.enemyOverload >= 8) {
+            console.log('Enemy loses by Overload — player wins!');
+            stateSetters.setMode('GAME_OVER');
+        }
+    }, [gameState.enemyOverload, gameState.mode]);
+
+    // End-of-actions → domination phase.
+    // Fires when either side's action count changes.
+    useEffect(() => {
+        if (
+            gameState.mode !== 'NORMAL' ||
+            (gameState.playerActions ?? 1) > 0 ||
+            (gameState.enemyActions ?? 1) > 0
+        ) return;
+        stateSetters.setMode('DOMINATION');
+    }, [gameState.playerActions, gameState.enemyActions, gameState.mode]);
+
+    // Domination phase → endTurn (calls handleDominationPhase then startTurn).
+    useEffect(() => {
+        if (gameState.mode !== 'DOMINATION') return;
+        endTurn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gameState.mode]);
 
-    // Handle player realm updates
+    // Enemy AI turn: fire when currentPlayer or enemyActions changes.
     useEffect(() => {
-        setRealms(prev => {
-            const playerRealmsChanged = state.playerSolarium || state.playerTheater || state.playerUnderpass || state.playerGrid || state.playerElysium;
-            const enemyRealmsChanged = state.enemySolarium || state.enemyTheater || state.enemyUnderpass || state.enemyGrid || state.enemyElysium;
-            
-            if (!playerRealmsChanged && !enemyRealmsChanged) {
-                return prev;
-            }
-
-            return {
-                ...prev,
-                player: {
-                    solarium: state.playerSolarium,
-                    theater: state.playerTheater,
-                    underpass: state.playerUnderpass,
-                    grid: state.playerGrid,
-                    elysium: state.playerElysium
-                },
-                enemy: {
-                    solarium: state.enemySolarium,
-                    theater: state.enemyTheater,
-                    underpass: state.enemyUnderpass,
-                    grid: state.enemyGrid,
-                    elysium: state.enemyElysium
-                }
-            };
-        });
-    }, []);
-
-    // Effect to handle hand size limit
-    useEffect(() => {
-        if (state.playerHand.length >= 7 || state.enemyHand.length >= 7) {
-            console.log('Hand size limit reached');
-        }
-    }, []);
-
-    // Effect to handle player win conditions
-    useEffect(() => {
-        // Check burden win
-        if (state.playerBurden >= 10) {
-            console.log('Player wins by burden!');
-        }
-
-        // Check realm win
-        if (state.playerElysium >= 10 ||
-            state.playerGrid >= 10 ||
-            state.playerSolarium >= 10 ||
-            state.playerTheater >= 10 ||
-            state.playerUnderpass >= 10) {
-            console.log('Player wins by realm!');
-        }
-
-        // Check bits win
-        if (state.playerBits >= 10) {
-            console.log('Player wins by bits!');
-        }
-
-        // Check ashes win
-        if (state.playerAshes >= 10) {
-            console.log('Player wins by ashes!');
-        }
-
-        // Check fate win
-        if (state.playerFate >= 10) {
-            console.log('Player wins by fate!');
-        }
-    }, []);
-
-    // Effect to handle player loss conditions
-    useEffect(() => {
-        // Check wounds loss
-        if (state.playerWounds >= 10) {
-            console.log('Player loses by wounds!');
-        }
-
-        // Check overload loss
-        if (state.playerOverload >= 10) {
-            console.log('Player loses by overload!');
-        }
-
-        // Check actions loss
-        if (state.playerActions <= 0) {
-            console.log('Player out of actions');
-        }
-    }, []);
-
-    // Effect to handle attack resolution
-    useEffect(() => {
-        if (state.mode === 'ATTACK_RESOLVED') {
-            if (state.currentPlayer === 'PLAYER') {
-                if (state.enemyBits >= 1) {
-                    enemyLoseBits(1);
-                }
-            } else {
-                stateSetters.setCurrentPlayer('PLAYER');
-            }
-            stateSetters.setMode('NORMAL');
-        }
-    }, []);
-
-    // Effect to handle enemy win condition
-    useEffect(() => {
-        if (state.enemyBits >= 10) {
-            console.log('Enemy wins!');
-        }
-    }, []);
-
-    // Effect to handle enemy win condition with no actions
-    useEffect(() => {
-        if (state.enemyActions <= 0 && state.enemyBits >= 10) {
-            console.log('Enemy wins!');
-        }
-    }, []);
-
-    // Effect to handle enemy turn
-    useEffect(() => {
-        const currentPlayerValue = currentPlayer();
-        const enemyActionsValue = enemyActions();
-        const gameStateValue = state.mode;
-        
-        console.log('Enemy turn check:', {
-            currentPlayer: currentPlayerValue,
-            enemyActions: enemyActionsValue,
-            gameState: gameStateValue
-        });
-        
-        // If it's the enemy's turn and they have actions
-        if (currentPlayerValue === 'ENEMY' && enemyActionsValue > 0) {
-            // If in BEGIN mode, transition to NORMAL mode first
-            if (gameStateValue === 'BEGIN') {
-                console.log('Transitioning from BEGIN to NORMAL mode for enemy turn');
-                stateSetters.setMode('NORMAL');
-            }
-            // Then dispatch enemy action if in NORMAL mode
-            else if (gameStateValue === 'NORMAL') {
-                console.log('Dispatching enemy action');
-                enemyPerformAction();
-            }
-        }
-    });
-
-    // Start the game or turn
-    useEffect(() => {
-        if (state.mode === 'BEGIN' && state.attackMode) {
-            console.log('begin game');
-            playerGainBits(1);
-            draw(1);
-            stateSetters.setMode('NORMAL');
-            console.log('Set mode to NORMAL');
-        }
-    }, []);
-
-    // Handle domination phase
-    useEffect(() => {
-        if (state.playerActions <= 0 &&
-            state.enemyActions <= 0 &&
-            state.mode === 'NORMAL' &&
-            state.mode !== 'BEGIN' &&
-            !state.attackMode) {
-            stateSetters.setMode('DOMINATION');
-        }
-    }, []);
+        if (gameState.currentPlayer !== 'ENEMY') return;
+        if ((gameState.enemyActions ?? 0) <= 0) return;
+        if (gameState.mode !== 'NORMAL') return;
+        console.log('Dispatching enemy action');
+        enemyPerformAction();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gameState.currentPlayer, gameState.enemyActions, gameState.mode]);
 
     // Effect to handle rez card
     useEffect(() => {
@@ -1170,86 +1004,26 @@ export default function BoardContainer() {
         }
 
         const { focus } = state;
-        console.log('Current focus:', focus);
-        
-        // Extract focus attributes from the card
+        const card = selectedCard.card;
         const cardFocusAttrs = {
-            magi: selectedCard.card.magi || false,
-            tech: selectedCard.card.tech || false,
-            phys: selectedCard.card.phys || false
+            magi: card.magi || false,
+            tech: card.tech || false,
+            phys: card.phys || false,
         };
 
-        // Check if card matches current focus
-        const matchesFocus = cardFocusAttrs[focus] || false;
-
-        console.log('Card focus attributes:', cardFocusAttrs);
-        console.log('Matches current focus:', matchesFocus);
-
-        if (!matchesFocus) {
-            console.log('Focus does not match');
+        // Focus filter: a card must match the currently-active focus to be
+        // playable this turn.
+        if (!cardFocusAttrs[focus]) {
+            console.log('Focus does not match (focus=', focus, ', card attrs=', cardFocusAttrs, ')');
             return;
         }
 
-        // Set initial card state
-        let updatedCard = { 
-            ...selectedCard, 
-            realm: realmName, 
-            owner: 'PLAYER',
-            readied: false,  // Card starts unreadied
-            online: false,   // Card starts offline
-            activated: false // Card starts unactivated
-        };
-        console.log('Initial card state:', updatedCard);
-
-        // Handle activation based on card category
-        if (updatedCard.card.category === 'LOCATION' || updatedCard.card.category === 'LANDMARK') {
-            updatedCard = {
-                ...updatedCard,
-                online: true,     // Places and landmarks come online immediately
-                activated: false  // But still need to be activated
-            };
-        } else if (updatedCard.card.category === 'ENTITY') {
-            updatedCard = {
-                ...updatedCard,
-                online: false,    // Entities start offline
-                readied: false,   // Entities start unreadied
-                activated: false  // Entities start unactivated
-            };
-        }
-
-        console.log('Card state after activation rules:', updatedCard);
-
-        // Create new realm state
-        const updatedRealms = {
-            ...realms,
-            player: {
-                ...realms.player,
-                [realmName.toLowerCase()]: {
-                    ...realms.player[realmName.toLowerCase()],
-                    people: updatedCard.card.category === 'ENTITY' ? [...realms.player[realmName.toLowerCase()].people, updatedCard] : realms.player[realmName.toLowerCase()].people,
-                    places: (updatedCard.card.category === 'LOCATION' || updatedCard.card.category === 'LANDMARK') ? [...realms.player[realmName.toLowerCase()].places, updatedCard] : realms.player[realmName.toLowerCase()].places,
-                    things: updatedCard.card.category === 'THING' ? [...realms.player[realmName.toLowerCase()].things, updatedCard] : realms.player[realmName.toLowerCase()].things
-                }
-            }
-        };
-
-        // Update realm state
-        setRealms(updatedRealms);
-        console.log('Updated realms:', updatedRealms);
-
-        let canPlace = false;
-        let targetRealmSetter = null;
-        let placementArray = null;
-        const category = selectedCard.card.category;
-        // Re-use the focus attributes we already extracted
-        const { magi, tech, phys } = cardFocusAttrs;
-
-        // Handle ritual cards
-        if (category === 'RITUAL' && selectedCard.card.abilities) {
-            const ritualAbilities = selectedCard.card.abilities.filter(
+        // Rituals don't go to a realm -- they trigger their ability and
+        // (optionally) request a target via setTargetSelection.
+        if (card.category === 'RITUAL' && card.abilities) {
+            const ritualAbilities = card.abilities.filter(
                 (ability) => typeof ability === 'object' && ability.requiresTarget
             );
-
             if (ritualAbilities.length > 0) {
                 const ability = ritualAbilities[0];
                 const abilityDef = abilitiesDefinitions[ability.name];
@@ -1262,8 +1036,7 @@ export default function BoardContainer() {
                         callback: (target) => {
                             confirmRitualActivation(target);
                             removeCardFromHand(selectedCard);
-                            // Resources will be deducted when the card is activated, not when it's placed
-                        }
+                        },
                     });
                     return;
                 }
@@ -1271,101 +1044,51 @@ export default function BoardContainer() {
             return;
         }
 
-        // Handle card placement based on realm
-        switch (realmName.toLowerCase()) {
-            case 'solarium':
-                if (category === 'ENTITY' && magi) {
-                    canPlace = true;
-                    targetRealmSetter = setPlayerSolarium;
-                    placementArray = 'people';
-                }
-                break;
-            case 'theater':
-                if (category === 'ENTITY' && (magi || tech || phys)) {
-                    canPlace = true;
-                    targetRealmSetter = setPlayerTheater;
-                    placementArray = 'people';
-                } else if (category === 'LOCATION' || category === 'LANDMARK') {
-                    canPlace = true;
-                    targetRealmSetter = setPlayerTheater;
-                    placementArray = 'places';
-                    updatedCard.online = true;
-                }
-                break;
-            case 'underpass':
-                if (category === 'ENTITY' && (tech || phys)) {
-                    canPlace = true;
-                    targetRealmSetter = setPlayerUnderpass;
-                    placementArray = 'people';
-                } else if (category === 'LOCATION' || category === 'LANDMARK') {
-                    canPlace = true;
-                    targetRealmSetter = setPlayerUnderpass;
-                    placementArray = 'places';
-                    updatedCard.online = true;
-                } else if (category === 'SNIP' || category === 'SYM') {
-                    canPlace = true;
-                    targetRealmSetter = setPlayerUnderpass;
-                    placementArray = 'things';
-                    updatedCard.online = false;
-                }
-                break;
-            case 'grid':
-                if (category === 'ENTITY' && tech) {
-                    canPlace = true;
-                    targetRealmSetter = setPlayerGrid;
-                    placementArray = 'people';
-                } else if (category === 'SNIP' || category === 'SYM') {
-                    canPlace = true;
-                    targetRealmSetter = setPlayerGrid;
-                    placementArray = 'things';
-                    updatedCard.online = false;
-                }
-                break;
-            case 'elysium':
-                if (category === 'ENTITY' && (magi || tech || phys)) {
-                    canPlace = true;
-                    targetRealmSetter = setPlayerElysium;
-                    placementArray = 'people';
-                } else if (category === 'LOCATION' || category === 'LANDMARK') {
-                    canPlace = true;
-                    targetRealmSetter = setPlayerElysium;
-                    placementArray = 'places';
-                    updatedCard.online = true;
-                } else if (category === 'SNIP' || category === 'SYM') {
-                    canPlace = true;
-                    targetRealmSetter = setPlayerElysium;
-                    placementArray = 'things';
-                    updatedCard.online = false;
-                }
-                break;
-            default:
-                console.log('Invalid realm selected:', realmName);
-                return;
-        }
-
-        if (!canPlace || !targetRealmSetter || !placementArray) {
-            console.log('Cannot place the card in this realm.');
+        // Single source of truth for placement rules: src/ui/helpers/placement.js
+        // (covered by src/ui/helpers/__tests__/placement.test.js).
+        const normalizedRealm = realmName.charAt(0).toUpperCase() + realmName.slice(1).toLowerCase();
+        const decision = canPlaceInRealm(card, normalizedRealm);
+        if (!decision.canPlace) {
+            console.log(`Cannot place ${card.name || 'card'} in ${normalizedRealm}: ${decision.reason}`);
             return;
         }
 
-        // Add the card to the appropriate array in the realm
+        const playerRealmSetters = {
+            Solarium: setPlayerSolarium,
+            Theater: setPlayerTheater,
+            Underpass: setPlayerUnderpass,
+            Grid: setPlayerGrid,
+            // Elysium intentionally omitted: ascension-only, not directly playable.
+        };
+        const targetRealmSetter = playerRealmSetters[normalizedRealm];
+        if (!targetRealmSetter) {
+            console.log('No setter for realm:', normalizedRealm);
+            return;
+        }
+
+        // Places (Landmarks / Locations) come online immediately; everything
+        // else starts offline and must be activated.
+        const placedOnline = decision.array === 'places';
+        const updatedCard = {
+            ...selectedCard,
+            realm: normalizedRealm,
+            owner: 'PLAYER',
+            readied: false,
+            online: placedOnline,
+            activated: false,
+        };
+
         targetRealmSetter(prevRealm => ({
             ...prevRealm,
-            [placementArray]: [...(prevRealm[placementArray] || []), updatedCard]
+            [decision.array]: [...(prevRealm[decision.array] || []), updatedCard],
         }));
 
-        // Resources will be deducted when the card is activated, not when it's placed
-
-        // Handle post-placement effects
+        // Resources are deducted at activation time, not at placement time.
         removeCardFromHand(selectedCard);
-        
         setSelectedCard(null);
         setDraftSelected(false);
         setTargetType('none');
         setCurrentPlayer('ENEMY');
-
-        // Cards will be activated manually later, not automatically when placed
-        // This allows the player to choose when to pay the activation cost
     };
 
     const handleBattleCardSelect = useCallback((card) => {

@@ -16,50 +16,11 @@ import {
 } from './core';
 import { clearVengeance } from '../abilities/glossary';
 
-// Get state variables
-const {
-    playerBattleSlots,
-    enemyBattleSlots,
-    battleRealm,
-    attackMode,
-    targetType,
-    enemyTargetType,
-    playerTargetSelection,
-    enemyTargetSelection,
-} = state;
-
-// Get setters
-const {
-    setBattleRealm,
-    setPlayerBattleSlots,
-    setEnemyBattleSlots,
-    setGameState,
-    setAttackMode,
-    setTargetType,
-    setEnemyTargetType,
-    setPlayerTargetSelection,
-    setEnemyTargetSelection,
-    setPlayerTargetSlot,
-    setEnemyTargetSlot,
-    setPlayerDefendingSlot,
-    setEnemyDefendingSlot,
-    setPlayerInterfaced,
-    setEnemyInterfaced,
-    setPlayerSurge,
-    setEnemySurge,
-    setPlayerFate,
-    setEnemyFate,
-    setPlayerWounds,
-    setEnemyWounds,
-    setPlayerBurden,
-    setEnemyBurden,
-    setPlayerDefenseConfirmed,
-    setEnemyDefenseConfirmed,
-    setEnemyInterfacedHeadSpace,
-    setEnemyInterfacedPandora,
-    setPlayerInterfacedHeadSpace,
-    setPlayerInterfacedPandora
-} = stateSetters;
+// NOTE: this file used to destructure `state` and `stateSetters` here at module
+// load. That captured a frozen snapshot of empty arrays / null setters before
+// BoardContainer's `initializeSetters` ran, so basically nothing in combat
+// worked correctly. Every reference below now reads state.<key> and
+// stateSetters.set<Key> at call time.
 
 /**
  * Decreases the stealth value of an entity by 1.
@@ -130,7 +91,7 @@ const commitAttack = (attacker, defender = null, side, target = null, targetType
     // Handle vengeance
     if (defender?.vengeance > 0) {
         clearVengeance(defender, getOppositeSide(side));
-        handleDamage(battleRealm, attacker.id, defender.vengeance, side);
+        handleDamage(state.battleRealm, attacker.id, defender.vengeance, side);
         return { unblockedHacking: false };
     }
 
@@ -150,10 +111,10 @@ const commitAttack = (attacker, defender = null, side, target = null, targetType
 
     // Handle combat between attacker and defender
     if (attackerPower > defenderPower) {
-        handleDamage(battleRealm, defender.id, attackerPower, getOppositeSide(side));
+        handleDamage(state.battleRealm, defender.id, attackerPower, getOppositeSide(side));
         const excessDamage = attackerPower - defenderPower;
         if (excessDamage > 0) {
-            applyOverrideDamage(attacker, excessDamage, side, battleRealm);
+            applyOverrideDamage(attacker, excessDamage, side, state.battleRealm);
         }
         // Decrease attacker's stealth if they have it
         if (attacker.stealth > 0) {
@@ -164,7 +125,7 @@ const commitAttack = (attacker, defender = null, side, target = null, targetType
             clearVengeance(attacker, side);
         }
     } else if (defenderPower > attackerPower) {
-        handleDamage(battleRealm, attacker.id, defenderPower, side);
+        handleDamage(state.battleRealm, attacker.id, defenderPower, side);
         // Decrease defender's stealth if they have it
         if (defender.stealth > 0) {
             decreaseStealth(defender, getOppositeSide(side));
@@ -175,8 +136,8 @@ const commitAttack = (attacker, defender = null, side, target = null, targetType
         }
     } else {
         // Equal power, mutual destruction
-        handleDamage(battleRealm, attacker.id, defenderPower, side);
-        handleDamage(battleRealm, defender.id, attackerPower, getOppositeSide(side));
+        handleDamage(state.battleRealm, attacker.id, defenderPower, side);
+        handleDamage(state.battleRealm, defender.id, attackerPower, getOppositeSide(side));
         
         // Decrease both entities' stealth if they have it
         if (attacker.stealth > 0) {
@@ -202,7 +163,7 @@ const commitAttack = (attacker, defender = null, side, target = null, targetType
         attackerPower,
         defenderPower,
         side,
-        battleRealm
+        battleRealm: state.battleRealm,
     });
 
     return { unblockedHacking };
@@ -213,17 +174,17 @@ const commitAttack = (attacker, defender = null, side, target = null, targetType
  */
 const handleEndOfBattle = () => {
     console.log('____________________end of battle');
-    setBattleRealm(null);
+    stateSetters.setBattleRealm(null);
 
     // Reset battle slots and return entities to original realms
-    setPlayerBattleSlots(prev => {
+    stateSetters.setPlayerBattleSlots(prev => {
         prev.forEach(cardEntity => {
             if (cardEntity) returnToOriginalRealm(cardEntity, 'PLAYER');
         });
         return Array(6).fill(null);
     });
 
-    setEnemyBattleSlots(prev => {
+    stateSetters.setEnemyBattleSlots(prev => {
         prev.forEach(cardEntity => {
             if (cardEntity) returnToOriginalRealm(cardEntity, 'ENEMY');
         });
@@ -231,41 +192,36 @@ const handleEndOfBattle = () => {
     });
 
     // Reset game state
-    setGameState('ATTACK_RESOLVED');
-    setAttackMode('NONE');
-    setTargetType(null);
-    setEnemyTargetType('none');
-    setPlayerTargetSelection(null);
-    setEnemyTargetSelection(null);
-    setPlayerTargetSlot(null);
-    setEnemyTargetSlot(null);
-    setPlayerDefendingSlot(null);
-    setEnemyDefendingSlot(null);
-    
+    stateSetters.setGameState && stateSetters.setGameState('ATTACK_RESOLVED');
+    stateSetters.setAttackMode('NONE');
+    stateSetters.setTargetType(null);
+    stateSetters.setEnemyTargetType('none');
+    stateSetters.setPlayerTargetSelection(null);
+    stateSetters.setEnemyTargetSelection(null);
+    stateSetters.setPlayerTargetSlot && stateSetters.setPlayerTargetSlot(null);
+    stateSetters.setEnemyTargetSlot && stateSetters.setEnemyTargetSlot(null);
+    stateSetters.setPlayerDefendingSlot && stateSetters.setPlayerDefendingSlot(null);
+    stateSetters.setEnemyDefendingSlot && stateSetters.setEnemyDefendingSlot(null);
+
     // Reset interface states
-    setPlayerInterfaced(false);
-    setEnemyInterfaced(false);
-    
-    // Reset counters
-    setPlayerSurge(0);
-    setEnemySurge(0);
-    setPlayerFate(0);
-    setEnemyFate(0);
-    setPlayerWounds(0);
-    setEnemyWounds(0);
-    setPlayerBurden(0);
-    setEnemyBurden(0);
-    
+    stateSetters.setPlayerInterfaced && stateSetters.setPlayerInterfaced(false);
+    stateSetters.setEnemyInterfaced && stateSetters.setEnemyInterfaced(false);
+
+    // Reset surge (battle-round scoped — accumulated per-attack, not permanent).
+    // NOTE: wounds/burden/fate are permanent resources and must NOT be reset here.
+    stateSetters.setPlayerSurge(0);
+    stateSetters.setEnemySurge(0);
+
     // Reset defense states
-    setPlayerDefenseConfirmed(false);
-    setEnemyDefenseConfirmed(false);
+    stateSetters.setPlayerDefenseConfirmed && stateSetters.setPlayerDefenseConfirmed(false);
+    stateSetters.setEnemyDefenseConfirmed && stateSetters.setEnemyDefenseConfirmed(false);
 };
 
 // Main battle handling functions
 const handleEnemyBattle = () => {
     try {
         // Update player's battle slots if necessary
-        const updatedPlayerBattleSlots = playerBattleSlots.map(creature => {
+        const updatedPlayerBattleSlots = state.playerBattleSlots.map(creature => {
             if (!creature) return null;
             return {
                 ...creature,
@@ -273,38 +229,38 @@ const handleEnemyBattle = () => {
                 readied: creature.timer <= 1 ? creature.readied : false
             };
         });
-        setPlayerBattleSlots(updatedPlayerBattleSlots);
+        stateSetters.setPlayerBattleSlots(updatedPlayerBattleSlots);
 
         // Determine if only one attacker is present on the enemy side
-        const enemyAttackers = enemyBattleSlots.filter(attacker => attacker !== null);
+        const enemyAttackers = state.enemyBattleSlots.filter(attacker => attacker !== null);
         const isEnemySoloAttack = enemyAttackers.length === 1;
 
         // Track hacking success
         let unblockedHacking = false;
 
         // Process each battle slot
-        enemyBattleSlots.forEach((slot, i) => {
+        state.enemyBattleSlots.forEach((slot, i) => {
             if (!slot) return;
 
             // Apply solo effects if applicable
             if (isEnemySoloAttack && slot.solo > 0) {
-                applySoloEffect(slot, battleRealm);
+                applySoloEffect(slot, state.battleRealm);
             }
 
             // Commit the attack
             const defender = updatedPlayerBattleSlots[i];
-            const attackResult = commitAttack(slot, defender, 'ENEMY', enemyTargetSelection, enemyTargetType, i);
+            const attackResult = commitAttack(slot, defender, 'ENEMY', state.enemyTargetSelection, state.enemyTargetType, i);
             if (attackResult.unblockedHacking) {
                 unblockedHacking = true;
             }
         });
 
-        if (unblockedHacking && attackMode === 'ENEMY_HACK') {
+        if (unblockedHacking && state.attackMode === 'ENEMY_HACK') {
             handleSuccessfulHack();
         } else {
             eventManager.publish('failedHack', {
                 side: 'ENEMY',
-                targetType: enemyTargetType,
+                targetType: state.enemyTargetType,
                 success: false
             });
         }
@@ -319,17 +275,17 @@ const handleEnemyBattle = () => {
 
 // Helper function for successful hack
 const handleSuccessfulHack = () => {
-    setEnemyInterfaced(true);
-    
-    if (enemyTargetType === 'HEADSPACE') {
-        setEnemyInterfacedHeadSpace(true);
-    } else if (enemyTargetType === 'PANDORA') {
-        setEnemyInterfacedPandora(true);
+    stateSetters.setEnemyInterfaced(true);
+
+    if (state.enemyTargetType === 'HEADSPACE') {
+        stateSetters.setEnemyInterfacedHeadSpace(true);
+    } else if (state.enemyTargetType === 'PANDORA') {
+        stateSetters.setEnemyInterfacedPandora(true);
     }
 
     eventManager.publish('successfulHack', {
         side: 'ENEMY',
-        targetType: enemyTargetType,
+        targetType: state.enemyTargetType,
         success: true
     });
 
@@ -356,18 +312,18 @@ function handleUnblockedAttack(attacker, side, slotIndex) {
 
     try {
         // Get target information
-        const targetSelection = side === 'PLAYER' ? playerTargetSelection : enemyTargetSelection;
-        const currentTargetType = side === 'PLAYER' ? targetType : enemyTargetType;
+        const targetSelection = side === 'PLAYER' ? state.playerTargetSelection : state.enemyTargetSelection;
+        const currentTargetType = side === 'PLAYER' ? state.targetType : state.enemyTargetType;
 
         // Handle place damage during raids
-        if (isPlaceTarget(targetSelection) && isRaidMode(attackMode)) {
+        if (isPlaceTarget(targetSelection) && isRaidMode(state.attackMode)) {
             handlePlaceDamage(targetSelection.realm, targetSelection.id, attackerPower, opponentSide);
             logDamage(attacker, attackerPower, targetSelection);
             return { unblockedHacking };
         }
 
         // Handle unblocked damage based on attack mode
-        unblockedHacking = handleUnblockedDamage(attackMode, attackerPower, side, battleRealm);
+        unblockedHacking = handleUnblockedDamage(state.attackMode, attackerPower, side, state.battleRealm);
 
         // Log the damage
         logDamage(attacker, attackerPower);
@@ -378,7 +334,7 @@ function handleUnblockedAttack(attacker, side, slotIndex) {
             power: attackerPower,
             side,
             targetType: currentTargetType,
-            battleRealm
+            battleRealm: state.battleRealm,
         });
 
         return { unblockedHacking };
@@ -448,9 +404,9 @@ function handleUnblockedDamage(mode, power, side, realm) {
         case 'ENEMY_tech':
         case 'PLAYER_HACK':
             if (side === 'PLAYER') {
-                setPlayerSurge(prev => prev + power);
+                stateSetters.setPlayerSurge(prev => prev + power);
             } else {
-                setEnemySurge(prev => prev + power);
+                stateSetters.setEnemySurge(prev => prev + power);
             }
             return true;
 
@@ -471,7 +427,7 @@ function applyOverrideDamage(attacker, excessDamage, side, currentRealm) {
     const opponentSide = getOppositeSide(side);
 
     // Determine the target selection based on the side
-    const targetSelection = side === 'PLAYER' ? playerTargetSelection : enemyTargetSelection;
+    const targetSelection = side === 'PLAYER' ? state.playerTargetSelection : state.enemyTargetSelection;
 
     if (
         targetSelection &&
@@ -520,7 +476,7 @@ const handleConfirmDefenseSelection = (side) => {
  * Handles the player battle logic after defense selection is confirmed.
  */
 const handlePlayerBattle = () => {
-    const updatedBattleSlots = playerBattleSlots.map(attacker => {
+    const updatedBattleSlots = state.playerBattleSlots.map(attacker => {
         if (attacker) {
             let isReadied = attacker.charge < attacker.card.timer ? false : true;
             return {
@@ -534,7 +490,7 @@ const handlePlayerBattle = () => {
     });
 
     // Update the state with the modified battle slots
-    setPlayerBattleSlots(updatedBattleSlots);
+    stateSetters.setPlayerBattleSlots(updatedBattleSlots);
 
     let unblockedHacking = false;
 
@@ -545,45 +501,49 @@ const handlePlayerBattle = () => {
     // Proceed with the battle using the updated battle slots
     for (let i = 0; i < 6; i++) {
         const attacker = updatedBattleSlots[i];
-        const defender = enemyBattleSlots[i] || null;
+        const defender = state.enemyBattleSlots[i] || null;
 
         if (attacker) {
             // Implement solo event dispatch here
             if (isSoloAttack && attacker.solo > 0) {
-                applySoloEffect(attacker, battleRealm)
+                applySoloEffect(attacker, state.battleRealm);
             }
 
-            const attackResult = commitAttack(attacker, defender, 'PLAYER', playerTargetSelection, targetType);
+            const attackResult = commitAttack(attacker, defender, 'PLAYER', state.playerTargetSelection, state.targetType);
             if (attackResult.unblockedHacking) {
                 unblockedHacking = true;
             }
         }
     }
 
-    if (unblockedHacking && attackMode === 'PLAYER_HACK') {
-        setPlayerInterfaced(true);
-        if (enemyTargetType === 'HEADSPACE') {
-            setPlayerInterfacedHeadSpace(true);
+    if (unblockedHacking && state.attackMode === 'PLAYER_HACK') {
+        stateSetters.setPlayerInterfaced(true);
+        if (state.enemyTargetType === 'HEADSPACE') {
+            stateSetters.setPlayerInterfacedHeadSpace(true);
         }
-        if (enemyTargetType === 'PANDORA') {
-            setPlayerInterfacedPandora(true);
+        if (state.enemyTargetType === 'PANDORA') {
+            stateSetters.setPlayerInterfacedPandora(true);
         }
         eventManager.publish('successfulHack', {
             side: 'PLAYER',
-            targetType: targetType,
+            targetType: state.targetType,
             success: true,
         });
         handleAccessPhase('PLAYER');
     } else {
         eventManager.publish('failedHack', {
             side: 'PLAYER',
-            targetType: targetType,
+            targetType: state.targetType,
             success: false,
         });
     }
 
     handleEndOfBattle();
 };
+
+// Pass-through export so existing importers of setBattleRealm from this
+// module keep working after the top-level destructure was removed.
+export const setBattleRealm = (v) => stateSetters.setBattleRealm(v);
 
 // Export functions
 export {
@@ -599,6 +559,5 @@ export {
     handleEnemyBattle,
     handlePlayerBattle,
     handleSuccessfulHack,
-    setBattleRealm,
-    decreaseStealth
+    decreaseStealth,
 };

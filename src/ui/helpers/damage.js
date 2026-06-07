@@ -1,30 +1,20 @@
-import { 
-    state,
-    stateSetters
-} from './state';
+import { state, stateSetters } from './state';
 import { getRealmAndSetter, getOppositeSide } from './utils';
 import { eventManager } from './eventManager';
 import { deactivateAbilities } from '../abilities/glossary';
+import { gainFate as playerGainFate, gainAshes as playerGainAshes } from './player';
+import { gainFate as enemyGainFate, gainAshes as enemyGainAshes } from './enemy';
 
-
-const {
-    playerBattleSlots,
-    enemyBattleSlots,
-    playerUnderpass
-} = state;
-
-const {
-    setPlayerBattleSlots,
-    setEnemyBattleSlots,
-    setPlayerGraveyard,
-    setEnemyGraveyard,
-    setPlayerHand,
-    setEnemyHand,
-    playerGainFate,
-    enemyGainFate,
-    playerGainAshes,
-    enemyGainAshes
-} = stateSetters;
+// NOTE: this file used to destructure `state` and `stateSetters` at the top of
+// the module. That captured references at module-load time, BEFORE
+// BoardContainer ran `initializeSetters(...)` -- so the setters were
+// undefined, and battle/realm arrays were frozen to their initial empty
+// values. Worse, four "setters" (playerGainFate etc.) were destructured from
+// stateSetters where they never existed, leaving them undefined and
+// silently breaking fate-on-sym-destruction.
+//
+// All references below now read state.<key> and stateSetters.set<Key>
+// at call time.
 
 export function handleDamage(location, entityId, damageAmount, owner) {
     let cardToWound;
@@ -35,11 +25,11 @@ export function handleDamage(location, entityId, damageAmount, owner) {
     // Handle the 'BATTLE' location separately
     if (location === 'BATTLE') {
         if (owner === 'PLAYER') {
-            cardToWound = playerBattleSlots.find((card) => card && card.id === entityId);
-            setRealmOrBattleSlots = setPlayerBattleSlots;
+            cardToWound = state.playerBattleSlots.find((card) => card && card.id === entityId);
+            setRealmOrBattleSlots = stateSetters.setPlayerBattleSlots;
         } else {
-            cardToWound = enemyBattleSlots.find((card) => card && card.id === entityId);
-            setRealmOrBattleSlots = setEnemyBattleSlots;
+            cardToWound = state.enemyBattleSlots.find((card) => card && card.id === entityId);
+            setRealmOrBattleSlots = stateSetters.setEnemyBattleSlots;
         }
 
         if (cardToWound) {
@@ -129,11 +119,11 @@ export function handleDeadCard(location, entityId, side) {
         let battleSlots, setBattleSlots;
 
         if (side === 'PLAYER') {
-            battleSlots = playerBattleSlots;
-            setBattleSlots = setPlayerBattleSlots;
+            battleSlots = state.playerBattleSlots;
+            setBattleSlots = stateSetters.setPlayerBattleSlots;
         } else {
-            battleSlots = enemyBattleSlots;
-            setBattleSlots = setEnemyBattleSlots;
+            battleSlots = state.enemyBattleSlots;
+            setBattleSlots = stateSetters.setEnemyBattleSlots;
         }
 
         cardToRemove = battleSlots.find(card => card && card.id === numericEntityId);
@@ -165,7 +155,6 @@ export function handleDeadCard(location, entityId, side) {
 
         cardToRemove = realm.people.find(card => card.id === numericEntityId);
         console.log('cardToRemove:', cardToRemove);
-        console.log('filter ', playerUnderpass.people.filter(card => card.id !== numericEntityId))
         if (cardToRemove) {
             console.log('Removing card');
             setRealm(prevRealm => ({
@@ -229,20 +218,20 @@ export function handleDeadCard(location, entityId, side) {
 
             // Add the reset card to HeadSpace
             if (side === 'PLAYER') {
-                setPlayerHand(prev => [...prev, resetCard]);
+                stateSetters.setPlayerHand(prev => [...prev, resetCard]);
                 console.log(`Added reset card to Player Hand:`, resetCard);
             } else {
-                setEnemyHand(prev => [...prev, resetCard]);
+                stateSetters.setEnemyHand(prev => [...prev, resetCard]);
                 console.log(`Added reset card to Enemy Hand:`, resetCard);
             }
 
             console.log(`${cardToRemove.card.name} is Deathless and returns to HeadSpace.`);
         } else {
             if (side === 'PLAYER') {
-                setPlayerGraveyard(prev => [...prev, cardToRemove]);
+                stateSetters.setPlayerGraveyard(prev => [...prev, cardToRemove]);
                 console.log(`Added card to Player Graveyard:`, cardToRemove);
             } else {
-                setEnemyGraveyard(prev => [...prev, cardToRemove]);
+                stateSetters.setEnemyGraveyard(prev => [...prev, cardToRemove]);
                 console.log(`Added card to Enemy Graveyard:`, cardToRemove);
             }
         }
@@ -318,17 +307,17 @@ export function handleDeadCards(deadList, side) {
             };
 
             if (side === 'PLAYER') {
-                setPlayerHand(prev => [...prev, resetCard]);
+                stateSetters.setPlayerHand(prev => [...prev, resetCard]);
             } else {
-                setEnemyHand(prev => [...prev, resetCard]);
+                stateSetters.setEnemyHand(prev => [...prev, resetCard]);
             }
 
             console.log(`${entity.card.name} is Deathless and returns to HeadSpace.`);
         } else {
             if (side === 'PLAYER') {
-                setPlayerGraveyard(prev => [...prev, entity]);
+                stateSetters.setPlayerGraveyard(prev => [...prev, entity]);
             } else {
-                setEnemyGraveyard(prev => [...prev, entity]);
+                stateSetters.setEnemyGraveyard(prev => [...prev, entity]);
             }
         }
     }
@@ -394,9 +383,9 @@ export function handleDestroyedThing(location, entityId, side, runes = 0) {
 
         // Add the thing to the graveyard
         if (side === 'PLAYER') {
-            setPlayerGraveyard(prev => [...prev, thingToRemove]);
+            stateSetters.setPlayerGraveyard(prev => [...prev, thingToRemove]);
         } else {
-            setEnemyGraveyard(prev => [...prev, thingToRemove]);
+            stateSetters.setEnemyGraveyard(prev => [...prev, thingToRemove]);
         }
 
         // Log the destruction
@@ -436,9 +425,9 @@ export function handleDestroyedPlace(location, entityId, side, runes = 0) {
 
         // Add the place to the graveyard
         if (side === 'PLAYER') {
-            setPlayerGraveyard(prev => [...prev, placeToRemove]);
+            stateSetters.setPlayerGraveyard(prev => [...prev, placeToRemove]);
         } else {
-            setEnemyGraveyard(prev => [...prev, placeToRemove]);
+            stateSetters.setEnemyGraveyard(prev => [...prev, placeToRemove]);
         }
     } else {
         console.error(`Place with ID ${entityId} not found in ${location} for side ${side}`);

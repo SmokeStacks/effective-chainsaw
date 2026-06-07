@@ -18,30 +18,6 @@ import { getOppositeSide, getRealmAndSetter, getArrayNameForCategory } from '../
 import { applyEffect, applyFreezeToAllEntities, applyOverload } from '../helpers/effects';
 import { updateEntityInRealm, drawSpecificCard } from '../helpers/entity';
 
-const {
-    playerSolarium, playerTheater, playerUnderpass, playerGrid,
-    enemySolarium, enemyTheater, enemyUnderpass, enemyGrid,
-    playerBattleSlots, enemyBattleSlots,
-    playerLibrary, enemyLibrary,
-    playerInterfaced, enemyInterfaced,
-    playerInterfacedHeadSpace, enemyInterfacedHeadSpace,
-    playerActions, enemyActions
-} = state;
-
-const {
-    setPlayerSolarium, setPlayerTheater, setPlayerUnderpass, setPlayerGrid,
-    setEnemySolarium, setEnemyTheater, setEnemyUnderpass, setEnemyGrid,
-    setPlayerBattleSlots, setEnemyBattleSlots,
-    setPlayerHand, setEnemyHand, setAttackMode,
-    setTargetType, setSelectedRealm,
-    setPlayerPandoraAccess, setEnemyPandoraAccess,
-    setPlayerDriftCount, setEnemyDriftCount,
-    setPlayerDividendAmount, setEnemyDividendAmount,
-    setPlayerActions, setEnemyActions,
-    setPlayerBits, setEnemyBits,
-    setPlayerOverload, setEnemyOverload,
-    showModal, setModalVisible
-} = stateSetters;
 
 // Define ability helpers for internal use
 const abilityHelpers = {
@@ -53,18 +29,18 @@ const abilityHelpers = {
         let setRealmOrBattleSlots = null;
 
         // Check if entity is in battle
-        const playerBattleCard = playerBattleSlots.find((card) => card && card.id === entity.id);
-        const enemyBattleCard = enemyBattleSlots.find((card) => card && card.id === entity.id);
+        const playerBattleCard = state.playerBattleSlots.find((card) => card && card.id === entity.id);
+        const enemyBattleCard = state.enemyBattleSlots.find((card) => card && card.id === entity.id);
 
         if (playerBattleCard || enemyBattleCard) {
             location = 'BATTLE';
 
             if (playerBattleCard) {
-                setRealmOrBattleSlots = setPlayerBattleSlots;
-                entityIndex = playerBattleSlots.findIndex((card) => card && card.id === entity.id);
+                setRealmOrBattleSlots = stateSetters.setPlayerBattleSlots;
+                entityIndex = state.playerBattleSlots.findIndex((card) => card && card.id === entity.id);
             } else {
-                setRealmOrBattleSlots = setEnemyBattleSlots;
-                entityIndex = enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
+                setRealmOrBattleSlots = stateSetters.setEnemyBattleSlots;
+                entityIndex = state.enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
             }
         } else {
             // If not in battle, proceed with realm logic
@@ -179,16 +155,16 @@ const abilitiesDefinitions = {
     
             // Get enemy realms
             const enemyRealms = enemySide === 'PLAYER' ? [
-                { realm: playerSolarium, setRealm: setPlayerSolarium },
-                { realm: playerTheater, setRealm: setPlayerTheater },
-                { realm: playerUnderpass, setRealm: setPlayerUnderpass },
-                { realm: playerGrid, setRealm: setPlayerGrid }
+                { realm: state.playerSolarium, setRealm: stateSetters.setPlayerSolarium },
+                { realm: state.playerTheater, setRealm: stateSetters.setPlayerTheater },
+                { realm: state.playerUnderpass, setRealm: stateSetters.setPlayerUnderpass },
+                { realm: state.playerGrid, setRealm: stateSetters.setPlayerGrid }
             ] : [
-                { realm: enemySolarium, setRealm: setEnemySolarium },
-                    { realm: enemyTheater, setRealm: setEnemyTheater },
-                    { realm: enemyUnderpass, setRealm: setEnemyUnderpass },
-                    { realm: enemyGrid, setRealm: setEnemyGrid },
-                ];
+                { realm: state.enemySolarium, setRealm: stateSetters.setEnemySolarium },
+                { realm: state.enemyTheater, setRealm: stateSetters.setEnemyTheater },
+                { realm: state.enemyUnderpass, setRealm: stateSetters.setEnemyUnderpass },
+                { realm: state.enemyGrid, setRealm: stateSetters.setEnemyGrid },
+            ];
     
             // Collect all entities (people) in the enemy's realms
             const enemyEntities = enemyRealms.flatMap(({ realm }) => realm.people);
@@ -279,14 +255,14 @@ const abilitiesDefinitions = {
             }
 
             // Search Pandora for JAWbreaker entities
-            const pandora = side === 'PLAYER' ? playerLibrary : enemyLibrary; // Ensure these state variables exist
+            const pandora = side === 'PLAYER' ? state.playerLibrary : state.enemyLibrary; // Ensure these state variables exist
             //console.log(pandora)
             const jawbreakerEntities = pandora.filter(entity =>
                 entity.card.subTypes?.includes('JAWbreaker')
             );
             console.log(jawbreakerEntities)
             if (jawbreakerEntities.length > 0) {
-                showModal({
+                stateSetters.showModal({
                     title: 'Search Pandora',
                     message: 'Select a JAWbreaker to draw:',
                     renderContent: () => (
@@ -297,7 +273,7 @@ const abilitiesDefinitions = {
                                         key={jb.id}
                                         onClick={() => {
                                             drawSpecificCard(jb, side);
-                                            setModalVisible(false);
+                                            stateSetters.setModalVisible(false);
                                         }}
                                         style={{ cursor: 'pointer', marginBottom: '5px' }}
                                     >
@@ -307,8 +283,8 @@ const abilitiesDefinitions = {
                             </ul>
                         </div>
                     ),
-                    onConfirm: setModalVisible(false),
-                    onCancel: setModalVisible(false),
+                    onConfirm: stateSetters.setModalVisible(false),
+                    onCancel: stateSetters.setModalVisible(false),
                 });
             } else {
                 // No valid JAWbreaker found, proceed without drawing
@@ -326,7 +302,7 @@ const abilitiesDefinitions = {
             target.owner === 'PLAYER' &&
             target.online,
         onPlay: function (entity, gameState, side, target) {
-            const hasHacked = side === 'PLAYER' ? playerInterfaced : enemyInterfaced;
+            const hasHacked = side === 'PLAYER' ? state.playerInterfaced : state.enemyInterfaced;
             if (hasHacked && target) {
                 applyEffect(target.id, target.realm, side, {
                     type: 'stat',
@@ -373,9 +349,9 @@ const abilitiesDefinitions = {
                 };
 
                 if (side === 'PLAYER') {
-                    setPlayerHand((prevHeadSpace) => [...prevHeadSpace, newCardEntity]);
+                    stateSetters.setPlayerHand((prevHeadSpace) => [...prevHeadSpace, newCardEntity]);
                 } else {
-                    setEnemyHand((prevHeadSpace) => [...prevHeadSpace, newCardEntity]);
+                    stateSetters.setEnemyHand((prevHeadSpace) => [...prevHeadSpace, newCardEntity]);
                 }
             }
         },
@@ -435,7 +411,7 @@ const abilitiesDefinitions = {
         name: 'ForgeryEffect',
         type: 'onPlay',
         onPlay: function (entity, state, side) {
-            if (side === 'PLAYER' && playerInterfacedHeadSpace) {
+            if (side === 'PLAYER' && state.playerInterfacedHeadSpace) {
                 playerGainBits(10);
                 const CatPhishCard = cardList.find(card => card.name === 'CatPhish');
 
@@ -466,14 +442,14 @@ const abilitiesDefinitions = {
                         plot: CatPhishCard.plot || 0,
                         owner: 'ENEMY',
                     };
-                    setEnemyUnderpass(prevRealm => ({
+                    stateSetters.setEnemyUnderpass(prevRealm => ({
                         ...prevRealm,
                         people: [...prevRealm.people, newCatPhishEntity],
                     }));
                 } else {
                     console.error('CatPhish card not found in the library.');
                 }
-            } else if (side === 'ENEMY' && enemyInterfacedHeadSpace) {
+            } else if (side === 'ENEMY' && state.enemyInterfacedHeadSpace) {
                 enemyGainBits(10);
                 const CatPhishCard = cardList.find(card => card.name === 'CatPhish');
 
@@ -504,7 +480,7 @@ const abilitiesDefinitions = {
                         plot: CatPhishCard.plot || 0,
                         owner: 'ENEMY',
                     };
-                    setPlayerUnderpass(prevRealm => ({
+                    stateSetters.setPlayerUnderpass(prevRealm => ({
                         ...prevRealm,
                         people: [...prevRealm.people, newCatPhishEntity],
                     }));
@@ -527,9 +503,9 @@ const abilitiesDefinitions = {
 
             // Gain 3 Overload
             if (side === 'PLAYER') {
-                setPlayerOverload(prevOverload => prevOverload + 3);
+                stateSetters.setPlayerOverload(prevOverload => prevOverload + 3);
             } else {
-                setEnemyOverload(prevOverload => prevOverload + 3);
+                stateSetters.setEnemyOverload(prevOverload => prevOverload + 3);
             }
         },
     },
@@ -554,9 +530,9 @@ const abilitiesDefinitions = {
             eventManager.subscribe('failedHack', handler);
 
             // Initiate hack attack mode targeting Pandora
-            setAttackMode('PLAYER_HACK');
-            setTargetType('PANDORA');
-            setSelectedRealm('Grid'); // Only Grid can perform the hack
+            stateSetters.setAttackMode('PLAYER_HACK');
+            stateSetters.setTargetType('PANDORA');
+            stateSetters.setSelectedRealm('Grid'); // Only Grid can perform the hack
         },
     },
     'ImitationGameInflictOverload': {
@@ -616,17 +592,17 @@ const abilitiesDefinitions = {
         type: 'static',
         applyAbilityEffect: function (entity, gameState, side) {
             if (side === 'PLAYER') {
-                setPlayerPandoraAccess(prev => prev + 1);
+                stateSetters.setPlayerPandoraAccess(prev => prev + 1);
             } else {
-                setEnemyPandoraAccess(prev => prev + 1);
+                stateSetters.setEnemyPandoraAccess(prev => prev + 1);
             }
             console.log(`${entity.card.name} increases Pandora Access by 1.`);
         },
         removeEffect: function (entity, gameState, side) {
             if (side === 'PLAYER') {
-                setPlayerPandoraAccess(prev => prev - 1);
+                stateSetters.setPlayerPandoraAccess(prev => prev - 1);
             } else {
-                setEnemyPandoraAccess(prev => prev - 1);
+                stateSetters.setEnemyPandoraAccess(prev => prev - 1);
             }
             console.log(`${entity.card.name} decreases Pandora Access by 1.`);
         },
@@ -636,17 +612,17 @@ const abilitiesDefinitions = {
         type: 'static',
         applyAbilityEffect: function(entity, gameState, side) {
         if (side === 'PLAYER') {
-            setPlayerDriftCount(prev => prev + 1);
+            stateSetters.setPlayerDriftCount(prev => prev + 1);
         } else {
-            setEnemyDriftCount(prev => prev + 1);
+            stateSetters.setEnemyDriftCount(prev => prev + 1);
         }
         console.log(`${entity.card.name} increases Drift count by 1.`);
         },
         removeEffect: function (entity, gameState, side) {
             if (side === 'PLAYER') {
-                setPlayerDriftCount(prev => prev - 1);
+                stateSetters.setPlayerDriftCount(prev => prev - 1);
             } else {
-                setEnemyDriftCount(prev => prev - 1);
+                stateSetters.setEnemyDriftCount(prev => prev - 1);
             }
             console.log(`${entity.card.name} decreases Drift count by 1.`);
         }
@@ -656,17 +632,17 @@ const abilitiesDefinitions = {
         type: 'static',
         applyAbilityEffect: function (entity, gameState, side) {
             if (side === 'PLAYER') {
-                setPlayerDividendAmount(prev => prev + amount);
+                stateSetters.setPlayerDividendAmount(prev => prev + amount);
             } else {
-                setEnemyDividendAmount(prev => prev + amount);
+                stateSetters.setEnemyDividendAmount(prev => prev + amount);
             }
             console.log(`${entity.card.name} increases Dividend count.`);
         },
         removeEffect: function (entity, gameState, side) {
             if (side === 'PLAYER') {
-                setPlayerDividendAmount(prev => prev - amount);
+                stateSetters.setPlayerDividendAmount(prev => prev - amount);
             } else {
-                setEnemyDividendAmount(prev => prev - amount);
+                stateSetters.setEnemyDividendAmount(prev => prev - amount);
             }
             console.log(`${entity.card.name} decreases Dividend count.`);
         },
@@ -683,9 +659,9 @@ const abilitiesDefinitions = {
                 if (!entity.abilityActivated) {
                     const amount = entity.card.abilities.find(ability => ability.name === 'GainActionsOnPandoraInterface').effect.amount || 3;
                     if (side === 'PLAYER') {
-                        setPlayerActions(prevActions => prevActions + amount);
+                        stateSetters.setPlayerActions(prevActions => prevActions + amount);
                     } else {
-                        setEnemyActions(prevActions => prevActions + amount);
+                        stateSetters.setEnemyActions(prevActions => prevActions + amount);
                     }
                     console.log(`${entity.card.name} grants ${amount} Actions upon interfacing with Pandora.`);
                     entity.abilityActivated = true;
@@ -719,17 +695,17 @@ const abilitiesDefinitions = {
                 return;
             }
             if (side === 'PLAYER') {
-                if (playerActions < 2) {
+                if (state.playerActions < 2) {
                     console.log('Not enough actions to activate this ability.');
                     return;
                 }
-                setPlayerActions(prev => prev - 2);
+                stateSetters.setPlayerActions(prev => prev - 2);
             } else {
-                if (enemyActions < 2) {
+                if (state.enemyActions < 2) {
                     console.log('Not enough actions to activate this ability.');
                     return;
                 }
-                setEnemyActions(prev => prev - 2);
+                stateSetters.setEnemyActions(prev => prev - 2);
             }
             handlePlaceDamage(target.realm, target.id, effect.damageAmount, getOppositeSide(side));
 
@@ -743,10 +719,10 @@ const abilitiesDefinitions = {
         eventHandler: function (entity, eventData, gameState, side) {
             if (eventData.side === side && eventData.targetType === 'HEADSPACE') {
                 if (side === 'PLAYER') {
-                    setPlayerBits(prevBits => prevBits + 2);
+                    stateSetters.setPlayerBits(prevBits => prevBits + 2);
                     playerGainAshes(2);
                 } else {
-                    setEnemyBits(prevBits => prevBits + 2);
+                    stateSetters.setEnemyBits(prevBits => prevBits + 2);
                     enemyGainAshes(2);
                 }
 
@@ -912,16 +888,16 @@ const abilitiesDefinitions = {
         // Get realm setters dynamically
         const realmSetters = {
             'PLAYER': {
-                'Solarium': setPlayerSolarium,
-                'Theater': setPlayerTheater,
-                'Underpass': setPlayerUnderpass,
-                'Grid': setPlayerGrid
+                'Solarium': stateSetters.setPlayerSolarium,
+                'Theater': stateSetters.setPlayerTheater,
+                'Underpass': stateSetters.setPlayerUnderpass,
+                'Grid': stateSetters.setPlayerGrid
             },
             'ENEMY': {
-                'Solarium': setEnemySolarium,
-                'Theater': setEnemyTheater,
-                'Underpass': setEnemyUnderpass,
-                'Grid': setEnemyGrid
+                'Solarium': stateSetters.setEnemySolarium,
+                'Theater': stateSetters.setEnemyTheater,
+                'Underpass': stateSetters.setEnemyUnderpass,
+                'Grid': stateSetters.setEnemyGrid
             }
         };
 
@@ -962,16 +938,16 @@ const abilitiesDefinitions = {
         // Get realm setters dynamically
         const realmSetters = {
             'PLAYER': {
-                'Solarium': setPlayerSolarium,
-                'Theater': setPlayerTheater,
-                'Underpass': setPlayerUnderpass,
-                'Grid': setPlayerGrid
+                'Solarium': stateSetters.setPlayerSolarium,
+                'Theater': stateSetters.setPlayerTheater,
+                'Underpass': stateSetters.setPlayerUnderpass,
+                'Grid': stateSetters.setPlayerGrid
             },
             'ENEMY': {
-                'Solarium': setEnemySolarium,
-                'Theater': setEnemyTheater,
-                'Underpass': setEnemyUnderpass,
-                'Grid': setEnemyGrid
+                'Solarium': stateSetters.setEnemySolarium,
+                'Theater': stateSetters.setEnemyTheater,
+                'Underpass': stateSetters.setEnemyUnderpass,
+                'Grid': stateSetters.setEnemyGrid
             }
         };
 
@@ -1001,15 +977,15 @@ const abilitiesDefinitions = {
         applyAbilityEffect: function(entity, gameState, side) {
         const enemySide = side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
         const enemyRealms = enemySide === 'PLAYER' ? [
-            { realm: playerSolarium, setRealm: setPlayerSolarium, name: 'Solarium' },
-            { realm: playerTheater, setRealm: setPlayerTheater, name: 'Theater' },
-            { realm: playerUnderpass, setRealm: setPlayerUnderpass, name: 'Underpass' },
-            { realm: playerGrid, setRealm: setPlayerGrid, name: 'Grid' }
+            { realm: state.playerSolarium, setRealm: stateSetters.setPlayerSolarium, name: 'Solarium' },
+            { realm: state.playerTheater, setRealm: stateSetters.setPlayerTheater, name: 'Theater' },
+            { realm: state.playerUnderpass, setRealm: stateSetters.setPlayerUnderpass, name: 'Underpass' },
+            { realm: state.playerGrid, setRealm: stateSetters.setPlayerGrid, name: 'Grid' }
         ] : [
-                    { realm: enemySolarium, setRealm: setEnemySolarium, name: 'Solarium' },
-                    { realm: enemyTheater, setRealm: setEnemyTheater, name: 'Theater' },
-                    { realm: enemyUnderpass, setRealm: setEnemyUnderpass, name: 'Underpass' },
-                    { realm: enemyGrid, setRealm: setEnemyGrid, name: 'Grid' },
+                    { realm: state.enemySolarium, setRealm: stateSetters.setEnemySolarium, name: 'Solarium' },
+                    { realm: state.enemyTheater, setRealm: stateSetters.setEnemyTheater, name: 'Theater' },
+                    { realm: state.enemyUnderpass, setRealm: stateSetters.setEnemyUnderpass, name: 'Underpass' },
+                    { realm: state.enemyGrid, setRealm: stateSetters.setEnemyGrid, name: 'Grid' },
                 ];
 
             enemyRealms.forEach(({ realm, setRealm }) => {
@@ -1033,16 +1009,16 @@ const abilitiesDefinitions = {
             const enemySide = side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
             const enemyRealms = enemySide === 'PLAYER'
                 ? [
-                    { realm: playerSolarium, setRealm: setPlayerSolarium, name: 'Solarium' },
-                    { realm: playerTheater, setRealm: setPlayerTheater, name: 'Theater' },
-                    { realm: playerUnderpass, setRealm: setPlayerUnderpass, name: 'Underpass' },
-                    { realm: playerGrid, setRealm: setPlayerGrid, name: 'Grid' },
+                    { realm: state.playerSolarium, setRealm: stateSetters.setPlayerSolarium, name: 'Solarium' },
+                    { realm: state.playerTheater, setRealm: stateSetters.setPlayerTheater, name: 'Theater' },
+                    { realm: state.playerUnderpass, setRealm: stateSetters.setPlayerUnderpass, name: 'Underpass' },
+                    { realm: state.playerGrid, setRealm: stateSetters.setPlayerGrid, name: 'Grid' },
                 ]
                 : [
-                    { realm: enemySolarium, setRealm: setEnemySolarium, name: 'Solarium' },
-                    { realm: enemyTheater, setRealm: setEnemyTheater, name: 'Theater' },
-                    { realm: enemyUnderpass, setRealm: setEnemyUnderpass, name: 'Underpass' },
-                    { realm: enemyGrid, setRealm: setEnemyGrid, name: 'Grid' },
+                    { realm: state.enemySolarium, setRealm: stateSetters.setEnemySolarium, name: 'Solarium' },
+                    { realm: state.enemyTheater, setRealm: stateSetters.setEnemyTheater, name: 'Theater' },
+                    { realm: state.enemyUnderpass, setRealm: stateSetters.setEnemyUnderpass, name: 'Underpass' },
+                    { realm: state.enemyGrid, setRealm: stateSetters.setEnemyGrid, name: 'Grid' },
                 ];
 
             enemyRealms.forEach(({ realm, setRealm, name }) => {
@@ -1167,7 +1143,7 @@ async function activateAbilities(entity, side) {
             }
 
             if (abilityDef.type === 'static') {
-                abilityDef.applyEffect(entity, state, side);
+                abilityDef.applyAbilityEffect(entity, state, side);
                 entity.activeAbilities.push({ abilityName, abilityDef });
             } else if (abilityDef.type === 'triggered') {
                 console.log('activate trigger listener');
@@ -1185,7 +1161,7 @@ async function activateAbilities(entity, side) {
                 entity.activeAbilities.push({ abilityName, abilityDef });
             } else if (abilityDef.type === 'onActivate') {
                 console.log('on activate');
-                abilityDef.onActivate(entity, state, side);
+                abilityDef.onActivate(entity, state, side); 
                 entity.activeAbilities.push({ abilityName, abilityDef });
             }
         }
@@ -1252,18 +1228,18 @@ export function clearVengeance(entity, side) {
     let setRealmOrBattleSlots = null;
 
     // Check if entity is in battle
-    const playerBattleCard = playerBattleSlots.find((card) => card && card.id === entity.id);
-    const enemyBattleCard = enemyBattleSlots.find((card) => card && card.id === entity.id);
+    const playerBattleCard = state.playerBattleSlots.find((card) => card && card.id === entity.id);
+    const enemyBattleCard = state.enemyBattleSlots.find((card) => card && card.id === entity.id);
 
     if (playerBattleCard || enemyBattleCard) {
         location = 'BATTLE';
 
         if (playerBattleCard) {
-            setRealmOrBattleSlots = setPlayerBattleSlots;
-            entityIndex = playerBattleSlots.findIndex((card) => card && card.id === entity.id);
+            setRealmOrBattleSlots = stateSetters.setPlayerBattleSlots;
+            entityIndex = state.playerBattleSlots.findIndex((card) => card && card.id === entity.id);
         } else {
-            setRealmOrBattleSlots = setEnemyBattleSlots;
-            entityIndex = enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
+            setRealmOrBattleSlots = stateSetters.setEnemyBattleSlots;
+            entityIndex = state.enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
         }
     } else {
         // If not in battle, proceed with realm logic
@@ -1317,18 +1293,18 @@ export function deactivateAbilities(entity, side) {
     let setRealmOrBattleSlots = null;
 
     // Check if entity is in battle
-    const playerBattleCard = playerBattleSlots.find((card) => card && card.id === entity.id);
-    const enemyBattleCard = enemyBattleSlots.find((card) => card && card.id === entity.id);
+    const playerBattleCard = state.playerBattleSlots.find((card) => card && card.id === entity.id);
+    const enemyBattleCard = state.enemyBattleSlots.find((card) => card && card.id === entity.id);
 
     if (playerBattleCard || enemyBattleCard) {
         location = 'BATTLE';
 
         if (playerBattleCard) {
-            setRealmOrBattleSlots = setPlayerBattleSlots;
-            entityIndex = playerBattleSlots.findIndex((card) => card && card.id === entity.id);
+            setRealmOrBattleSlots = stateSetters.setPlayerBattleSlots;
+            entityIndex = state.playerBattleSlots.findIndex((card) => card && card.id === entity.id);
         } else {
-            setRealmOrBattleSlots = setEnemyBattleSlots;
-            entityIndex = enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
+            setRealmOrBattleSlots = stateSetters.setEnemyBattleSlots;
+            entityIndex = state.enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
         }
     } else {
         // If not in battle, proceed with realm logic
@@ -1411,18 +1387,18 @@ export function exhaustEntity(entity, side) {
     let setRealmOrBattleSlots;
 
     // Check if entity is in battle
-    const playerBattleCard = playerBattleSlots.find((card) => card && card.id === entity.id);
-    const enemyBattleCard = enemyBattleSlots.find((card) => card && card.id === entity.id);
+    const playerBattleCard = state.playerBattleSlots.find((card) => card && card.id === entity.id);
+    const enemyBattleCard = state.enemyBattleSlots.find((card) => card && card.id === entity.id);
 
     if (playerBattleCard || enemyBattleCard) {
         location = 'BATTLE';
 
         if (playerBattleCard) {
-            setRealmOrBattleSlots = setPlayerBattleSlots;
-            entityIndex = playerBattleSlots.findIndex((card) => card && card.id === entity.id);
+            setRealmOrBattleSlots = stateSetters.setPlayerBattleSlots;
+            entityIndex = state.playerBattleSlots.findIndex((card) => card && card.id === entity.id);
         } else {
-            setRealmOrBattleSlots = setEnemyBattleSlots;
-            entityIndex = enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
+            setRealmOrBattleSlots = stateSetters.setEnemyBattleSlots;
+            entityIndex = state.enemyBattleSlots.findIndex((card) => card && card.id === entity.id);
         }
     } else {
         // If not in battle, proceed with realm logic

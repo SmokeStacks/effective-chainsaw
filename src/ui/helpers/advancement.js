@@ -5,16 +5,6 @@ import { getRealmAndSetter, getOppositeSide } from './utils';
 import { updateEntityInRealm } from './entity';
 import { playerGainFate, enemyGainFate } from './core';
 
-const {
-    playerElysium,
-    enemyElysium
-} = state;
-
-const {
-    setAttackMode,
-    setPlayerElysium,
-    setEnemyElysium
-} = stateSetters;
 
 export function handleDevelopCard(cardEntity) {
         // Directly set the attackMode property in the state object
@@ -121,12 +111,12 @@ export function handleAscension(cardEntity, side) {
                     cardEntity.realm = 'Elysium';
 
                     if (side === 'PLAYER') {
-                        setPlayerElysium(prevElysium => ({
+                        stateSetters.setPlayerElysium(prevElysium => ({
                             ...prevElysium,
                             things: [...prevElysium.things, cardEntity],
                         }));
                     } else {
-                        setEnemyElysium(prevElysium => ({
+                        stateSetters.setEnemyElysium(prevElysium => ({
                             ...prevElysium,
                             things: [...prevElysium.things, cardEntity],
                         }));

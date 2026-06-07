@@ -145,6 +145,16 @@ export function installFakeSetters() {
         'impostorRealm',
         'enemyTargetType',
         'enemyFirstAttack',
+        // Interfacing / hack setters used by handlePlayerBattle / handleSuccessfulHack
+        'playerInterfaced',
+        'playerInterfacedHeadSpace',
+        'playerInterfacedPandora',
+        'enemyInterfaced',
+        'enemyInterfacedHeadSpace',
+        'enemyInterfacedPandora',
+        // Defense confirmation setters used by handleEndOfBattle
+        'playerDefenseConfirmed',
+        'enemyDefenseConfirmed',
     ];
     for (const key of setterKeys) {
         const setterName = 'set' + key.charAt(0).toUpperCase() + key.slice(1);

@@ -97,13 +97,7 @@ const {
     enemyUnderpass = { people: [], places: [], things: [] },
     enemyGrid = { people: [], places: [], things: [] },
     enemyHand = [],
-    playerAshes = 0,
-    playerGlitchyAmount = 0,
-    enemyGlitchyAmount = 0,
-    playerDriftCount = 0,
-    enemyDriftCount = 0,
-    playerDividendAmount = 0,
-    enemyDividendAmount = 0
+    playerAshes = 0
 } = state;
 
 // We no longer destructure setters here as we access them directly via stateSetters object
@@ -186,14 +180,18 @@ export function enemyLoseActions(amount) {
 }
 
 export function returnToOriginalRealm(cardEntity, side) {
-    // Remove from current realm
+    // Fetch the current (potentially wounded) version from the realm before
+    // removing it, so we re-add the up-to-date copy rather than the stale
+    // battle-slot snapshot (which would discard wounds taken during combat).
+    const [realm] = getRealmAndSetter(cardEntity.realm, side);
+    const current = realm?.people?.find(e => e.id === cardEntity.id) || cardEntity;
+
     removeFromRealm(cardEntity.realm, cardEntity.id, 'PEOPLE');
 
-    // Add to target realm
     const [, setRealm] = getRealmAndSetter(cardEntity.realm, side);
     setRealm(prev => ({
         ...prev,
-        people: [...prev.people, cardEntity]
+        people: [...prev.people, current]
     }));
 }
 
@@ -1355,18 +1353,18 @@ export function startTurn(currentPriorityLeft) {
     }));
 
     // Handle start of turn effects
-    playerGainActions(3 + playerDriftCount);
-    if (playerGlitchyAmount > 0) {
-        stateSetters.setPlayerOverload((prev) => prev + playerGlitchyAmount);
-        console.log(`Player gains ${playerGlitchyAmount} Overload due to Glitchy abilities.`);
+    playerGainActions(3 + state.playerDriftCount);
+    if (state.playerGlitchyAmount > 0) {
+        stateSetters.setPlayerOverload((prev) => prev + state.playerGlitchyAmount);
+        console.log(`Player gains ${state.playerGlitchyAmount} Overload due to Glitchy abilities.`);
     }
-    if (enemyGlitchyAmount > 0) {
-        stateSetters.setEnemyOverload((prev) => prev + enemyGlitchyAmount);
-        console.log(`Enemy gains ${enemyGlitchyAmount} Overload due to Glitchy abilities.`);
+    if (state.enemyGlitchyAmount > 0) {
+        stateSetters.setEnemyOverload((prev) => prev + state.enemyGlitchyAmount);
+        console.log(`Enemy gains ${state.enemyGlitchyAmount} Overload due to Glitchy abilities.`);
     }
-    enemyGainActions(2 + enemyDriftCount);
-    enemyGainBits(enemyDividendAmount);
-    playerGainBits(playerDividendAmount);
+    enemyGainActions(2 + state.enemyDriftCount);
+    enemyGainBits(state.enemyDividendAmount);
+    playerGainBits(state.playerDividendAmount);
     playerDraw(1);
     enemyDraw(3); // Enemy draws 3 cards at start of turn
     stateSetters.setPlayerFirstAttack(true);
@@ -1385,7 +1383,7 @@ export function startTurn(currentPriorityLeft) {
 export function endTurn() {
     console.log('end turn');
     processEndOfTurnEffects();
-    const newPriorityLeft = !priorityLeft;
+    const newPriorityLeft = !state.priorityLeft;
     stateSetters.setPriorityLeft(newPriorityLeft);
     handleDominationPhase().then(() => {
         startTurn(newPriorityLeft);
