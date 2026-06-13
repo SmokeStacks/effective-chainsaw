@@ -35,11 +35,27 @@ export async function handleDominationPhase() {
             applyDominationReward('PLAYER');
             winner = 'PLAYER';
             loser = 'ENEMY';
+
+            // Publish dominance won/lost events
+            eventManager.publish('dominanceWon', { side: 'PLAYER' });
+            eventManager.publish('dominanceLost', { side: 'ENEMY' });
+
+            // Update state
+            stateSetters.setPlayerWonDominance && stateSetters.setPlayerWonDominance(true);
+            stateSetters.setEnemyLostDominance && stateSetters.setEnemyLostDominance(true);
         } else if (finalEnemyScore > finalPlayerScore) {
             // Enemy wins
             applyDominationReward('ENEMY');
             winner = 'ENEMY';
             loser = 'PLAYER';
+
+            // Publish dominance won/lost events
+            eventManager.publish('dominanceWon', { side: 'ENEMY' });
+            eventManager.publish('dominanceLost', { side: 'PLAYER' });
+
+            // Update state
+            stateSetters.setEnemyWonDominance && stateSetters.setEnemyWonDominance(true);
+            stateSetters.setPlayerLostDominance && stateSetters.setPlayerLostDominance(true);
         } else {
             // Tie - nothing happens
             console.log('Domination phase ended in a tie.');

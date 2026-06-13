@@ -21,9 +21,9 @@ Barricade: Create an Online “Barrier” Entity with Soulless, Power 0, Health 
 
 Bits: Currency used for paying Activation costs, Boosting Entities, Developing Landmarks and Syms, Scrapping Snips, and bidding for Dominance.
 
-Boost: Decrease entity’s timer by X. Players can spend 1 Bit and 1 Action to Boost 1.
+Boost: Decrease entity’s timer by X. Players can spend 1 Bit and 1 Action to Boost 1. Each entity does this automatically during "Maintenance", the first phase
 
-Bribe: Does not gain Boost automatically each turn. But willing to negotiate.
+Bribe: Does not gain Boost automatically each turn. But can be boosted manually.
 
 Buffer: Gain X Freeze after Activation.
 

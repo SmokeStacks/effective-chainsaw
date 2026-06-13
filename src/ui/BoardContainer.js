@@ -116,31 +116,21 @@ export default function BoardContainer() {
         selectedInHand: false,
         focus: '',
         awaitingFocus: false,
-        draftSelected: false
-    });
-
-    // Interface access state - currently unused but kept for future features
-    useState({
-        player: {
-            headSpace: {
-                interfaced: false,
-                access: false
-            },
-            pandora: {
-                interfaced: false,
-                access: false
-            }
-        },
-        enemy: {
-            headSpace: {
-                interfaced: false,
-                access: false
-            },
-            pandora: {
-                interfaced: false,
-                access: false
-            }
-        }
+        draftSelected: false,
+        // Interface/Hacking state
+        playerInterfaced: false,
+        playerInterfacedHeadSpace: false,
+        playerInterfacedPandora: false,
+        playerSuccessfulHack: false,
+        enemyInterfaced: false,
+        enemyInterfacedHeadSpace: false,
+        enemyInterfacedPandora: false,
+        enemySuccessfulHack: false,
+        // Dominance tracking
+        playerWonDominance: false,
+        playerLostDominance: false,
+        enemyWonDominance: false,
+        enemyLostDominance: false,
     });
 
     // Initialize state setters and libraries
@@ -428,6 +418,56 @@ export default function BoardContainer() {
                     ...prev,
                     priorityLeft: newValue
                 }));
+            },
+            // Interface/Hacking setters
+            setPlayerInterfaced: (value) => {
+                state.playerInterfaced = value;
+                setGameState(prev => ({ ...prev, playerInterfaced: value }));
+            },
+            setPlayerInterfacedHeadSpace: (value) => {
+                state.playerInterfacedHeadSpace = value;
+                setGameState(prev => ({ ...prev, playerInterfacedHeadSpace: value }));
+            },
+            setPlayerInterfacedPandora: (value) => {
+                state.playerInterfacedPandora = value;
+                setGameState(prev => ({ ...prev, playerInterfacedPandora: value }));
+            },
+            setPlayerSuccessfulHack: (value) => {
+                state.playerSuccessfulHack = value;
+                setGameState(prev => ({ ...prev, playerSuccessfulHack: value }));
+            },
+            setEnemyInterfaced: (value) => {
+                state.enemyInterfaced = value;
+                setGameState(prev => ({ ...prev, enemyInterfaced: value }));
+            },
+            setEnemyInterfacedHeadSpace: (value) => {
+                state.enemyInterfacedHeadSpace = value;
+                setGameState(prev => ({ ...prev, enemyInterfacedHeadSpace: value }));
+            },
+            setEnemyInterfacedPandora: (value) => {
+                state.enemyInterfacedPandora = value;
+                setGameState(prev => ({ ...prev, enemyInterfacedPandora: value }));
+            },
+            setEnemySuccessfulHack: (value) => {
+                state.enemySuccessfulHack = value;
+                setGameState(prev => ({ ...prev, enemySuccessfulHack: value }));
+            },
+            // Dominance setters
+            setPlayerWonDominance: (value) => {
+                state.playerWonDominance = value;
+                setGameState(prev => ({ ...prev, playerWonDominance: value }));
+            },
+            setPlayerLostDominance: (value) => {
+                state.playerLostDominance = value;
+                setGameState(prev => ({ ...prev, playerLostDominance: value }));
+            },
+            setEnemyWonDominance: (value) => {
+                state.enemyWonDominance = value;
+                setGameState(prev => ({ ...prev, enemyWonDominance: value }));
+            },
+            setEnemyLostDominance: (value) => {
+                state.enemyLostDominance = value;
+                setGameState(prev => ({ ...prev, enemyLostDominance: value }));
             },
         });
 

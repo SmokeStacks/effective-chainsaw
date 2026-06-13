@@ -804,6 +804,60 @@ const abilitiesDefinitions = {
             }
         },
     },
+    'HackingInflictOverload': {
+        name: 'HackingInflictOverload',
+        type: 'triggered',
+        triggers: ['successfulHack'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Poser: Hacking ➔ inflict 3 Overload
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'HackingInflictOverload');
+                const amount = ability?.amount || 3;
+                const targetSide = getOppositeSide(side);
+
+                applyOverload(targetSide, amount);
+                console.log(`${entity.card.name} Hacking: Inflicted ${amount} Overload to ${targetSide}`);
+            }
+        },
+    },
+    'HackingVenomFreeze': {
+        name: 'HackingVenomFreeze',
+        type: 'triggered',
+        triggers: ['successfulHack'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Z0MBI: Hacking ➔ Inflict Freeze equal to Venom on enemy entities, then +1 Venom
+            if (eventData.side === side) {
+                const currentVenom = entity.venom || 0;
+                const enemySide = getOppositeSide(side);
+
+                // Get all enemy realms
+                const enemyRealms = ['Solarium', 'Theater', 'Underpass', 'Grid', 'Elysium'].map(name => {
+                    const realmName = enemySide === 'PLAYER' ? `player${name}` : `enemy${name}`;
+                    return state[realmName];
+                });
+
+                // Apply Freeze to all online enemy entities
+                enemyRealms.forEach(realm => {
+                    if (!realm || !realm.people) return;
+                    realm.people.forEach(target => {
+                        if (target.online) {
+                            applyEffect(target.id, target.realm, enemySide, {
+                                type: 'status',
+                                status: 'freeze',
+                                amount: currentVenom
+                            });
+                        }
+                    });
+                });
+
+                // Increase Venom by 1
+                entity.venom = currentVenom + 1;
+                updateEntityInRealm(entity, side);
+
+                console.log(`${entity.card.name} Hacking: Inflicted Freeze ${currentVenom} to all enemy entities, Venom increased to ${entity.venom}`);
+            }
+        },
+    },
     'GainAshOnSteal': {
         name: 'GainAshOnSteal',
         type: 'triggered',
@@ -818,6 +872,58 @@ const abilitiesDefinitions = {
                     enemyGainAshes(amount);
                 }
                 console.log(`${entity.card.name} gains ${amount} Ash because an enemy card was stolen.`);
+            }
+        },
+    },
+    'MaintainGainVengeance': {
+        name: 'MaintainGainVengeance',
+        type: 'triggered',
+        triggers: ['maintain'], // Fires during timer reduction phase
+        eventHandler: function (entity, eventData, gameState, side) {
+            // VyperDrive: Maintain ➔ Gain 2 Vengeance
+            if (eventData.side === side && eventData.entityId === entity.id) {
+                const ability = entity.card.abilities?.find(a => a.name === 'MaintainGainVengeance');
+                const amount = ability?.amount || 2;
+
+                // Add Vengeance status effect
+                applyEffect(entity.id, entity.realm, side, {
+                    type: 'status',
+                    status: 'Vengeance',
+                    amount: amount
+                });
+
+                console.log(`${entity.card.name} Maintain: Gained ${amount} Vengeance`);
+            }
+        },
+    },
+    'DominanceInflictOverload': {
+        name: 'DominanceInflictOverload',
+        type: 'triggered',
+        triggers: ['dominanceWon'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Dread: Dominance ➔ Inflict 3 Overload
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'DominanceInflictOverload');
+                const amount = ability?.amount || 3;
+                const targetSide = getOppositeSide(side);
+
+                applyOverload(targetSide, amount);
+                console.log(`${entity.card.name} Dominance: Inflicted ${amount} Overload to ${targetSide}`);
+            }
+        },
+    },
+    'SurrenderGainOverload': {
+        name: 'SurrenderGainOverload',
+        type: 'triggered',
+        triggers: ['dominanceLost'], // Surrender = lose dominance
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Dread: Surrender ➔ Gain 3 Overload
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'SurrenderGainOverload');
+                const amount = ability?.amount || 3;
+
+                applyOverload(side, amount);
+                console.log(`${entity.card.name} Surrender: Gained ${amount} Overload`);
             }
         },
     },
@@ -1104,6 +1210,39 @@ const abilitiesDefinitions = {
                 });
                 
                 console.log(`${entity.card.name} freezes enemy entities from domination victory.`);
+            }
+        }
+    },
+    'Sabotage': {
+        name: 'Sabotage',
+        type: 'triggered',
+        triggers: ['cardStolen'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Sabotage triggers when ANY side steals a Sym or LM
+            // TerraBite: Inflict 3 Wounds
+            // Operator: Inflict 2 Lag
+            const ability = entity.card.abilities?.find(a => a.name === 'Sabotage');
+            const effectType = ability?.effectType || 'wounds'; // 'wounds' or 'lag'
+            const amount = ability?.amount || 3;
+
+            const targetSide = eventData.side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
+
+            if (effectType === 'lag') {
+                // Inflict Lag
+                if (targetSide === 'PLAYER') {
+                    stateSetters.setPlayerLag && stateSetters.setPlayerLag(prev => prev + amount);
+                } else {
+                    stateSetters.setEnemyLag && stateSetters.setEnemyLag(prev => prev + amount);
+                }
+                console.log(`${entity.card.name} Sabotage: Inflicted ${amount} Lag to ${targetSide}`);
+            } else {
+                // Inflict Wounds
+                if (targetSide === 'PLAYER') {
+                    stateSetters.setPlayerWounds && stateSetters.setPlayerWounds(prev => prev + amount);
+                } else {
+                    stateSetters.setEnemyWounds && stateSetters.setEnemyWounds(prev => prev + amount);
+                }
+                console.log(`${entity.card.name} Sabotage: Inflicted ${amount} Wounds to ${targetSide}`);
             }
         }
     },

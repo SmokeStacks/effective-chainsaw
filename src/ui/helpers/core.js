@@ -466,7 +466,7 @@ export function triggerRitualAbilities(entity, target, side) {
 }
 
 function playerAdvanceCards() {
-    const advanceCardList = (cardList) => {
+    const advanceCardList = (cardList, side) => {
         return cardList.map(cardEntity => {
             if (cardEntity.freeze > 0) {
                 cardEntity.freeze -= 1;
@@ -479,6 +479,16 @@ function playerAdvanceCards() {
                     if (cardEntity.card.timer && newSteps >= cardEntity.card.timer) {
                         updatedCard.readied = true;
                     }
+
+                    // Fire maintain event for cards with Maintain ability
+                    if (cardEntity.card.abilities?.some(a => a.name === 'MaintainGainVengeance')) {
+                        eventManager.publish('maintain', {
+                            entityId: cardEntity.id,
+                            side: side,
+                            realm: cardEntity.realm
+                        });
+                    }
+
                     return updatedCard;
                 }
             }
@@ -489,28 +499,28 @@ function playerAdvanceCards() {
     stateSetters.setPlayerSolarium(prevRealm => {
         return {
             ...prevRealm,
-            people: advanceCardList(prevRealm.people)
+            people: advanceCardList(prevRealm.people, 'PLAYER')
         };
     });
 
     stateSetters.setPlayerTheater(prevRealm => {
         return {
             ...prevRealm,
-            people: advanceCardList(prevRealm.people)
+            people: advanceCardList(prevRealm.people, 'PLAYER')
         };
     });
 
     stateSetters.setPlayerUnderpass(prevRealm => {
         return {
             ...prevRealm,
-            people: advanceCardList(prevRealm.people)
+            people: advanceCardList(prevRealm.people, 'PLAYER')
         };
     });
 
     stateSetters.setPlayerGrid(prevRealm => {
         return {
             ...prevRealm,
-            people: advanceCardList(prevRealm.people)
+            people: advanceCardList(prevRealm.people, 'PLAYER')
         };
     });
 }
@@ -562,36 +572,36 @@ function enemyAdvanceCards() {
     stateSetters.setEnemySolarium(prevRealm => {
         return {
             ...prevRealm,
-            people: advanceCardList(prevRealm.people),
-            places: advanceCardList(prevRealm.places),
-            things: advanceCardList(prevRealm.things)
+            people: advanceCardList(prevRealm.people, 'ENEMY'),
+            places: advanceCardList(prevRealm.places, 'ENEMY'),
+            things: advanceCardList(prevRealm.things, 'ENEMY')
         };
     });
 
     stateSetters.setEnemyTheater(prevRealm => {
         return {
             ...prevRealm,
-            people: advanceCardList(prevRealm.people),
-            places: advanceCardList(prevRealm.places),
-            things: advanceCardList(prevRealm.things)
+            people: advanceCardList(prevRealm.people, 'ENEMY'),
+            places: advanceCardList(prevRealm.places, 'ENEMY'),
+            things: advanceCardList(prevRealm.things, 'ENEMY')
         };
     });
 
     stateSetters.setEnemyUnderpass(prevRealm => {
         return {
             ...prevRealm,
-            people: advanceCardList(prevRealm.people),
-            places: advanceCardList(prevRealm.places),
-            things: advanceCardList(prevRealm.things)
+            people: advanceCardList(prevRealm.people, 'ENEMY'),
+            places: advanceCardList(prevRealm.places, 'ENEMY'),
+            things: advanceCardList(prevRealm.things, 'ENEMY')
         };
     });
 
     stateSetters.setEnemyGrid(prevRealm => {
         return {
             ...prevRealm,
-            people: advanceCardList(prevRealm.people),
-            places: advanceCardList(prevRealm.places),
-            things: advanceCardList(prevRealm.things)
+            people: advanceCardList(prevRealm.people, 'ENEMY'),
+            places: advanceCardList(prevRealm.places, 'ENEMY'),
+            things: advanceCardList(prevRealm.things, 'ENEMY')
         };
     });
 }

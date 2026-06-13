@@ -64,7 +64,23 @@ export const state = {
     currentPlayer: 'PLAYER',
     priorityLeft: true,
     mode: 'BEGIN',
-    
+
+    // Interface/Hacking tracking (resets each turn)
+    playerInterfaced: false,
+    playerInterfacedHeadSpace: false,
+    playerInterfacedPandora: false,
+    playerSuccessfulHack: false,
+    enemyInterfaced: false,
+    enemyInterfacedHeadSpace: false,
+    enemyInterfacedPandora: false,
+    enemySuccessfulHack: false,
+
+    // Dominance tracking
+    playerWonDominance: false,
+    playerLostDominance: false,  // "Surrender"
+    enemyWonDominance: false,
+    enemyLostDominance: false,
+
     // Other state
     playerFirstAttack: true,
     awaitingImpostor: false,
@@ -143,6 +159,22 @@ export const stateSetters = {
     setCurrentPlayer: null,
     setPriorityLeft: null,
     setMode: null,
+
+    // Interface/Hacking setters
+    setPlayerInterfaced: null,
+    setPlayerInterfacedHeadSpace: null,
+    setPlayerInterfacedPandora: null,
+    setPlayerSuccessfulHack: null,
+    setEnemyInterfaced: null,
+    setEnemyInterfacedHeadSpace: null,
+    setEnemyInterfacedPandora: null,
+    setEnemySuccessfulHack: null,
+
+    // Dominance setters
+    setPlayerWonDominance: null,
+    setPlayerLostDominance: null,
+    setEnemyWonDominance: null,
+    setEnemyLostDominance: null,
 
     // Other setters
     setPlayerFirstAttack: null,

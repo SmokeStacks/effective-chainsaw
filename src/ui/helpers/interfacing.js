@@ -1,26 +1,16 @@
-import { state } from './state';
+import { state, stateSetters } from './state';
 import { sleep } from './utils';
 import { showModal } from '../components/Modal';
 import { CardDisplay } from '../components/CardDisplay';
 import { eventManager } from './eventManager';
-import { stateSetters } from './state';
 
+// Destructure state values only - use stateSetters.xxx for setters
 const {
     enemyLibrary, enemyHand, playerLibrary, playerHand,
     playerTargetSelection, enemyTargetSelection,
     targetType, enemyTargetType,
     playerPandoraAccess, playerHeadSpaceAccess,
     enemyPandoraAccess, enemyHeadSpaceAccess,
-    setEnemyHand, setPlayerHand,
-    setEnemyLibrary, setPlayerLibrary,
-    setEnemyGraveyard, setPlayerGraveyard,
-    enemyBits, enemyLoseBits, playerBits, playerLoseBits,
-    playerGainOverload, enemyGainOverload,
-    playerGainFate, enemyGainFate,
-    setPlayerUnderpass, setPlayerGrid, setPlayerTheater, setPlayerSolarium,
-    setEnemyUnderpass, setEnemyGrid, setEnemyTheater, setEnemySolarium,
-    setPlayerInterfacedHeadSpace, setEnemyInterfacedHeadSpace,
-    setPlayerInterfacedPandora, setEnemyInterfacedPandora,
     battleRealm
 } = state;
 
@@ -28,26 +18,26 @@ const getRealmAndSetter = (location, side) => {
     if (side === 'ENEMY') {
         switch (location) {
             case 'Underpass':
-                return [location, setPlayerUnderpass];
+                return [location, stateSetters.setPlayerUnderpass];
             case 'Grid':
-                return [location, setPlayerGrid];
+                return [location, stateSetters.setPlayerGrid];
             case 'Theater':
-                return [location, setPlayerTheater];
+                return [location, stateSetters.setPlayerTheater];
             case 'Solarium':
-                return [location, setPlayerSolarium];
+                return [location, stateSetters.setPlayerSolarium];
             default:
                 return [null, null];
         }
     } else {
         switch (location) {
             case 'Underpass':
-                return [location, setEnemyUnderpass];
+                return [location, stateSetters.setEnemyUnderpass];
             case 'Grid':
-                return [location, setEnemyGrid];
+                return [location, stateSetters.setEnemyGrid];
             case 'Theater':
-                return [location, setEnemyTheater];
+                return [location, stateSetters.setEnemyTheater];
             case 'Solarium':
-                return [location, setEnemySolarium];
+                return [location, stateSetters.setEnemySolarium];
             default:
                 return [null, null];
         }
@@ -90,15 +80,15 @@ export function handleAccessPhase(side) {
     if (acessTargetType === 'PANDORA') {
         accessCards.push(...library.slice(0, numAccesses));
         if (side === 'PLAYER') {
-            setEnemyInterfacedPandora(true);
+            stateSetters.setEnemyInterfacedPandora(true);
         } else {
-            setPlayerInterfacedPandora(true);
+            stateSetters.setPlayerInterfacedPandora(true);
         }
     } else if (acessTargetType === 'HEADSPACE') {
         if (side === 'PLAYER') {
-            setEnemyInterfacedHeadSpace(true);
+            stateSetters.setEnemyInterfacedHeadSpace(true);
         } else {
-            setPlayerInterfacedHeadSpace(true);
+            stateSetters.setPlayerInterfacedHeadSpace(true);
         }
         for (let i = 0; i < numAccesses; i++) {
             if (hand.length > 0) {
@@ -216,16 +206,16 @@ export const handleStolenCard = (card, location, side, scrap, callback) => {
     } else if (location === 'HEADSPACE') {
         // Handle cards in the player's or enemy's hand
         if (side === 'PLAYER') {
-            setEnemyHand(prevHand => prevHand.filter(item => item.id !== card.id));
+            stateSetters.setEnemyHand(prevHand => prevHand.filter(item => item.id !== card.id));
         } else {
             stateSetters.setPlayerHand(prevHand => prevHand.filter(item => item.id !== card.id));
         }
     } else if (location === 'PANDORA') {
         // Handle cards in the player's or enemy's library
         if (side === 'PLAYER') {
-            setEnemyLibrary(prevLibrary => prevLibrary.filter(item => item.id !== card.id));
+            stateSetters.setEnemyLibrary(prevLibrary => prevLibrary.filter(item => item.id !== card.id));
         } else {
-            setPlayerLibrary(prevLibrary => prevLibrary.filter(item => item.id !== card.id));
+            stateSetters.setPlayerLibrary(prevLibrary => prevLibrary.filter(item => item.id !== card.id));
         }
     }
 
@@ -235,14 +225,14 @@ export const handleStolenCard = (card, location, side, scrap, callback) => {
 
     // Add the card to the graveyard and adjust Fate
     if (side === 'PLAYER') {
-        setEnemyGraveyard(prev => [...prev, cardToRemove]);
+        stateSetters.setEnemyGraveyard(prev => [...prev, cardToRemove]);
         if (!scrap) {
-            playerGainFate(runes);
+            stateSetters.setPlayerFate && stateSetters.setPlayerFate(prev => prev + runes);
         }
     } else {
-        setPlayerGraveyard(prev => [...prev, cardToRemove]);
+        stateSetters.setPlayerGraveyard(prev => [...prev, cardToRemove]);
         if (!scrap) {
-            enemyGainFate(runes);
+            stateSetters.setEnemyFate && stateSetters.setEnemyFate(prev => prev + runes);
         }
     }
 
@@ -324,15 +314,15 @@ export async function handleExposedCard(card, location, side, callback) {
 
                 if (location === 'HEADSPACE') {
                     if (side === 'PLAYER') {
-                        setEnemyHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
+                        stateSetters.setEnemyHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
                     } else {
                         stateSetters.setPlayerHand(prevHand => prevHand.map(c => (c.id === card.id ? card : c)));
                     }
                 } else if (location === 'PANDORA') {
                     if (side === 'PLAYER') {
-                        setEnemyLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
+                        stateSetters.setEnemyLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
                     } else {
-                        setPlayerLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
+                        stateSetters.setPlayerLibrary(prevLibrary => prevLibrary.map(c => (c.id === card.id ? card : c)));
                     }
                 }
             } else {
@@ -344,19 +334,19 @@ export async function handleExposedCard(card, location, side, callback) {
 
                 if (location === 'HEADSPACE') {
                     if (side === 'PLAYER') {
-                        setEnemyHand(prevHand => prevHand.filter(c => c.id !== card.id));
-                        setEnemyGraveyard(prev => [...prev, card]);
+                        stateSetters.setEnemyHand(prevHand => prevHand.filter(c => c.id !== card.id));
+                        stateSetters.setEnemyGraveyard(prev => [...prev, card]);
                     } else {
                         stateSetters.setPlayerHand(prevHand => prevHand.filter(c => c.id !== card.id));
-                        setPlayerGraveyard(prev => [...prev, card]);
+                        stateSetters.setPlayerGraveyard(prev => [...prev, card]);
                     }
                 } else if (location === 'PANDORA') {
                     if (side === 'PLAYER') {
-                        setEnemyLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
-                        setEnemyGraveyard(prev => [...prev, card]);
+                        stateSetters.setEnemyLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
+                        stateSetters.setEnemyGraveyard(prev => [...prev, card]);
                     } else {
-                        setPlayerLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
-                        setPlayerGraveyard(prev => [...prev, card]);
+                        stateSetters.setPlayerLibrary(prevLibrary => prevLibrary.filter(c => c.id !== card.id));
+                        stateSetters.setPlayerGraveyard(prev => [...prev, card]);
                     }
                 }
             }

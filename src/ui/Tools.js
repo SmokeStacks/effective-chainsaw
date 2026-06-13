@@ -74,8 +74,6 @@ import witch from "../images/witch.png"; // Witch Hunt
 import recruiter from "../images/activist.png";
 import adrenochrome from "../images/adrenochrome.png";
 import bloodsugar from "../images/bloodsugar.png";
-import blutooth from "../images/blutooth.png";
-import botflies from "../images/botflies.png";
 import brainfreeze from "../images/brainfreeze.png";
 import insurgency from "../images/insurgency.png";
 import catcafe from "../images/catcafe.png";
@@ -85,27 +83,28 @@ import databomb from "../images/databomb.png";
 import silkworm from "../images/silkworm.png";
 import dread from "../images/dread.png";
 import exploit from "../images/exploit.png";
-import forgery from "../images/forgery.png";
-import frostwitch from "../images/frostwitch.png";
+import gootooth from "../images/gootooth.png";
+import mousebyte from "../images/mousebyte.png";
+import operator from "../images/operator.png";
+import chronomancer from "../images/chronomancer.png";
+import architect from "../images/architect.png";
+import z0mbi from "../images/z0mbi.png";
+import memoryleak from "../images/memoryleak.png";
+import precognition from "../images/precognition.png";
 import train from "../images/train.png";
 import implants from "../images/implants.png";
 import imitation from "../images/imitation.png";
 import island from "../images/island.png"; // Forgotten Island
-import leviathan from "../images/leviathan.png";
-import foresight from "../images/foresight.png";
 import multithreading from "../images/multithreading.png";
 import novakane from "../images/novakane.png"; // Nova Kane
 import pharmacist from "../images/pharmacist.png";
 import poser from "../images/poser.png";
-import saboteur from "../images/saboteur.png";
 import splinter from "../images/splinter.png"; // Splinter Faction
 import stabilizer from "../images/stabilizer.png"; // Quantum Stabilizer
 import stolen from "../images/stolen.png"; // Stolen Briefcase
-import terra from "../images/terra.png"; // TerraBite
-import vessel from "../images/vessel.png"; // Pirate Vessel
+import terra from "../images/terra.png";
 import viperdrive from "../images/viperdrive.png";
 import wasteland from "../images/wasteland.png";
-import wendy from "../images/wendy.png";
 
 import amnesia from "../images/amnesia.png";
 import array from "../images/array.png"; // Satellite Array
@@ -220,38 +219,37 @@ export const imgObj = {
   Recruiter: recruiter,
   Adrenochrome: adrenochrome,
   "Blood Sugar": bloodsugar,
-  BluTooth: blutooth,
-  BotFlies: botflies,
   "Brain Freeze": brainfreeze,
   Insurgency: insurgency,
   "Cat Cafe": catcafe,
   CatPhish: catphish,
   "Con Artist": conartist,
   "Data Bomb": databomb,
-  SilkWorm: silkworm,
+  SylkWorm: silkworm,
   Dread: dread,
   Exploit: exploit,
-  Forgery: forgery,
-  "Frost Witch": frostwitch,
   'Freight Train': train,
   Implants: implants,
   "Imitation Game": imitation,
   "Forgotten Island": island,
-  Leviathan: leviathan,
-  Foresight: foresight,
+  GooTooth: gootooth,
+  MouseByte: mousebyte,
+  Operator: operator,
+  Chronomancer: chronomancer,
+  Architect: architect,
+  Z0MBI: z0mbi,
+  "Memory Leak": memoryleak,
+  Precognition: precognition,
   "Multi Threading": multithreading,
   "Nova Kane": novakane,
   Pharmacist: pharmacist,
   Poser: poser,
-  Saboteur: saboteur,
   "Splinter Faction": splinter,
   "Quantum Stabilizer": stabilizer,
   "Stolen Briefcase": stolen,
   TerraBite: terra,
-  "Pirate Vessel": vessel,
   VyperDrive: viperdrive,
   Wasteland: wasteland,
-  "Wendy 500": wendy,
 
   //
   Magician: magician,
