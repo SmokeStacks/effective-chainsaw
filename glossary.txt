@@ -1,0 +1,236 @@
+
+Acidic: Deals damage to entities as Decay
+
+Activation Cost: Bit cost paid when playing cards. Entities, Snips, and Syms are placed face down and in these cases their costs can be paid at any time. Locations, Landmarks, and Rituals are not hidden and have their Activation cost paid immediately when playing from HeadSpace.
+
+Affinity: Cards must have 1 matching Affinity with the player’s chosen Focus in order to be played. Entity Affinities also determine to which Realms they are played and whether they can attack and defend during Quests, Raids, and Hacks.
+
+Aggro: Cannot defend.
+
+Ambush: Boost X after Activation if it was not placed this turn
+
+Armored: Takes X less damage from attacks
+
+Ascend: Achieved when a Sym or Landmark gains Developments equal to its Plot, found in the bottom middle of the card. The amount of Fate gained is specified by the Rune score, marked by a star. Syms will move out of their Realm to Elysium but Landmarks persist. Ascended Landmarks award no Fate to the opponent when destroyed.
+
+Ascended: Effect is ongoing so long as card has Ascended
+
+Ash: Currency for Ash costs when Activating a card. Increases by 1 when a friendly entity dies 
+
+Barricade: Create an Online “Barrier” Entity with Soulless, Power 0, Health 2, and Timer 1 in this Realm. If a Barrier already exists, instead give it +2 health.
+
+Bits: Currency used for paying Activation costs, Boosting Entities, Developing Landmarks and Syms, Scrapping Snips, and bidding for Dominance.
+
+Boost: Decrease entity’s timer by X. Players can spend 1 Bit and 1 Action to Boost 1.
+
+Bribe: Does not gain Boost automatically each turn. But willing to negotiate.
+
+Buffer: Gain X Freeze after Activation.
+
+Burden: Lose the game if 8 Burden and Wounds are accumulated in any combination. Decreases by 1 for each Fate that would be gained, but Fate cannot be gained when Burdened. Unblocked Raids taking place in the Trenches realm inflict Burden, as generational trauma is inherited from events in the past. At the start of each turn, gain 1 Burden if you have 2 or more.
+
+
+Charge: Boost X after attacking.
+
+Clash: Triggers whenever this entity attacks or blocks after all blockers are chosen.
+
+Cosmic: Worth +X Souls when sacrificed
+
+Covenant: Card is not sacrificed when used to pay a Soul cost
+
+Crusade: Gain X Actions the first time you attack each turn
+
+Cursed: Every 2 Cursed cards in your deck decreases the effective total Rune score by 1.
+
+Destiny X: Effect activates whenever a friendly Sym or Landmark is Ascended, or if an enemy Sym or Landmark is Stolen or Destroyed. Max X times
+
+Devious: Give a nonEntity card Develop X when Activated
+
+Develop: Place X Developments on a Sym, Landmark, or card with Scheme. Syms and Landmarks must be Developed enough times to meet their Plot threshold in order to Ascend them and gain Fate equal to their Rune value. Players can spend 1 Bit and 1 Action to Develop 1.
+
+Dividend: Gain X Bits at beginning of turn
+
+Divinity: Gain X Fate at beginning of turn
+
+Disconnect: Online card becomes Offline.
+
+Dominance: Triggered whenever Domination is achieved
+
+Domination: Phase that occurs after all Actions are spent and awards a bonus to the winner. Total score is equal to the total Power of all Readied Online friendly entities plus Surge, if any. During this phase players secretly spend any amount of Bits to add to their Surge. If total score is greater than opponent when Surge is revealed, one of three effects are triggered based on chosen Focus:
+	Magi: Prophecy: Gain 1 Fate and inflict 1 Burden
+	Phys: Guillotine: Opponent must choose and sacrifice an Entity
+	Tech: Debug: Gain 2 Actions and 1 Bit next turn
+
+Draft: Players may spend 1 Bit and 1 Action to place and Activate a Dreamer card from the Draft deck in any Realm.
+
+Dreamer: Entity card with Power, Health, Timer, and Activation cost of 1. Each of the 5 Dreamers are identical and possess all 3 Affinities. While largely unaware of it, they possess a profound ability to warp reality and therefore have unlimited potential despite their modest stature.
+
+Drift: Gain X actions at beginning of turn
+
+Duelist: When attacking, this entity can choose ANY Online enemy entity in that Realm and force it to block.
+
+Duplicate: Make a copy of this card in HeadSpace without Duplicate.
+
+Deathless: Returns to HeadSpace when destroyed
+
+Decay: Take X damage at beginning of turn, then decrease by 1. All Decay from friendly creatures is removed during a Detox.
+
+Defensive: Cannot attack.
+
+Detox: A player may spend 3 Actions to perform a Detox. Doing so removes any Freeze and Decay from friendly cards, and Venom from enemy cards. Cards with this keyword trigger during a friendly or enemy Detox.
+
+Devour: Gain +X/+X and boost X whenever an enemy entity is slain in combat.
+
+Elysium: Special Realm which consists only of player’s Syms that have ascended. Once there they cannot be Hacked.
+
+Quest: Attack performed by entities with Magic affinity. Unblocked damage in the Solarium or Trenches Realms awards Fate equal to the amount dealt as explorers chart out new discoveries and revelations within the myriad of forgotten histories.
+
+Exposed: Triggered by Interfacing Entities, Rituals, and Locations. If a card was already Exposed, instead it is discarded. 
+
+Enchanted: Gain +X/+X and boost X the first time you activate a Ritual, Snip, or Landmark each turn
+
+Entity: Living (relatively speaking) beings capable of attacking and defending during attacks. Most have a Soul or Ash cost that must be paid in addition to the Activation cost.
+
+Exhaust: If a card has an Exhaust ability and is Readied and Online, you may pay any additional costs and manually Exhaust that card at any time to use it.
+
+Exhausted: Default state of entity whose timer has not reached 0. Can not attack, defend, or contribute to Domination.
+
+Fate: Win the game if 8 Fate is accumulated. Successful Quests as well as Ascending, Stealing, and Destroying Syms or Landmarks awards Fate as they all impart knowledge and help to achieve higher levels of consciousness.
+
+Fated: Gain X Fate after Activation.
+
+Focus: Chosen at the start of turn between Magical, Physical, and Tech. This determines what cards can be placed based on whether they have a matching Affinity. Activating a card can always be done regardless of current Focus. Focus also dictates which bonus is received by a successful Domination.
+
+Fortify X: Prevent damage received if Fortify is 1 or greater, then decrease by 1.
+
+Freeze: Frozen cards do not have their Timer reduced and are Exhausted until Freeze is removed. Decreases by 1 whenever the card is Boosted. Freeze from any friendly entities is removed during a Detox.
+
+Glitchy: Gain X Overload at start of turn
+
+Gravity: Gain X Lag when Activated
+
+Hack: Attack made by entities with Hack Affinity. A Hack can be declared only against HeadSpace, Pandora, or a specific Sym or Snip that has been placed. Unblocked damage in the IRL and Nexus Realms results in gaining Surge equal to damage done as well as Interfacing the target.
+
+Hacking: Triggers whenever a friendly Hack is successful, or is only active if you have Hacked successfully this turn
+
+Hardline: During a Hack, can only attack or block a Hack targeting Pandora or HeadSpace
+
+HeadSpace: Hand of cards drawn from Pandora that can be played to Realms. Unblocked Hacks in the IRL Realm will interface 1 card from HeadSpace at random
+
+Horrific: X Burden inflicted after Activation
+
+Health: Found in the lower right corner of Entities, Landmarks, and Locations. Damage equal to or greater than the specified amount will destroy that card.
+
+Inspire: Give +X Power to other friendly entities
+
+Impostor: This card may only be placed in Realms where your opponent has placed one or more offline entities. When placed (before activation), choose an enemy offline entity in that realm and exchange control of it with the Impostor. Both cards remain offline but can be activated by the new owner at any time as normal. In light of major advances in plastic surgery (surgery on plastics), remember to establish a minimum of three unique rotating passwords for all family and loved ones.
+
+Interface: Result of unblocked Hack. Precisely which card is ultimately Interfaced depends on which Database is targeted. Against a targeted Sym or Snip, that single card is Interfaced. At that point a player may pay the Scrap cost of a Snip to destroy it, otherwise nothing happens. If it is a Sym, instead it will be immediately Stolen which awards Fate equal to the card’s Rune score. When targeting HeadSpace, 1 card is chosen at random. For Pandora, the top card is always chosen. When interfacing, Snips may have their Scrap cost paid to be discarded, Syms and Landmarks are Stolen, and any other card becomes Exposed.
+
+IRL: Acronym for Intravenous Reality Layer. In order to avoid permanent severance from the host organism during prolonged periods of Precognition or Regression, a biological “tether” is made to the material world. This allowance for physical sensation acts as a beacon to allow the mind to return to the user once a session has completed. Should your session begin to manifest painful visual and physical hallucinations you are advised to disconnect immediately, as it could be an indication of severe illness or bodily harm.
+
+JAW: Acronym for Generated Autonomous Wall, a class of programs designed for protecting sensitive data. Because of regulations against Class C Artificial Intelligence, JAWs must be completely wiped and reinstalled every 24 hours at minimum. Failure to adhere to safety protocols can result in removal of organ approval status and bodily repossession.
+
+JAWbreaker: Programs designed to bypass JAWs in order to access restricted servers. Use of these programs even for research purposes is highly illegal.
+
+Karmic: For every 2 cards with Karmic, increase the total effective Rune score of your deck by 1.
+
+Lag: Decreases by 1 for each Action that would be gained, but Actions cannot be gained when Lagging.
+
+Landmark: Can only be placed in IRL or Trenches realms and must be targeted by Raids. Awards Fate according to Runes when fully Developed, destroyed, or Stolen. Has no Activation cost and enters its Realm Online.
+
+Lifeless: Card is sacrificed at the end of the turn.
+
+Limbo: Place where all dead things go.
+
+Locality: Effects of this card are limited only to that Realm.
+
+Location: Can only be placed in physical realms and must be targeted by Raids. Enters its Realm Online and must therefore have its Activation cost paid immediately like a Ritual.
+
+Mutation: The entity transforms into another Online entity your opponent controls, if able. Then if it is friendly it gains +1/+1, otherwise it gains -1/-1. Any activation events trigger for the new entity chosen.
+
+Necrotic: Gives +X Ash on death
+
+Offline: Default state of card that has been placed in a Realm but not Activated. When offline, a card’s identity is hidden but it has none of its default abilities, cannot attack or defend, and does not contribute to Domination. Offline cards can still be targeted by effects so long as they don’t specify “Online”.
+
+
+Online: State of card whose Activation (including Soul or Ash) cost has been paid during or after placement. Cards are revealed to the opponent only when Online.
+
+Overload: Lose the game if 8 Overload is accumulated. Decreases by 1 for each Bit that would be gained, but Bits cannot be gained when Overloaded. Successful Hacks cause hardware to be destroyed by malicious programs, eventually triggering a full shutdown.
+
+Override: Damage in excess of blocker’s Health is dealt to target
+
+Pandora: Deck of cards that is drawn from
+
+Plague X: When Activated, entity gains X Decay.
+
+Plot: Threshold to be reached via the Develop action on a Landmark or Sym
+
+Pounce: Strike first during combat. Entities slain with Pounce will be unable to counterattack.
+
+Questing: Triggers whenever a friendly Quest is successful, or is only active if you have Quested successfully this turn
+
+Raid: Attack done by entities with Physical affinity. Enemy Landmarks and Locations in that Realm must be targeted if able, and unblocked damage is dealt to that card. Otherwise unblocked damage in Trenches incurs Burden from generational trauma and damage in IRL incurs Wounds from material destruction.
+
+Raiding: Triggers whenever a friendly Raid is successful, or is only active if you have Raided successfully this turn
+
+Rapture: Lower Ash/ Soul cost by X for each friendly entity that died this turn
+
+Readied: Entity whose timer has decreased to 0. In this state they can attack, defend, and contribute to Domination.
+
+Ritual: Cards that have a single use effect and are then discarded
+
+Realm: The four dimensions that cards can be placed in. Each Realm has 1 or 2 associated Affinities, and Entities can only be played when at least one of their Affinities matches the chosen Realm (in addition to matching the current Focus). Locations and Landmarks can only be placed within Trenches or IRL regardless of Affinity and likewise Snips and Syms can only be placed within IRL or Nexus regardless of Affinity.
+	Solarium: Magi
+	Trenches: Magi, Phys
+	IRL: Phys, Tech
+	Nexus: Tech
+
+Regen: Heal X Damage from this card at start of turn, then decrease by 1.
+
+
+Rotten: Enemy entities have -X Power.
+
+Runes: Landmarks and Syms grant Fate equal to this value when Developed, destroyed, or Stolen. 20 Runes total are required for all 40 card decks.
+
+Snip: Code snippet. Can only be placed in IRL or Nexus Realms and can be targeted by Hacks.
+
+Sting X: Deal X damage to target Entity after Activation.
+
+Sym: Short for Symphony, a transferable digital memory. Awards Fate according to Runes when Developed or Stolen. Can only be placed in IRL or Nexus Realms realms and can be targeted by Hacks.
+
+Scav: During a hack, can only attack or block in a Hack NOT targeting Pandora or HeadSpace
+
+Skill: Found in the lower left corner of entities. Deals specified damage during combat.
+
+Solo: If attacking alone, entity gains +X/+X and X Boost
+Soul: Number of entities that must be sacrificed to Activate the card 
+
+Soulless: Cannot be sacrificed to pay Soul cost
+
+Surge: Accumulated whenever unblocked damage is dealt during a Hack. Increases Dominance value by total Surge, all of which is added to the Domination score automatically and therefore only lasts a single turn.
+
+Surgical: Card’s bit cost is paid with any Surge, if possible.
+
+Steal: Occurs automatically whenever a Hack is successful and a Landmark or Sym card is Interfaced. The card is sent to Limbo and the attacker gains Fate equal to card’s Rune value.
+
+Stealth: Unblockable except by other stealth entities so long as Stealth is 1 or more. Lose 1 stealth after attacking or defending.
+
+Timer: Number of boosts that must be gained before an Entity becomes Readied and able to attack or defend if Online. Reduces by 1 automatically each turn.
+
+Taro Xt: Draw X cards at the start of each turn.
+
+Temptation X: When playing this card, you must first offer it to your opponent. They may choose to play the card instead, and if so must pay any costs for the card aside from spending an action. If they refuse, play the card normally but gain X Fate in addition.
+
+Toxic X: Effect is disabled unless you control X Decaying entities
+
+Vengeance: Next attack deals +X damage and then removes all Vengeance. Dominance is not an attack. 
+
+Venom: Used to track effects that grow in power. All Venom from friendly cards is removed when an enemy performs a Detox.
+
+Vicious: Gain X Wounds gained after Activation
+
+Wounds: Lose the game if 8 Wounds and Burden are accumulated in any combination. Decreases by 1 for each card that would be drawn, but cards cannot be drawn when Wounded. Unblocked Raids taking place in the IRL realm inflict Wounds as raiders physically destroy places and people. At the beginning of each turn, gain 1 Wound if you have 2 or more.
+
+
+

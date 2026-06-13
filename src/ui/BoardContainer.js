@@ -5,7 +5,7 @@ import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { state, stateSetters, initializeSetters, currentPlayer, enemyActions } from './helpers/state';
 import { createLibrary, createEnemyLibrary } from './helpers/setup';
 import { activateAbilities, abilitiesDefinitions } from './abilities/glossary';
-import { handleFocusSelect, handleCardSelect, handleRealmCardSelect as handleRealmCardSelectFromHelper } from './helpers/selection';
+import { handleFocusSelect, handleCardSelect, handleRealmCardSelect as handleRealmCardSelectFromHelper, handleCancel } from './helpers/selection';
 import { draw as enemyDraw } from './helpers/enemy';
 import { Solarium, Theater, Underpass, Grid, Elysium } from './renders/Board';
 import { calculateSoulsAvailable } from './helpers/activation';
@@ -564,15 +564,25 @@ export default function BoardContainer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gameState.mode]);
 
-    // Enemy AI turn: fire when currentPlayer or enemyActions changes.
+    // Enemy AI turn: fire only when currentPlayer switches to ENEMY.
+    // The enemyPerformAction function uses setTimeout recursion to chain actions —
+    // including enemyActions in deps would fire this multiple times per turn.
     useEffect(() => {
         if (gameState.currentPlayer !== 'ENEMY') return;
-        if ((gameState.enemyActions ?? 0) <= 0) return;
         if (gameState.mode !== 'NORMAL') return;
-        console.log('Dispatching enemy action');
-        enemyPerformAction();
+        console.log('Dispatching enemy turn start');
+        // Small delay to let startTurn settle before checking actions
+        const t = setTimeout(() => {
+            if (state.enemyActions > 0) {
+                enemyPerformAction();
+            } else {
+                // No actions granted yet — pass back immediately
+                stateSetters.setCurrentPlayer('PLAYER');
+            }
+        }, 200);
+        return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gameState.currentPlayer, gameState.enemyActions, gameState.mode]);
+    }, [gameState.currentPlayer, gameState.mode]);
 
     // Effect to handle rez card
     useEffect(() => {
@@ -1285,6 +1295,9 @@ export default function BoardContainer() {
                 onSacrificeConfirmation={handleSacrificeConfirmation}
                 playerDraw={draw}
                 playerDraft={playerDraft}
+                selectedCard={gameState.selectedCard}
+                selectedInHand={gameState.selectedInHand}
+                onCancelSelection={handleCancel}
             />
         </div>
     );

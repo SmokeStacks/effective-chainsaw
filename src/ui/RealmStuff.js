@@ -12,7 +12,7 @@ function RealmCards({ cards, onCardSelect, onRezPlayerCard, isPlayerCard }) {
 
 class RealmStuff extends Component {
     render() {
-        const { cards, onCardSelect, onRezPlayerCard, isPlayerCard } = this.props;
+        const { cards, onCardSelect, onRezPlayerCard, isPlayerCard, className } = this.props;
         
         // Debug log to see when cards is undefined
         if (!cards) {
@@ -23,7 +23,7 @@ class RealmStuff extends Component {
         }
 
         return (
-            <div className="realm-creatures">
+            <div className={`realm-creatures${className ? ' ' + className : ''}`}>
                 <RealmCards cards={cards || []} onCardSelect={onCardSelect} onRezPlayerCard={onRezPlayerCard} isPlayerCard={isPlayerCard} />
             </div>
         );

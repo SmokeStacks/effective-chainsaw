@@ -1,41 +1,24 @@
 import React, { Component } from 'react';
 
-//import { Graveyard, Hand, Realm, Library, Focus, Card, CardEntity } from '../rules/cards';
-
 import PlayerHandDisplay from "./PlayerHandDisplay";
-// EnemyHandDisplay not currently used
-// import EnemyHandDisplay from "./PlayerHandDisplay";
 import Actions from "./Actions";
 import HUD from './HUD';
 import FocusDisplay from './FocusDisplay';
-//import ConfirmButton from './ConfirmButton';
 import BattlefieldCreatures from './BattlefieldCreatures';
+import RealmCreatures from './RealmCreatures';
 import Modal from './Modal';
-// Elysium not currently used
-// import { Elysium } from './renders/Board';
+
+const REALM_NAMES = ['solarium', 'theater', 'underpass', 'grid', 'elysium'];
+const REALM_LABELS = ['SOLARIUM', 'TRENCHES', 'IRL', 'NEXUS', 'ELYSIUM'];
 
 class Gameboard extends Component {
     constructor(props) {
         super(props);
         this.state = {
-            currentRealmIndex: 0
-        }
-
-        this.handlePanLeft = this.handlePanLeft.bind(this);
-        this.handlePanRight = this.handlePanRight.bind(this);
+            currentRealmIndex: 0,
+            showHand: true,
+        };
     }
-
-    handlePanLeft = () => {
-        if (this.state.currentRealmIndex > 0) {
-            this.setState({ currentRealmIndex: this.state.currentRealmIndex - 1 });
-        }
-    };
-
-    handlePanRight = () => {
-        if (this.state.currentRealmIndex < this.props.realmComponents.length - 2) {
-            this.setState({ currentRealmIndex: this.state.currentRealmIndex + 1 });
-        }
-    };
 
     render() {
         const {
@@ -97,19 +80,14 @@ class Gameboard extends Component {
             onQuest,
             onRaid,
             onHack,
-            // trashPromptVisible and currentPromptCard not currently used
-            // trashPromptVisible,
-            // currentPromptCard,
             modalVisible,
-            modalProps
+            modalProps,
+            selectedCard,
+            selectedInHand,
+            onCancelSelection,
         } = this.props;
 
-        const realmNames = ['solarium', 'theater', 'underpass', 'grid', 'elysium'];
-
-        const displayedRealms = [
-            realmComponents[this.state.currentRealmIndex],
-            realmComponents[this.state.currentRealmIndex + 1]
-        ].filter(realm => realm);
+        const { currentRealmIndex, showHand } = this.state;
 
         const playerRealmsState = {
             solarium: playerSolarium,
@@ -127,48 +105,74 @@ class Gameboard extends Component {
             elysium: enemyElysium,
         };
 
+        const currentRealmName = REALM_NAMES[currentRealmIndex];
+        const CurrentRealmComponent = realmComponents[currentRealmIndex];
+        const currentPlayerEntities = (playerRealmsState[currentRealmName] || {}).people || [];
+
+        const inTargetingMode = !!(selectedInHand && selectedCard);
+
+        const renderBottomPanel = () => {
+            // In targeting mode, always show the player's entities so they can pick a target.
+            // Otherwise, hand or entities based on the toggle.
+            if (showHand && !inTargetingMode) {
+                return <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />;
+            }
+            return (
+                <div className="player-entities-panel">
+                    <RealmCreatures
+                        cards={currentPlayerEntities}
+                        onCardSelect={onRealmCardSelect}
+                        onRezPlayerCard={onRezPlayerCard}
+                        isPlayerCard={true}
+                    />
+                </div>
+            );
+        };
+
+        const battleActive = attackMode === 'PLAYER_QUEST' || attackMode === 'PLAYER_RAID' ||
+            attackMode === 'PLAYER_HACK' || attackMode === 'ENEMY_magi' ||
+            attackMode === 'ENEMY_phys' || attackMode === 'ENEMY_tech';
+
         return (
             <div className="screen">
                 <div className="left-side">
-                    {/* <EnemyHandDisplay cards={enemyHand} /> */}
-                    <div className="board-top">
-                        <button
-                            className="nav-button pan-left-button"
-                            onClick={this.handlePanLeft}
-                        >
-                            <div className='pan-arrow'>REGRESS</div>
-                        </button>
-                        <div className="realms-container">
-                            {displayedRealms.map((RealmComponent, index) => {
-                                return (
-                                    <RealmComponent
-                                        key={index}
-                                        onRealmSelect={() => onRealmSelect(realmNames[this.state.currentRealmIndex + index])}
-                                        onServerSelect={onServerSelect}
-                                        onRealmCardSelect={onRealmCardSelect}
-                                        onRezPlayerCard={onRezPlayerCard}
-                                        onAbilityClick={onAbilityClick}
-                                        playerState={playerRealmsState[realmNames[this.state.currentRealmIndex + index]]}
-                                        enemyState={enemyRealmsState[realmNames[this.state.currentRealmIndex + index]]}
-                                    />
-                                );
-                            })}
-                        </div>
-                        <button
-                            className="nav-button pan-right-button"
-                            onClick={this.handlePanRight}
-                        >
-                            <div className='pan-arrow'>PREDICT</div>
-                        </button>
+                    {/* Realm tab navigation */}
+                    <div className="realm-tabs">
+                        {REALM_LABELS.map((label, i) => (
+                            <button
+                                key={i}
+                                className={`realm-tab${currentRealmIndex === i ? ' realm-tab--active' : ''}`}
+                                onClick={() => this.setState({ currentRealmIndex: i })}
+                            >
+                                {label}
+                            </button>
+                        ))}
                     </div>
-                    {attackMode === 'PLAYER_QUEST' || attackMode === 'PLAYER_RAID' || attackMode === 'PLAYER_HACK' || attackMode === 'ENEMY_magi' || attackMode === 'ENEMY_phys' || attackMode === 'ENEMY_tech' ?
-                        <div className={`battlefield ${battleRealm ? battleRealm.toLowerCase() : ''}`}>
-                            {battleRealm}
-                            <BattlefieldCreatures cards={enemyBattleSlots} />
-                            <BattlefieldCreatures cards={playerBattleSlots} onCardSelect={onBattleCardSelect} onSlotSelect={onSlotSelect} />
-                        </div> :
-                        null}
-                    <div className="buttons-container">
+
+                    {/* Single realm display */}
+                    <div className="board-main">
+                        {CurrentRealmComponent && (
+                            <CurrentRealmComponent
+                                onRealmSelect={() => onRealmSelect(currentRealmName)}
+                                onServerSelect={onServerSelect}
+                                onRealmCardSelect={onRealmCardSelect}
+                                onRezPlayerCard={onRezPlayerCard}
+                                onAbilityClick={onAbilityClick}
+                                playerState={playerRealmsState[currentRealmName]}
+                                enemyState={enemyRealmsState[currentRealmName]}
+                            />
+                        )}
+                        {battleActive && (
+                            <div className={`battlefield ${battleRealm ? battleRealm.toLowerCase() : ''}`}>
+                                {battleRealm}
+                                <BattlefieldCreatures cards={enemyBattleSlots} />
+                                <BattlefieldCreatures cards={playerBattleSlots} onCardSelect={onBattleCardSelect} onSlotSelect={onSlotSelect} />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Action bar */}
+                    <div className="action-bar">
                         <Actions
                             playerDraw={playerDraw}
                             playerDraft={playerDraft}
@@ -183,12 +187,32 @@ class Gameboard extends Component {
                             onConfirmDefenseSelection={onConfirmDefenseSelection}
                             onPlayerBattle={onPlayerBattle}
                         />
-                        <FocusDisplay awaitingFocus={awaitingFocus} focus={focus} onFocusSelect={onFocusSelect} awaitingSacrifices={awaitingSacrifices} onSacrificeConfirmation={onSacrificeConfirmation} />
+                        <FocusDisplay
+                            awaitingFocus={awaitingFocus}
+                            focus={focus}
+                            onFocusSelect={onFocusSelect}
+                            awaitingSacrifices={awaitingSacrifices}
+                            onSacrificeConfirmation={onSacrificeConfirmation}
+                        />
+                        {!inTargetingMode && (
+                            <button
+                                className={`panel-toggle-btn${!showHand ? ' panel-toggle-btn--active' : ''}`}
+                                onClick={() => this.setState(prev => ({ showHand: !prev.showHand }))}
+                            >
+                                {showHand ? '[ ENTITIES ]' : '[ HAND ]'}
+                            </button>
+                        )}
+                        {inTargetingMode && (
+                            <span className="targeting-label-bar">TARGETING — pick a card or realm</span>
+                        )}
                     </div>
-                    <div className="player-hand-container">
-                        <PlayerHandDisplay cards={playerOneHand} onCardSelect={onCardSelect} />
+
+                    {/* Bottom panel: hand / player entities / targeting */}
+                    <div className="bottom-panel">
+                        {renderBottomPanel()}
                     </div>
                 </div>
+
                 <div className="status-menu">
                     <HUD
                         ashes={playerAshes}
@@ -209,6 +233,10 @@ class Gameboard extends Component {
                         enemySurge={enemySurge}
                         enemyOverload={enemyOverload}
                         enemyHand={enemyHand}
+                        selectedCard={selectedCard}
+                        selectedInHand={selectedInHand}
+                        onCancelSelection={onCancelSelection}
+                        onRezPlayerCard={onRezPlayerCard}
                     />
                 </div>
                 {modalVisible && <Modal {...modalProps} />}
