@@ -1,4 +1,5 @@
 import { state, stateSetters } from './state';
+import { rezCostFor } from './activation';
 
 // Resource Management
 //
@@ -34,11 +35,15 @@ export function loseAshes(num) {
 }
 
 export function gainActions(num) {
-    let remainingActions = num;
-    if (state.playerLag > 0) {
-        remainingActions = Math.max(0, remainingActions - state.playerLag);
+    if (num <= 0) return;
+    const absorbed = Math.min(num, state.playerLag);
+    const gained = num - absorbed;
+    if (absorbed > 0) {
+        stateSetters.setPlayerLag(prev => Math.max(0, prev - absorbed));
     }
-    stateSetters.setPlayerActions(prevActions => prevActions + remainingActions);
+    if (gained > 0) {
+        stateSetters.setPlayerActions(prev => prev + gained);
+    }
 }
 
 export function loseActions(num) {
@@ -172,9 +177,10 @@ export function handleRez(entity) {
         return;
     }
 
-    if (state.playerBits < entity.card.rezCost || 
-        state.playerAshes < entity.card.ash || 
-        soulsAvailable < entity.card.soul) {
+    const cost = rezCostFor(entity.card);
+    if (state.playerBits < cost.bits || 
+        state.playerAshes < cost.ash || 
+        soulsAvailable < cost.soul) {
         console.log('no resources');
         return;
     }
@@ -183,10 +189,38 @@ export function handleRez(entity) {
     stateSetters.setRezCard(entity);
     stateSetters.setAwaitingSacrifices(true);
     
-    if (!entity.card.soul || entity.card.soul === 0) {
+    if (cost.soul === 0) {
         console.log('no soul cost');
         stateSetters.setAwaitingSacrifices(false);
     }
+}
+
+/**
+ * Pays a card's rez cost. Called once the rez completes, so a cancelled or
+ * rejected rez never charges the player.
+ *
+ * Only Bits and Ash are deducted here. The Soul cost is not a pool to spend
+ * from — it is paid by destroying entities during the sacrifice step, which
+ * `handleSacrificeConfirmation` handles separately.
+ *
+ * The amounts come from `rezCostFor`, so keyword discounts such as Rapture
+ * reduce what is actually paid rather than only what is required to start.
+ *
+ * @param {Object} card - The raw card definition being rezzed
+ * @returns {{bits: number, ash: number, soul: number}} the cost that was paid
+ */
+export function payRezCost(card) {
+    const cost = rezCostFor(card);
+
+    if (cost.bits > 0) {
+        loseBits(cost.bits);
+    }
+    if (cost.ash > 0) {
+        loseAshes(cost.ash);
+    }
+
+    console.log(`Paid rez cost for ${card?.name}: ${cost.bits} Bits, ${cost.ash} Ash`);
+    return cost;
 }
 
 // Helper Functions

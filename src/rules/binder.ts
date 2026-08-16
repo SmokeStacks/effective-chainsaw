@@ -591,16 +591,17 @@ const binder: Card[] = [
     faction: 'orange-border',
     id: 117, // Replace with a specific ID if needed
     category: "SNIP",
-    name: "Foresight",
-    rezCost: 1,
+    name: "Precognition",
+    rezCost: 2,
     soul: 0,
     ash: 0,
-    scrap: 3,
+    scrap: 4,
+    keywords: "Surgical, Tarot.",
     schemeThreshold: 2, // Scheme 2
     scheming: true,     // Indicates this card can be developed via Scheme
     abilities: [
       {
-        name: "GainActionsOnPandoraInterface",
+        name: "GainActionsOnHeadSpaceInterface",
         type: "triggered",
         triggers: ["successfulHack"],
         effect: {
@@ -609,7 +610,7 @@ const binder: Card[] = [
       },
     ],
     description:
-      "Scheme 2: The first time you Interface Pandora each turn gain 3 Actions.",
+      "Scheme 2: The first time you Interface HeadSpace each turn gain 3 Actions.",
     magi: true,
     phys: true,
     tech: false,

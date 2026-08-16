@@ -23,7 +23,7 @@ const enemyOne: Card[] = [
         scrap: 0,
         abilities: [
             { name: "Buffer", amount: 4 },
-            { name: "ManualAbility", actionsRequired: 2, effect: { name: "GainVengeance", amount: 4 } },
+            { name: "GainVengeance", actionsRequired: 2, amount: 4 },
         ],
         aggressive: true,
         defensive: false,
@@ -71,7 +71,7 @@ const enemyOne: Card[] = [
         scrap: 0,
         abilities: [
             { name: "Buffer", amount: 2 },
-            { name: "MassFreezeEnemies" },
+            { name: "SylkWormAura" },
         ],
     },
     {
@@ -150,14 +150,11 @@ const enemyOne: Card[] = [
         scrap: 0,
         abilities: [
             {
-                name: "ManualAbility",
+                name: "BoostAndPounceTargetAlly",
                 actionsRequired: 0,
                 requiresExhaust: true,
                 requiresTarget: true,
-                effect: {
-                    name: "GrantBoostAndPounce",
-                    boostAmount: 2,
-                },
+                boostAmount: 2,
             },
         ],
         aggressive: false,
@@ -176,12 +173,9 @@ const enemyOne: Card[] = [
         timer: 4,
         abilities: [
             {
-                name: "OnEnterEffect",
-                effect: {
-                    name: "InflictOverloadAndLag",
-                    overloadAmount: 2,
-                    lagAmount: 1,
-                },
+                name: "InflictOverloadAndLag",
+                overloadAmount: 2,
+                lagAmount: 1,
             },
         ],
         description: "Inflict 2 Overload and 1 Lag upon entering play.",
@@ -206,11 +200,8 @@ const enemyOne: Card[] = [
             { name: "Soulless" },
             { name: "Glitchy" },
             {
-                name: "HackTriggeredEffect",
-                effect: {
-                    name: "InflictOverloadOnHack",
-                    overloadAmount: 3,
-                },
+                name: "HackingInflictOverload",
+                amount: 3,
             },
         ],
         description: "When you Hack successfully, inflict 3 Overload.",
@@ -232,7 +223,7 @@ const enemyOne: Card[] = [
         keywords: "Stealth.",
         abilities: [
             { name: "Stealth", amount: 1 },
-            { name: "GrantImpostorToDreamers" },
+            { name: "DreamersAreImpostors" },
         ],
         description: "Your Dreamers are Impostors.",
         magi: false,
@@ -252,15 +243,12 @@ const enemyOne: Card[] = [
         timer: 3,
         abilities: [
             {
-                name: "ManualAbility",
+                name: "GainAshAndInflictOverload",
                 actionsRequired: 0, // No actions required to activate
                 requiresExhaust: true, // Requires exhaustion
                 requiresTarget: false, // Does not require a target
-                effect: {
-                    name: "GainAshAndInflictOverload",
-                    ashAmount: 4,
-                    overloadAmount: 4,
-                },
+                ashAmount: 4,
+                overloadAmount: 4,
             },
         ],
         description: "Exhaust ➔ Gain 4 Ash and inflict 4 Overload.",
@@ -270,7 +258,7 @@ const enemyOne: Card[] = [
     },
     {
         faction: 'orange-border',
-        id: 112,
+        id: 121,
         category: "ENTITY",
         name: "Blood Sugar",
         rezCost: 2,
@@ -387,13 +375,10 @@ const enemyOne: Card[] = [
                 name: 'GainVenomOnInterface',
             },
             {
-                name: 'DestroyWithVenom',
+                name: 'DestroyTargetWithVenom',
                 actionsRequired: 0, // No action points required
                 requiresExhaust: true, // Requires exhaustion
                 requiresTarget: true, // Requires a target
-                effect: {
-                    name: 'DestroyTargetWithVenom',
-                },
             },
         ],
         keywords: "Buffer 2.",
@@ -458,7 +443,7 @@ const enemyOne: Card[] = [
     },
     {
         faction: 'orange-border',
-        id: 115,
+        id: 122,
         category: "LOCATION",
         name: "Pirate Vessel",
         rezCost: 3,
@@ -477,7 +462,7 @@ const enemyOne: Card[] = [
     },
     {
         faction: 'orange-border',
-        id: 116,
+        id: 123,
         category: "LOCATION",
         name: "Insurgency",
         rezCost: 2,
@@ -511,27 +496,28 @@ const enemyOne: Card[] = [
     },
     {
         faction: 'orange-border',
-        id: 117, // Replace with a specific ID if needed
+        id: 124,
         category: "SNIP",
-        name: "Foresight",
-        rezCost: 1,
+        name: "Precognition",
+        rezCost: 2,
         soul: 0,
         ash: 0,
-        scrap: 3,
+        scrap: 4,
+        keywords: "Surgical, Tarot.",
         schemeThreshold: 2, // Scheme 2
         scheming: true,     // Indicates this card can be developed via Scheme
         abilities: [
-            {
-                name: "GainActionsOnPandoraInterface",
-                type: "triggered",
-                triggers: ["successfulHack"],
-                effect: {
-                    amount: 3,
-                },
+          {
+            name: "GainActionsOnHeadSpaceInterface",
+            type: "triggered",
+            triggers: ["successfulHack"],
+            effect: {
+              amount: 3,
             },
+          },
         ],
         description:
-            "Scheme 2: The first time you Interface Pandora each turn gain 3 Actions.",
+          "Scheme 2: The first time you Interface HeadSpace each turn gain 3 Actions.",
         magi: true,
         phys: true,
         tech: false,
@@ -678,23 +664,6 @@ const enemyOne: Card[] = [
         magi: true,
         phys: true,
         tech: false,
-    },
-    {
-        faction: 'orange-border',
-        id: 131,
-        category: "LANDMARK",
-        name: "Splinter Faction",
-        rezCost: 0,
-        soul: 0,
-        ash: 0,
-        HP: 5,
-        runes: 3,
-        plot: 4,
-        abilities: [{ name: "SplinterFactionAscend" }],
-        description: "Ascend ➔ Deal 2 damage to enemy entities.",
-        magi: false,
-        phys: true,
-        tech: true,
     },
     {
         faction: 'orange-border',

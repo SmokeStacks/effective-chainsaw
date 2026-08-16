@@ -39,6 +39,9 @@ const orangeBinder: Card[] = [
     timer: 1,
     subTypes: ["JAWbreaker"],
     keywords: "Override, Devour. Buffer 3, Hardline, Aggro.",
+    abilities: [
+      { name: "GainVengeanceWithWound", type: "manual" }
+    ],
     description: "Action ➔ Gain 2 Vengeance and 1 Wound.",
     magi: false,
     phys: false,
@@ -57,6 +60,9 @@ const orangeBinder: Card[] = [
     timer: 1,
     subTypes: ["JAWbreaker"],
     keywords: "Drift, Sting. Hardline, Locality, Aggro.",
+    abilities: [
+      { name: "FreezeTargetJaw", type: "manual" }
+    ],
     description: "Exhaust ➔ Target JAW gains 1 Freeze.",
     magi: false,
     phys: false,
@@ -95,7 +101,10 @@ const orangeBinder: Card[] = [
     HP: 3,
     timer: 2,
     subTypes: ["JAWbreaker"],
-    keywords: "Pounce, Tarot. Glitchy, Aggro.",
+    keywords: "Pounce, Tarot. Glitchy, Aggro. Surgical Aura.",
+    abilities: [
+      { name: "CatPhishSurgicalAura" }
+    ],
     description: "Your entities are Surgical.",
     magi: false,
     phys: false,
@@ -113,7 +122,10 @@ const orangeBinder: Card[] = [
     HP: 2,
     timer: 1,
     subTypes: ["JAWbreaker"],
-    keywords: "Stealth, Dividend, Cosmic 2. Buffer 2, Aggro.",
+    keywords: "Stealth, Dividend, Cosmic 2. Buffer 2, Aggro. Freeze Aura.",
+    abilities: [
+      { name: "SylkWormAura" }
+    ],
     description: "Online enemy entities gain Freeze 2.",
     magi: false,
     phys: false,
@@ -133,6 +145,9 @@ const orangeBinder: Card[] = [
     HP: 2,
     timer: 2,
     keywords: "Inspire, Grit, Necrotic 3.",
+    abilities: [
+      { name: "BoostAndPounceTargetAlly", type: "manual" }
+    ],
     description: "Exhaust ➔ Target friendly Online entity gains 2 Boost and Pounce.",
     magi: false,
     phys: true,
@@ -171,9 +186,10 @@ const orangeBinder: Card[] = [
     timer: 3,
     keywords: "Impostor. Soulless, Glitchy. Hacking.",
     abilities: [
-      { name: "HackingInflictOverload", amount: 3 }
+      { name: "HackingInflictOverload", amount: 3 },
+      { name: "Impostor" }
     ],
-    description: "Hacking ➔ inflict 3 Overload.",
+    description: "Hacking ➔ inflict 3 Overload. Impostor.",
     magi: false,
     phys: true,
     tech: false,
@@ -189,7 +205,10 @@ const orangeBinder: Card[] = [
     power: 2,
     HP: 3,
     timer: 3,
-    keywords: "Covenant, Stealth, Grit.",
+    keywords: "Covenant, Stealth, Grit. DreamersAreImpostors.",
+    abilities: [
+      { name: "DreamersAreImpostors" }
+    ],
     description: "Your Dreamers are Impostors.",
     magi: false,
     phys: true,
@@ -206,7 +225,10 @@ const orangeBinder: Card[] = [
     power: 1,
     HP: 3,
     timer: 3,
-    keywords: "Covenant, Duplicate, Dividend, Necrotic.",
+    keywords: "Covenant, Duplicate, Dividend, Necrotic. Lifeless.",
+    abilities: [
+      { name: "DominanceInflictOverloadAndGainLifeless", amount: 2 }
+    ],
     description: "Dominance ➔ Inflict 2 Overload and gain Lifeless.",
     magi: false,
     phys: true,
@@ -226,6 +248,9 @@ const orangeBinder: Card[] = [
     HP: 4,
     timer: 2,
     keywords: "Pounce. Vicious, Buffer 2.",
+    abilities: [
+      { name: "BuffSelfWithFreeze", type: "manual" }
+    ],
     description: "1 Bit ➔ Gain +1/+1 and 1 Freeze.",
     magi: true,
     phys: true,
@@ -262,6 +287,9 @@ const orangeBinder: Card[] = [
     HP: 6,
     timer: 3,
     keywords: "Crusade, Drift, Barricade, Grit.",
+    abilities: [
+      { name: "DevelopFriendlyPlacesAndThings", type: "manual" }
+    ],
     description: "2 Bits, Action ➔ Friendly Places and Things gain 2 Develop",
     magi: false,
     phys: true,
@@ -279,6 +307,9 @@ const orangeBinder: Card[] = [
     HP: 4,
     timer: 2,
     keywords: "Dividend. Buffer 3, Soulless, Defensive.",
+    abilities: [
+      { name: "BoostFriendlyEntities", type: "manual" }
+    ],
     description: "1 Bit, Exhaust ➔ Friendly entities gain 1 Boost.",
     magi: false,
     phys: true,
@@ -317,7 +348,7 @@ const orangeBinder: Card[] = [
     power: 2,
     HP: 5,
     timer: 2,
-    keywords: "Grit. Buffer 3, Hardline. Dominance. Surrender.",
+    keywords: "Grit. Buffer 3, Hardline. Surrender.",
     abilities: [
       { name: "DominanceInflictOverload", amount: 3 },
       { name: "SurrenderGainOverload", amount: 3 }
@@ -339,6 +370,9 @@ const orangeBinder: Card[] = [
     HP: 4,
     timer: 3,
     keywords: "Solo, Stealth, Grit. Skav.",
+    abilities: [
+      { name: "BoostSelf", type: "manual" }
+    ],
     description: "1 Bit ➔ Gain 1 Boost",
     magi: true,
     phys: false,
@@ -357,7 +391,7 @@ const orangeBinder: Card[] = [
     power: 5,
     HP: 3,
     timer: 2,
-    keywords: "Deathless, Override. Buffer 3, Aggro. Dominance. Surrender.",
+    keywords: "Deathless, Override. Buffer 3, Aggro. Surrender.",
     abilities: [
       { name: "DominanceInflictOverload", amount: 3 },
       { name: "SurrenderGainOverload", amount: 3 }
@@ -379,6 +413,9 @@ const orangeBinder: Card[] = [
     ash: 0,
     HP: 2,
     keywords: "Lifeless.",
+    abilities: [
+      { name: "GainActionWithWound", type: "manual" }
+    ],
     description: "1 Bit ➔ Gain 1 Action and 1 Wound.",
     magi: true,
     phys: true,
@@ -409,9 +446,21 @@ const orangeBinder: Card[] = [
     rezCost: 2,
     soul: 0,
     ash: 0,
-    scrap: 5,
-    keywords: "Surgical.",
-    description: "Scheme 2: The first time you Interface Pandora each turn gain 2 Actions.",
+    scrap: 4,
+    keywords: "Surgical, Tarot.",
+    schemeThreshold: 2,
+    scheming: true,
+    abilities: [
+      {
+        name: "GainActionsOnHeadSpaceInterface",
+        type: "triggered",
+        triggers: ["successfulHack"],
+        effect: {
+          amount: 3,
+        },
+      },
+    ],
+    description: "Scheme 2: The first time you Interface HeadSpace each turn gain 3 Actions.",
     magi: true,
     phys: false,
     tech: false,
@@ -425,7 +474,10 @@ const orangeBinder: Card[] = [
     soul: 0,
     ash: 0,
     scrap: 3,
-    keywords: "Dividend.",
+    keywords: "Dividend. PandoraInterfaceExtra.",
+    abilities: [
+      { name: "PandoraInterfaceExtra", amount: 1 }
+    ],
     description: "When you Interface Pandora, Interface 1 additional card.",
     magi: true,
     phys: false,
@@ -440,7 +492,12 @@ const orangeBinder: Card[] = [
     soul: 0,
     ash: 0,
     scrap: 1,
-    keywords: "Duplicate 2, Surgical.",
+    keywords: "Duplicate 2, Surgical. Interface. Scheme 2.",
+    abilities: [
+      { name: "DataBombInterfaceOverload" },
+      { name: "Scheme", amount: 2 },
+      { name: "DataBombSchemeFreeze" }
+    ],
     description: "Interface: Inflict 2 Overload for each Development. Scheme 2: Sacrifice ➔ Target entity gains Freeze 5.",
     magi: false,
     phys: true,
@@ -456,7 +513,11 @@ const orangeBinder: Card[] = [
     ash: 0,
     scrap: 2,
     keywords: "Dividend 2. Impostor.",
-    description: "",
+    abilities: [
+      { name: "Dividend", amount: 2 },
+      { name: "Impostor" }
+    ],
+    description: "Dividend 2. Impostor.",
     magi: false,
     phys: false,
     tech: true,
@@ -499,7 +560,10 @@ const orangeBinder: Card[] = [
     rezCost: 4,
     soul: 0,
     ash: 0,
-    keywords: "Duplicate.",
+    keywords: "Duplicate. DeadDrop.",
+    abilities: [
+      { name: "DeadDropEffect" }
+    ],
     description: "If you Interfaced HeadSpace this turn, +8 bits and place an enemy Adrenochrome IRL.",
     magi: true,
     phys: false,
@@ -541,7 +605,10 @@ const orangeBinder: Card[] = [
     rezCost: 2,
     soul: 0,
     ash: 0,
-    keywords: "Vicious",
+    keywords: "Vicious. Implants.",
+    abilities: [
+      { name: "ImplantsEffect" }
+    ],
     description: "+4 Surge and +4 Ash. Search Pandora and draw a JAWbreaker.",
     magi: true,
     phys: true,
@@ -588,7 +655,10 @@ const orangeBinder: Card[] = [
     HP: 3,
     runes: 2,
     plot: 2,
-    keywords: "Grit.",
+    keywords: "Grit. Interface.",
+    abilities: [
+      { name: "WastelandInterfaceWound" }
+    ],
     description: "Interface, Departed ➔ Inflict 1 Wound.",
     magi: false,
     phys: true,

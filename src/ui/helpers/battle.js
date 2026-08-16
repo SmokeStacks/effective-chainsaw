@@ -235,6 +235,16 @@ const handleEnemyBattle = () => {
         const enemyAttackers = state.enemyBattleSlots.filter(attacker => attacker !== null);
         const isEnemySoloAttack = enemyAttackers.length === 1;
 
+        // First time this side attacks with any entity this round (drives Crusade).
+        if (enemyAttackers.length > 0 && state.enemyFirstAttack) {
+            stateSetters.setEnemyFirstAttack(false);
+            eventManager.publish('firstAttack', {
+                side: 'ENEMY',
+                attackers: enemyAttackers.map(a => a.id),
+                realm: state.battleRealm
+            });
+        }
+
         // Track hacking success
         let unblockedHacking = false;
 
@@ -497,6 +507,16 @@ const handlePlayerBattle = () => {
     // Determine if only one attacker is present
     const attackers = updatedBattleSlots.filter(a => a !== null);
     const isSoloAttack = attackers.length === 1;
+
+    // First time this side attacks with any entity this round (drives Crusade).
+    if (attackers.length > 0 && state.playerFirstAttack) {
+        stateSetters.setPlayerFirstAttack(false);
+        eventManager.publish('firstAttack', {
+            side: 'PLAYER',
+            attackers: attackers.map(a => a.id),
+            realm: state.battleRealm
+        });
+    }
 
     // Proceed with the battle using the updated battle slots
     for (let i = 0; i < 6; i++) {

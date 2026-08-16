@@ -1,5 +1,6 @@
 import { state, stateSetters } from './state';
 import { activateAbilities } from '../abilities/glossary';
+import { eventManager } from './eventManager';
 
 // Resource Management
 // See player.js for semantics: gains are absorbed 1-for-1 by their paired
@@ -29,11 +30,15 @@ export function loseAshes(num) {
 }
 
 export function gainActions(num) {
-    let remainingActions = num;
-    if (state.enemyLag > 0) {
-        remainingActions = Math.max(0, remainingActions - state.enemyLag);
+    if (num <= 0) return;
+    const absorbed = Math.min(num, state.enemyLag);
+    const gained = num - absorbed;
+    if (absorbed > 0) {
+        stateSetters.setEnemyLag(prev => Math.max(0, prev - absorbed));
     }
-    stateSetters.setEnemyActions(prevActions => prevActions + remainingActions);
+    if (gained > 0) {
+        stateSetters.setEnemyActions(prev => prev + gained);
+    }
 }
 
 export function loseActions(num) {
@@ -130,6 +135,11 @@ export function draw(num) {
 export function handleRez(card) {
     // Always activate for free since it's an enemy card
     activateAbilities(card, 'ENEMY');
+    eventManager.publish('entityEntered', {
+        side: 'ENEMY',
+        entity: card,
+        realm: card.realm
+    });
 }
 
 // Helper Functions

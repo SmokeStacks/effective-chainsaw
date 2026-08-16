@@ -1,12 +1,17 @@
     import { state, stateSetters, getRealmAndSetter } from '../state';
 import { activateAbilities } from '../../abilities/glossary';
 
-// Destructure state variables
-const { 
-    enemySolarium, enemyTheater, enemyUnderpass, enemyGrid 
-} = state;
+const ENEMY_REALMS = ['Solarium', 'Theater', 'Underpass', 'Grid'];
 
-// Main function to handle enemy rez cards
+// Main function to handle enemy rez cards.
+//
+// The enemy rezzes on a timer and deliberately pays no Bits/Ash cost; that is
+// how the single-player opponent works for now.
+//
+// Realms are read from `state` on every call. This module used to destructure
+// them once at import time, but the realm setters replace those objects rather
+// than mutating them, so the snapshot stayed pointed at the original empty
+// realms and the enemy never rezzed anything placed after load.
 export async function enemyRezCards() {
     console.log('--- enemyRezCards Invoked ---');
 
@@ -58,42 +63,20 @@ export async function enemyRezCards() {
             }));
         };
 
-        // Update Enemy Solarium Realm
-        if (enemySolarium) {
-            await rezActiveEntities(enemySolarium.people);
-            await rezActiveThings(enemySolarium.things);
-            stateSetters.setEnemySolarium(prevRealm => ({ ...prevRealm }));
-        } else {
-            console.log('Warning: enemySolarium is undefined');
+        for (const name of ENEMY_REALMS) {
+            const realm = state[`enemy${name}`];
+
+            if (!realm) {
+                console.log(`Warning: enemy${name} is undefined`);
+                continue;
+            }
+
+            await rezActiveEntities(realm.people);
+            await rezActiveThings(realm.things);
+            stateSetters[`setEnemy${name}`](prevRealm => ({ ...prevRealm }));
         }
 
-        // Update Enemy Theater Realm
-        if (enemyTheater) {
-            await rezActiveEntities(enemyTheater.people);
-            await rezActiveThings(enemyTheater.things);
-            stateSetters.setEnemyTheater(prevRealm => ({ ...prevRealm }));
-        } else {
-            console.log('Warning: enemyTheater is undefined');
-        }
 
-        // Update Enemy Underpass Realm
-        if (enemyUnderpass) {
-            await rezActiveEntities(enemyUnderpass.people);
-            await rezActiveThings(enemyUnderpass.things);
-            stateSetters.setEnemyUnderpass(prevRealm => ({ ...prevRealm }));
-        } else {
-            console.log('Warning: enemyUnderpass is undefined');
-        }
-
-        // Update Enemy Grid Realm
-        if (enemyGrid) {
-            await rezActiveEntities(enemyGrid.people);
-            await rezActiveThings(enemyGrid.things);
-            stateSetters.setEnemyGrid(prevRealm => ({ ...prevRealm }));
-        } else {
-            console.log('Warning: enemyGrid is undefined');
-        }
-        
         console.log('--- enemyRezCards Completed ---');
         return Promise.resolve(true);
     } catch (error) {

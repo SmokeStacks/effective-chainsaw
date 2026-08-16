@@ -131,7 +131,8 @@ class BattleCardDisplay extends Component {
         const {
             onCardSelect,
             entity,
-            mode
+            mode,
+            inHand = false
         } = this.props;
 
         const isCreatureOrRitual = category === "ENTITY" || category === "RITUAL";

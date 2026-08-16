@@ -46,7 +46,8 @@ import { draftList } from '../../systemDecks/draft';
 // `draw` from player.js is the canonical implementation; we re-export it as
 // `playerDraw` below so existing call sites keep working without the
 // stale-destructuring bug the local implementation had.
-import { draw as playerDraw } from './player';
+import { draw as playerDraw, payRezCost } from './player';
+import { rezCostFor } from './activation';
 
 // Re-export resource management functions
 export {
@@ -219,8 +220,16 @@ export const handleRealmSelect = (realmName) => {
         return;
     }
     const soulsAvailable = calculateSoulsAvailable(selectedCard.id);
-    if (selectedCard.card.category === 'LANDMARK' || selectedCard.card.category === 'LOCATION') {
-        if (playerBits < selectedCard.card.rezCost || playerAshes < selectedCard.card.ash || soulsAvailable < selectedCard.card.soul) {
+    // glossary.txt — Landmark: "Has no Activation cost and enters its Realm
+    // Online." Location: "Enters its Realm Online and must therefore have its
+    // Activation cost paid immediately like a Ritual."
+    //
+    // So only Locations are gated here, and they are charged below once placed.
+    // Everything else (Entities, Syms, Snips) enters Offline and pays when it is
+    // later rezzed.
+    if (selectedCard.card.category === 'LOCATION') {
+        const cost = rezCostFor(selectedCard.card);
+        if (playerBits < cost.bits || playerAshes < cost.ash || soulsAvailable < cost.soul) {
             console.log('no resources')
             return;
         }
@@ -229,12 +238,16 @@ export const handleRealmSelect = (realmName) => {
     console.log(realmName);
 
     if (category === 'RITUAL') {
-        // First handle any non-targeting abilities like Duplicate
-        selectedCard.card.abilities.forEach(
-            ability => typeof ability === 'string' || !ability.requiresTarget
-        );
+        // A Ritual pays its Activation cost immediately, so refuse it up front
+        // rather than after the player has picked a target. The charge itself
+        // happens in confirmRitualActivation once the ritual actually resolves.
+        const ritualCost = rezCostFor(selectedCard.card);
+        if (playerBits < ritualCost.bits || playerAshes < ritualCost.ash) {
+            console.log('no resources for ritual');
+            return;
+        }
 
-        // Then set up targeting for abilities that need it
+        // Set up targeting for abilities that need it
         const targetingAbilities = selectedCard.card.abilities.filter(
             ability => typeof ability === 'object' && ability.requiresTarget
         );
@@ -257,6 +270,13 @@ export const handleRealmSelect = (realmName) => {
             // Don't remove from hand yet - wait for target confirmation
             return;
         }
+
+        // A Ritual with no targeting ability has nothing to wait for, so it
+        // resolves immediately. Without this it fell through to the placement
+        // switch below, which has no RITUAL case, so the card silently stayed in
+        // hand and never resolved.
+        resolveRitual(selectedCard, null);
+        return;
     }
 
     if (battleSelectedCard) {
@@ -353,6 +373,13 @@ export const handleRealmSelect = (realmName) => {
             [placementArray]: [...prevRealm[placementArray], updatedCard],
         }));
 
+        // A Location enters Online, so its Activation cost is due now. Landmarks
+        // also enter Online but have no cost, and every other category enters
+        // Offline and is charged when rezzed.
+        if (category === 'LOCATION') {
+            payRezCost(selectedCard.card);
+        }
+
         console.log('Actions before decrement:', playerActions);
         stateSetters.setPlayerActions(Math.max(0, state.playerActions - 1)); // Use stateSetters
         console.log('Actions after decrement:', playerActions);
@@ -390,34 +417,50 @@ export const handleRealmSelect = (realmName) => {
 //     endPlayerTurn();
 // }
 
+/**
+ * Resolves a Ritual: spends the card, pays its cost, and fires its abilities.
+ *
+ * Both ritual paths (with and without a target) funnel through here so they
+ * cannot drift apart.
+ *
+ * `triggerRitualAbilities` already fires every onPlay ability, including the
+ * string form such as 'Duplicate', so there is no separate pass for those. An
+ * earlier separate pass caused string abilities to resolve twice.
+ *
+ * @param {Object} entity - The ritual card entity from hand
+ * @param {Object|null} target - The chosen target, or null if the ritual has none
+ * @returns {void}
+ */
+export function resolveRitual(entity, target = null) {
+    // Also spends the action.
+    removeCardFromHand(entity);
+
+    // The ritual is resolving now, so its Activation cost is due.
+    payRezCost(entity.card);
+
+    triggerRitualAbilities(entity, target, 'PLAYER');
+
+    // A spent Ritual goes to the graveyard rather than leaving the game.
+    stateSetters.setPlayerGraveyard(prev => [...prev, entity]);
+
+    // A Ritual costs an action but does not end the turn, so clear only the
+    // selection state tied to the spent card. Calling endPlayerTurn here would
+    // hand priority to the enemy after every ritual.
+    stateSetters.setPendingRitual(null);
+    stateSetters.setTargetSelection({ enabled: false });
+    stateSetters.setSelectedCard(null);
+    stateSetters.setSelectedInHand(false);
+    stateSetters.setTargetType('none');
+}
+
 function confirmRitualActivation(target) {
     // Access pendingRitual from state, not stateSetters
     if (!state.pendingRitual) {
         console.error('No pending ritual found in state');
         return;
     }
-    
-    const { entity, ability } = state.pendingRitual;
-    removeCardFromHand(entity);
-    
-    // First trigger non-targeting abilities
-    entity.card.abilities.forEach(ab => {
-        if (typeof ab === 'string') {
-            // Handle abilities like "Duplicate"
-            const abilityDef = abilitiesDefinitions[ab];
-            if (abilityDef && abilityDef.onPlay) {
-                abilityDef.onPlay(entity, null, 'PLAYER');
-            }
-        }
-    });
-    
-    // Then trigger the targeting ability with the selected target
-    triggerRitualAbilities(entity, target, 'PLAYER', ability);
-    
-    // Reset pendingRitual after activation
-    stateSetters.setPendingRitual(null);
-    
-    endPlayerTurn();
+
+    resolveRitual(state.pendingRitual.entity, target);
 }
 
 export function removeCardFromHand(card) {
@@ -478,15 +521,6 @@ function playerAdvanceCards() {
 
                     if (cardEntity.card.timer && newSteps >= cardEntity.card.timer) {
                         updatedCard.readied = true;
-                    }
-
-                    // Fire maintain event for cards with Maintain ability
-                    if (cardEntity.card.abilities?.some(a => a.name === 'MaintainGainVengeance')) {
-                        eventManager.publish('maintain', {
-                            entityId: cardEntity.id,
-                            side: side,
-                            realm: cardEntity.realm
-                        });
                     }
 
                     return updatedCard;
@@ -934,6 +968,11 @@ export function enemyPlayCard() {
             } else {
                 console.log('activateAbilities function not available, skipping activation');
             }
+            eventManager.publish('entityEntered', {
+                side: 'ENEMY',
+                entity: updatedCard,
+                realm: updatedCard.realm
+            });
         }
         
         return true;
@@ -1289,6 +1328,8 @@ export function startTurn(currentPriorityLeft) {
     // Reset game state
     stateSetters.setDraftSelected(false);
     stateSetters.setPendingRitual(null);
+    // Rapture's discount only applies on turns where something has already died.
+    state.entityDiedThisTurn = false;
     
     // Reset UI state via event manager
     eventManager.publish('resetUIState', {
@@ -1382,6 +1423,14 @@ export function startTurn(currentPriorityLeft) {
     playerAdvanceCards();
     enemyAdvanceCards();
 
+    // Maintain fires during the timer-reduction phase at the start of the turn.
+    // It is a phase event, so it publishes once per side rather than once per
+    // advancing card: the aura handlers listening on it (SylkWorm, CatPhish,
+    // Chronomancer) do not filter by entity, so a per-card publish would apply
+    // them repeatedly.
+    eventManager.publish('maintain', { side: 'PLAYER' });
+    eventManager.publish('maintain', { side: 'ENEMY' });
+
     // If it's the enemy's turn, perform their action
     if (state.currentPlayer === 'ENEMY') {
         setTimeout(() => {
@@ -1392,6 +1441,8 @@ export function startTurn(currentPriorityLeft) {
 
 export function endTurn() {
     console.log('end turn');
+    eventManager.publish('endTurn', { side: 'PLAYER' });
+    eventManager.publish('endTurn', { side: 'ENEMY' });
     processEndOfTurnEffects();
     const newPriorityLeft = !state.priorityLeft;
     stateSetters.setPriorityLeft(newPriorityLeft);

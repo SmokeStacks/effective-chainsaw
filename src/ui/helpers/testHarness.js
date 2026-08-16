@@ -95,6 +95,7 @@ const DEFAULT_STATE = {
     soulSelections: [],
     focus: null,
     awaitingFocus: false,
+    entityDiedThisTurn: false,
 };
 
 /**

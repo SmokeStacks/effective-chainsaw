@@ -44,7 +44,7 @@ const deckTwo: Card[] = [
     scrap: 0,
     abilities: [
       { name: "Buffer", amount: 2 },
-      { name: "MassFreezeEnemies" },
+      { name: "SylkWormAura" },
     ],
     aggressive: true,
   },
@@ -124,7 +124,7 @@ const deckTwo: Card[] = [
     scrap: 0,
     abilities: [
       { name: "Buffer", amount: 4 },
-      { name: "ManualAbility", actionsRequired: 2, effect: { name: "GainVengeance", amount: 4 } },
+      { name: "GainVengeance", actionsRequired: 2, amount: 4 },
     ],
     aggressive: true,
     defensive: false,
@@ -172,7 +172,7 @@ const deckTwo: Card[] = [
     scrap: 0,
     abilities: [
       { name: "Buffer", amount: 2 },
-      { name: "MassFreezeEnemies" },
+      { name: "SylkWormAura" },
     ],
     aggressive: true,
   },
@@ -252,7 +252,7 @@ const deckTwo: Card[] = [
     scrap: 0,
     abilities: [
       { name: "Buffer", amount: 4 },
-      { name: "ManualAbility", actionsRequired: 2, effect: { name: "GainVengeance", amount: 4 } },
+      { name: "GainVengeance", actionsRequired: 2, amount: 4 },
     ],
     aggressive: true,
     defensive: false,
@@ -270,7 +270,7 @@ const deckTwo: Card[] = [
     timer: 3,
     keywords: "Stealth.",
     abilities: [
-      { name: "GrantImpostorToDreamers" },
+      { name: "DreamersAreImpostors" },
     ],
     description: "Your Dreamers are Impostors.",
     stealth: 1,
@@ -377,13 +377,10 @@ const deckTwo: Card[] = [
         name: 'GainVenomOnInterface',
       },
       {
-        name: 'DestroyWithVenom',
+        name: 'DestroyTargetWithVenom',
         actionsRequired: 0, // No action points required
         requiresExhaust: true, // Requires exhaustion
         requiresTarget: true, // Requires a target
-        effect: {
-          name: 'DestroyTargetWithVenom',
-        },
       },
     ],
     keywords: "Buffer 2.",
@@ -485,16 +482,17 @@ const deckTwo: Card[] = [
     faction: 'orange-border',
     id: 117, // Replace with a specific ID if needed
     category: "SNIP",
-    name: "Foresight",
-    rezCost: 1,
+    name: "Precognition",
+    rezCost: 2,
     soul: 0,
     ash: 0,
-    scrap: 3,
+    scrap: 4,
+    keywords: "Surgical, Tarot.",
     schemeThreshold: 2, // Scheme 2
     scheming: true,     // Indicates this card can be developed via Scheme
     abilities: [
       {
-        name: "GainActionsOnPandoraInterface",
+        name: "GainActionsOnHeadSpaceInterface",
         type: "triggered",
         triggers: ["successfulHack"],
         effect: {
@@ -503,7 +501,7 @@ const deckTwo: Card[] = [
       },
     ],
     description:
-      "Scheme 2: The first time you Interface Pandora each turn gain 3 Actions.",
+      "Scheme 2: The first time you Interface HeadSpace each turn gain 3 Actions.",
     magi: true,
     phys: true,
     tech: false,

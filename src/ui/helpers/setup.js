@@ -1,5 +1,6 @@
 import { cardList1 } from '../../playerDecks/deckTwo';
 import enemyOne from '../../systemDecks/enemyOne';
+import { reportDeckRunes } from './deckValidation';
 
 export function shuffle(array) {
         let currentIndex = array.length;
@@ -14,6 +15,7 @@ export function shuffle(array) {
 export const createLibrary = () => {
     console.log('Creating player library...');
     console.log('Player deck source:', cardList1);
+    reportDeckRunes(cardList1, 'Player deck');
     const libraryInstanceArray = [];
     for (let i = 0; i < cardList1.length; i++) {
         const card = cardList1[i];
@@ -24,6 +26,16 @@ export const createLibrary = () => {
     shuffle(libraryInstanceArray);
     return libraryInstanceArray;
 };
+
+// Some cards express a keyword stat as a bare field (`solo: 2`) and others as an
+// entry in the abilities array (`{ name: 'Solo', amount: 2 }`). Both conventions
+// exist across the decks, so resolve either into the numeric instance field.
+export function keywordAmount(card, field, abilityName) {
+    if (typeof card[field] === 'number') return card[field];
+    const ability = (card.abilities || []).find(a => a && a.name === abilityName);
+    if (ability) return ability.amount || 1;
+    return 0;
+}
 
 // Builds a runtime card instance with all per-card counters initialized to
 // the right numeric defaults.
@@ -65,7 +77,7 @@ export function buildCardInstance(id, card, owner) {
         override: card.override || 0,
         stealth: card.stealth || 0,
         armored: card.armored || 0,
-        solo: card.solo || 0,
+        solo: keywordAmount(card, 'solo', 'Solo'),
         plot: card.plot || 0,
         // Misc
         tokens: [],

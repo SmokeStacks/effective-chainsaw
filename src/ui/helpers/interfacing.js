@@ -3,6 +3,8 @@ import { sleep } from './utils';
 import { showModal } from '../components/Modal';
 import { CardDisplay } from '../components/CardDisplay';
 import { eventManager } from './eventManager';
+import { playerLoseBits, enemyLoseBits } from './game';
+import { playerGainOverload, enemyGainOverload } from './effects';
 
 // Destructure state values only - use stateSetters.xxx for setters
 const {
@@ -99,6 +101,15 @@ export function handleAccessPhase(side) {
     } else if (acessTargetType === 'SYM' || acessTargetType === 'SNIP') {
         accessCards.push(accessTarget);
     }
+
+    // 'side' is the side performing the Interface (Access) action
+    eventManager.publish('interface', {
+        side,
+        targetType: acessTargetType,
+        battleRealm,
+        count: accessCards.length
+    });
+
     processAccessQueue(accessCards, battleRealm, side);
 }
 
@@ -250,7 +261,7 @@ export async function promptPlayerToTrashCard(card, location, side, callback) {
             </div>
         ),
         onConfirm: () => {
-            if (playerBits >= card.card.trashCost) {
+            if (state.playerBits >= card.card.scrap) {
                 playerLoseBits(card.card.scrap);
                 handleStolenCard(card, location, side, true, () => {
                     callback();
@@ -269,14 +280,14 @@ export async function handleEnemyTrashCard(card, location, side, callback) {
     await sleep(100);
     showModal({
         title: `Enemy Action`,
-        message: `The enemy may pay ${card.card.trashCost} to trash ${card.card.name}.`,
+        message: `The enemy may pay ${card.card.scrap} to trash ${card.card.name}.`,
         renderContent: () => (
             <div>
                 <CardDisplay entity={card} revealed={true} />
             </div>
         ),
         onConfirm: () => {
-            if (enemyBits >= card.card.trashCost) {
+            if (state.enemyBits >= card.card.scrap) {
                 enemyLoseBits(card.card.scrap);
                 handleStolenCard(card, location, side, true, () => {
                     callback();

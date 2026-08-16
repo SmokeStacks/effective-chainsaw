@@ -123,6 +123,7 @@ class Gameboard extends Component {
                         cards={currentPlayerEntities}
                         onCardSelect={onRealmCardSelect}
                         onRezPlayerCard={onRezPlayerCard}
+                        onAbilityClick={onAbilityClick}
                         isPlayerCard={true}
                     />
                 </div>

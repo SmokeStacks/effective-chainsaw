@@ -1,6 +1,7 @@
 import { handleDeadCard, handleDeadCards } from './damage';
 import { showModal, setModalVisible } from '../components/Modal';
 import { state, stateSetters } from './state';
+import { rezCostFor } from './activation';
 
 export function enemySacrificeEntity() {
 
@@ -59,7 +60,7 @@ export const handleSacrificeConfirmation = () => {
     console.log('confirm sacrifice');
     const totalCosmicValue = state.soulSelections.reduce((sum, card) => sum + (card.cosmic || 1), 0);
 
-    if (totalCosmicValue >= state.rezCard.card.soul) {
+    if (totalCosmicValue >= rezCostFor(state.rezCard.card).soul) {
         let selectionArray = [];
         state.soulSelections.forEach(card => {
             // Handle Covenant

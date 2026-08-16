@@ -2,11 +2,11 @@ import React, { Component } from 'react';
 
 import CardDisplay from "./CardDisplay";
 
-function RealmCards({ cards = [], onCardSelect, onRezPlayerCard, isPlayerCard }) {
+function RealmCards({ cards = [], onCardSelect, onRezPlayerCard, onAbilityClick, isPlayerCard }) {
     var cardsEntities = [];
     if (cards) {
         for (var i = 0; i < cards.length; i++) {
-            cardsEntities.push(<CardDisplay isFaceUp={cards[i].online} isPlayerCard={isPlayerCard} key={i} entity={cards[i]} onCardSelect={onCardSelect} onRezPlayerCard={onRezPlayerCard} inHand={false} />);
+            cardsEntities.push(<CardDisplay isFaceUp={cards[i].online} isPlayerCard={isPlayerCard} key={i} entity={cards[i]} onCardSelect={onCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} inHand={false} />);
         }
     }
     return <>{cardsEntities}</>;
@@ -14,11 +14,11 @@ function RealmCards({ cards = [], onCardSelect, onRezPlayerCard, isPlayerCard })
 
 class RealmCreatures extends Component {
     render() {
-        const { cards, onCardSelect, onRezPlayerCard, isPlayerCard } = this.props;
+        const { cards, onCardSelect, onRezPlayerCard, onAbilityClick, isPlayerCard } = this.props;
 
         return (
             <div className="realm-creatures">
-                <RealmCards cards={cards} onCardSelect={onCardSelect} onRezPlayerCard={onRezPlayerCard} isPlayerCard={isPlayerCard} />
+                <RealmCards cards={cards} onCardSelect={onCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} isPlayerCard={isPlayerCard} />
             </div>
         );
     }

@@ -84,6 +84,44 @@ describe('enemy resource gains — status absorption', () => {
     });
 });
 
+describe('actions — Lag absorbs action gains point-for-point', () => {
+    // Lag is the Action-side status, so it follows the same notes.txt rule:
+    // it absorbs gains 1-for-1 and is decremented by the absorbed amount.
+    // It previously reduced every gain without ever being consumed, which made
+    // a single point of Lag a permanent tax instead of a one-shot.
+
+    test('gainActions with no lag adds straight', () => {
+        const before = state.playerActions;
+        player.gainActions(2);
+        expect(state.playerActions).toBe(before + 2);
+        expect(state.playerLag).toBe(0);
+    });
+
+    test('gainActions with lag >= amount absorbs fully and decrements lag', () => {
+        const before = state.playerActions;
+        state.playerLag = 4;
+        player.gainActions(3);
+        expect(state.playerActions).toBe(before);
+        expect(state.playerLag).toBe(4 - 3);
+    });
+
+    test('gainActions with lag < amount partially absorbs and zeroes lag', () => {
+        const before = state.playerActions;
+        state.playerLag = 1;
+        player.gainActions(3);
+        expect(state.playerActions).toBe(before + 2);
+        expect(state.playerLag).toBe(0);
+    });
+
+    test('enemy gainActions absorbs against enemy lag', () => {
+        const before = state.enemyActions;
+        state.enemyLag = 2;
+        enemy.gainActions(3);
+        expect(state.enemyActions).toBe(before + 1);
+        expect(state.enemyLag).toBe(0);
+    });
+});
+
 describe('game.js wrappers honor the same semantics as player/enemy', () => {
     // Regression test for the duplicate-implementation bug: game.js's
     // playerGainBits historically ignored overload entirely. After fixing,

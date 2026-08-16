@@ -2,6 +2,7 @@
 import React, { Component } from "react";
 import FeatherIcon from "feather-icons-react";
 import virus from "../../images/virus.png";
+import AbilityDescription from "./AbilityDescription";
 
 class SCard extends Component {
   renderTypes(magi, phys, tech) {
@@ -87,7 +88,8 @@ class SCard extends Component {
       entity,
       imgSrc,
       onRezPlayerCard,
-      revealed
+      revealed,
+      onAbilityClick
     } = this.props;
 
     if (!entity.online && entity.owner === 'ENEMY' && !revealed) {
@@ -157,9 +159,11 @@ class SCard extends Component {
                 </div>
               ) : null}
               {keywords ? <div className="abilities">{keywords}</div> : null}
-              {description ? (
-                <div className="description">{description}</div>
-              ) : null}
+              <AbilityDescription
+                description={description}
+                entity={entity}
+                onAbilityClick={onAbilityClick}
+              />
               <div
                 className={
                   category === "SNIP" ? "location-body snip-body" : "location-body"

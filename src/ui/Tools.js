@@ -84,7 +84,7 @@ import silkworm from "../images/silkworm.png";
 import dread from "../images/dread.png";
 import exploit from "../images/exploit.png";
 import gootooth from "../images/gootooth.png";
-import mousebyte from "../images/mousebyte.png";
+import mousebyte from "../images/mouse.png";
 import operator from "../images/operator.png";
 import chronomancer from "../images/chronomancer.png";
 import architect from "../images/architect.png";
@@ -105,6 +105,12 @@ import stolen from "../images/stolen.png"; // Stolen Briefcase
 import terra from "../images/terra.png";
 import viperdrive from "../images/viperdrive.png";
 import wasteland from "../images/wasteland.png";
+import blutooth from "../images/blutooth.png";
+import frostwitch from "../images/frostwitch.png";
+import leviathan from "../images/leviathan.png";
+import vessel from "../images/vessel.png";
+import forgery from "../images/forgery.png";
+import saboteur from "../images/saboteur.png";
 
 import amnesia from "../images/amnesia.png";
 import array from "../images/array.png"; // Satellite Array
@@ -225,7 +231,7 @@ export const imgObj = {
   CatPhish: catphish,
   "Con Artist": conartist,
   "Data Bomb": databomb,
-  SylkWorm: silkworm,
+  SilkWorm: silkworm,
   Dread: dread,
   Exploit: exploit,
   'Freight Train': train,
@@ -250,6 +256,12 @@ export const imgObj = {
   TerraBite: terra,
   VyperDrive: viperdrive,
   Wasteland: wasteland,
+  BluTooth: blutooth,
+  "Frost Witch": frostwitch,
+  Leviathan: leviathan,
+  "Pirate Vessel": vessel,
+  Forgery: forgery,
+  Saboteur: saboteur,
 
   //
   Magician: magician,

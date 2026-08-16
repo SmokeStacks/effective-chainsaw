@@ -1,8 +1,9 @@
 //import "./styles.css";
 import React, { Component } from "react";
 import FeatherIcon from "feather-icons-react";
+import AbilityDescription from "./AbilityDescription";
 
-class LCard extends Component {
+class RCard extends Component {
   renderTypes(magi, phys, tech) {
     const types = [];
     if (magi) {
@@ -45,6 +46,7 @@ class LCard extends Component {
       onCardSelect,
       entity,
       imgSrc,
+      onAbilityClick,
   } = this.props;
 
     return (
@@ -65,9 +67,11 @@ class LCard extends Component {
             {this.renderTypes(magi, phys, tech)}
             <div className="bottom-container">
               {keywords ? <div className="abilities">{keywords}</div> : null}
-              {description ? (
-                <div className="description">{description}</div>
-              ) : null}
+              <AbilityDescription
+                description={description}
+                entity={entity}
+                onAbilityClick={onAbilityClick}
+              />
               <div className="location-body"></div>
             </div>
           </div>
@@ -77,4 +81,4 @@ class LCard extends Component {
   }
 }
 
-export default LCard;
+export default RCard;

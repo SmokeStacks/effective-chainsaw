@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startTurn, endTurn, playerGainBits, enemyLoseBits, enemyPerformAction, endPlayerTurn, triggerRitualAbilities, playerDraft, removeCardFromHand, handleBoostButton, handleDevelopButton, handlePlayerMine } from './helpers/core';
+import { startTurn, endTurn, playerGainBits, enemyLoseBits, enemyPerformAction, resolveRitual, playerDraft, removeCardFromHand, handleBoostButton, handleDevelopButton, handlePlayerMine } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { state, stateSetters, initializeSetters, currentPlayer, enemyActions } from './helpers/state';
 import { createLibrary, createEnemyLibrary } from './helpers/setup';
 import { activateAbilities, abilitiesDefinitions } from './abilities/glossary';
-import { handleFocusSelect, handleCardSelect, handleRealmCardSelect as handleRealmCardSelectFromHelper, handleCancel } from './helpers/selection';
+import { handleFocusSelect, handleCardSelect, handleRealmCardSelect as handleRealmCardSelectFromHelper, handleAbilityClick as handleAbilityClickFromHelper, handleCancel } from './helpers/selection';
 import { draw as enemyDraw } from './helpers/enemy';
 import { Solarium, Theater, Underpass, Grid, Elysium } from './renders/Board';
-import { calculateSoulsAvailable } from './helpers/activation';
+import { calculateSoulsAvailable, rezCostFor } from './helpers/activation';
 import Gameboard from './Gameboard';
-import { draw } from './helpers/player';
+import { draw, payRezCost } from './helpers/player';
 import { canPlaceInRealm } from './helpers/placement';
 
 // Factory for the 10 realm setters (player & enemy x 5 realms each). Each
@@ -452,6 +452,15 @@ export default function BoardContainer() {
                 state.enemySuccessfulHack = value;
                 setGameState(prev => ({ ...prev, enemySuccessfulHack: value }));
             },
+            // First-attack-of-the-round flags (drive the 'firstAttack' event)
+            setPlayerFirstAttack: (value) => {
+                state.playerFirstAttack = value;
+                setGameState(prev => ({ ...prev, playerFirstAttack: value }));
+            },
+            setEnemyFirstAttack: (value) => {
+                state.enemyFirstAttack = value;
+                setGameState(prev => ({ ...prev, enemyFirstAttack: value }));
+            },
             // Dominance setters
             setPlayerWonDominance: (value) => {
                 state.playerWonDominance = value;
@@ -777,8 +786,17 @@ export default function BoardContainer() {
                     console.error(`Unknown realm: ${gameState.rezCard.realm}`);
             }
             
+            // Charge the cost here rather than when the rez is initiated, so a
+            // rez that never completes is never paid for.
+            payRezCost(gameState.rezCard.card);
+
             setGameState(prev => ({ ...prev, rezCard: null }));
             activateAbilities(gameState.rezCard, 'PLAYER');
+            eventManager.publish('entityEntered', {
+                side: 'PLAYER',
+                entity: gameState.rezCard,
+                realm: gameState.rezCard.realm
+            });
         }
     }, [gameState, setRealms]);
 
@@ -797,7 +815,8 @@ export default function BoardContainer() {
             return;
         }
 
-        if (playerBits < entity.card.rezCost || playerAshes < entity.card.ash || soulsAvailable < entity.card.soul) {
+        const cost = rezCostFor(entity.card);
+        if (playerBits < cost.bits || playerAshes < cost.ash || soulsAvailable < cost.soul) {
             console.log('no resources');
             //console.error('Not enough resources to rez the card');
             return;
@@ -808,7 +827,7 @@ export default function BoardContainer() {
             rezCard: entity,
             awaitingSacrifices: true
         }));
-        if (!entity.card.soul || entity.card.soul === 0) {
+        if (cost.soul === 0) {
             console.log('no soul cost');
             setGameState(prev => ({
                 ...prev,
@@ -835,10 +854,11 @@ export default function BoardContainer() {
         setPlayerSouls
     } = stateSetters;
 
+    // Delegates to core's resolveRitual so this path pays the Activation cost,
+    // banks the spent card in the graveyard, and spends a single action. It
+    // previously duplicated the resolution and paid none of those.
     const confirmRitualActivation = (target) => {
-        const { entity, ability } = gameState.pendingRitual;
-        triggerRitualAbilities(entity, target, 'PLAYER', ability);
-        endPlayerTurn();
+        resolveRitual(gameState.pendingRitual.entity, target);
     };
 
     // Using removeCardFromHand imported from core.js
@@ -1070,8 +1090,8 @@ export default function BoardContainer() {
 
         // Rituals don't go to a realm -- they trigger their ability and
         // (optionally) request a target via setTargetSelection.
-        if (card.category === 'RITUAL' && card.abilities) {
-            const ritualAbilities = card.abilities.filter(
+        if (card.category === 'RITUAL') {
+            const ritualAbilities = (card.abilities || []).filter(
                 (ability) => typeof ability === 'object' && ability.requiresTarget
             );
             if (ritualAbilities.length > 0) {
@@ -1083,14 +1103,22 @@ export default function BoardContainer() {
                         enabled: true,
                         side: 'PLAYER',
                         filter: abilityDef.targetFilter,
-                        callback: (target) => {
+                        // Must be named onSelect: that is the key handleCardSelect
+                        // looks for. A 'callback' key was never invoked.
+                        onSelect: (target) => {
+                            // resolveRitual already removes the card from hand;
+                            // removing it again here spent two actions.
                             confirmRitualActivation(target);
-                            removeCardFromHand(selectedCard);
                         },
                     });
                     return;
                 }
             }
+
+            // A Ritual with nothing to target resolves immediately. Six of the
+            // eight rituals in the live deck are non-targeting and used to fall
+            // out here, leaving the card stuck in hand and unplayable.
+            resolveRitual(selectedCard, null);
             return;
         }
 
@@ -1165,11 +1193,6 @@ export default function BoardContainer() {
         console.log('Selected card in realm:', card, 'from realm:', realmName);
         // Call the implemented handleRealmCardSelect from selection.js
         handleRealmCardSelectFromHelper(card);
-    }, []);
-
-    const handleAbilityClick = useCallback((ability, card) => {
-        console.log('Clicked ability:', ability, 'on card:', card);
-        // Add your ability click logic here
     }, []);
 
     const handleBattleCancel = useCallback(() => {
@@ -1293,8 +1316,8 @@ export default function BoardContainer() {
                 }}
                 onRezPlayerCard={handleRezPlayerCard}
                 onAbilityClick={(ability, entity) => {
-                    if (ability && entity) {
-                        activateAbilities(entity, 'PLAYER');
+                    if (entity) {
+                        handleAbilityClickFromHelper(entity);
                     }
                 }}
                 onQuest={() => {

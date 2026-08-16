@@ -2,6 +2,7 @@
 import React, { Component } from "react";
 import FeatherIcon from "feather-icons-react";
 import unknown from "../../images/unknown.png";
+import AbilityDescription from "./AbilityDescription";
 
 
 class Card extends Component {
@@ -91,6 +92,7 @@ class Card extends Component {
       imgSrc,
       onRezPlayerCard,
       revealed,
+      onAbilityClick,
     } = this.props;
 
 
@@ -170,9 +172,11 @@ class Card extends Component {
             {this.renderTypes(magi, phys, tech)}
             <div className="bottom-container">
               {keywords ? <div className="abilities">{keywords}</div> : null}
-              {description ? (
-                <div className="description">{description}</div>
-              ) : null}
+              <AbilityDescription
+                description={description}
+                entity={entity}
+                onAbilityClick={onAbilityClick}
+              />
               <div className="body">
                 <div className="power">
                   {power}

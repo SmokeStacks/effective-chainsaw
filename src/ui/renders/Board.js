@@ -25,6 +25,11 @@ function RealmLayout({ realmClass, label, serverNode, onRealmSelect, onRealmCard
                     <RealmStuff className="stuff-player-card" onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.places} isPlayerCard={true} />
                     <RealmStuff className="stuff-player-card" onCardSelect={onRealmCardSelect} onRezPlayerCard={onRezPlayerCard} onAbilityClick={onAbilityClick} cards={playerState.things} isPlayerCard={true} />
                 </div>
+
+                {/* playerState.people is intentionally NOT rendered here. The
+                    player's own entities live in the bottom panel, behind the
+                    [ ENTITIES ] toggle in Gameboard. Rendering them here too
+                    shows every played card twice. */}
             </div>
         </div>
     );

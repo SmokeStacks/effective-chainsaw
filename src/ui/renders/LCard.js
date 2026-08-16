@@ -1,6 +1,7 @@
 //import "./styles.css";
 import React, { Component } from "react";
 import FeatherIcon from "feather-icons-react";
+import AbilityDescription from "./AbilityDescription";
 
 class LCard extends Component {
   renderTypes(magi, phys, tech) {
@@ -86,6 +87,7 @@ class LCard extends Component {
       onCardSelect,
       entity,
       imgSrc,
+      onAbilityClick,
   } = this.props;
 
     return (
@@ -103,9 +105,11 @@ class LCard extends Component {
                 </div>
               ) : null}
               {keywords ? <div className="abilities">{keywords}</div> : null}
-              {description ? (
-                <div className="description">{description}</div>
-              ) : null}
+              <AbilityDescription
+                description={description}
+                entity={entity}
+                onAbilityClick={onAbilityClick}
+              />
               <div className="location-body">
                 <div className="health">
                   <FeatherIcon className="stats-icon" icon="shield" />

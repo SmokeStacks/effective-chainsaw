@@ -1,30 +1,209 @@
 # Orange Effects Triage Report
 
-## Critical Issues (Likely Broken/Incomplete)
+> **Verified 2026-08-15.** Statuses below re-checked directly against source. Items marked
+> RESOLVED were stale in the previous version of this doc.
+
+## ✅ RESOLVED: Manual ability activation
+
+Every "Pay N Bits ➔ ..." / "Exhaust ➔ ..." ability was **unreachable**. The `onAbilityClick`
+prop was threaded through the tree but the chain was broken in four independent places:
+
+1. `RealmStuff.js` and `RealmCreatures.js` destructured props but **dropped `onAbilityClick`**,
+   so it never reached `CardDisplay` and no rendered element could fire it.
+2. `BoardContainer.js:1295` wired `onAbilityClick` to an inline handler calling
+   `activateAbilities(entity, 'PLAYER')` — that re-registers listeners, it does not execute a
+   manual ability.
+3. `BoardContainer.js:1170` defined a local `handleAbilityClick` that was an **empty stub**.
+4. The correct implementation, `handleAbilityClick` in `selection.js`, was **never imported**.
+
+### How it works now
+The **cost portion of the ability text is the click target** — no separate button.
+
+- `helpers/manualAbility.js` (new): `getManualAbility`, `splitAbilityCost` (splits the
+  description on `➔`), and `canActivateManualAbility`, which checks affordability from
+  declarative `cost` metadata.
+- Each manual ability in `glossary.js` now carries `cost`, e.g. `{ bits: 1 }`,
+  `{ actions: 1 }`, `{ bits: 1, exhaust: true }`. Affordability is data-driven rather than
+  duplicated in the UI.
+- `renders/AbilityDescription.js` (new, shared by `Card.js` and `LCard.js`) renders the cost
+  as a `role="button"` span with `.ability-cost`, keyboard support, and `stopPropagation` so
+  activating does not also trigger card selection. Only the local player's own online cards
+  are interactive.
+- `.ability-cost` / `.ability-cost-disabled` in `App.css` give the affordance: gold highlight
+  + glow on hover/focus, greyed + `not-allowed` when the cost cannot be paid.
+- `BoardContainer` now delegates to the real `handleAbilityClick` from `selection.js`; the
+  empty stub is deleted.
+
+Verified: `npx react-scripts build` compiles (warnings only), `tsc --noEmit` clean, ESLint
+reports 0 errors repo-wide.
+
+All four renderers are now wired: `Card.js` (ENTITY), `LCard.js` (LOCATION/LANDMARK),
+`SCard.js` (SNIP/SYM) and `RCard.js` (RITUAL). `SCard`/`RCard` mattered because Data Bomb is a
+SNIP with a manual ability. `CardDisplay` spreads props, so no extra threading was needed.
+
+Prop chain verified end-to-end for player-owned cards: entities via
+`Gameboard.js:122` (bottom panel), places and things via `Board.js:25-26`. `owner` is set to
+`'PLAYER'` in `core.js:290` on placement, which is what gates interactivity.
+
+**Cost parsing fixed for multi-clause descriptions.** `splitAbilityCost` took everything before
+the arrow as the cost. For Data Bomb — "When Interfaced, inflict 2 Overload for each
+Development. Scheme 2: Sacrifice ➔ ..." — that made the entire leading sentence clickable, and
+`AbilityDescription` then rendered only cost+effect, **silently dropping the first sentence**.
+It now returns `{ prefix, condition, cost, effect }`: only the clause after the last sentence
+break is the cost, a leading `Scheme N:` gate is separated out as a condition (it isn't a
+payable cost), and prefix/condition render as plain text. Covered by 13 tests in
+`__tests__/manualAbility.test.js`; full suite is 154 passing.
+
+`RCard.js` also declared its class as `LCard` and exported it under that name — a copy-paste
+leftover, now `RCard`.
+
+### Also fixed: Architect charged the wrong cost
+`DevelopFriendlyPlacesAndThings`'s text is "2 Bits, **Action** ➔ ..." but `execute` only deducted the
+2 bits and never the Action. It now requires and deducts both.
+
+### Build was broken on missing art (unrelated to orange effects)
+`Tools.js` imported two nonexistent images, which failed the webpack build outright:
+- `mousebyte.png` → repointed to the actual file `mouse.png`.
+- `precognition.png` → asset has since been added; import restored to the real file.
+
+### ✅ Precognition reconciled (was `Foresight`)
+`Foresight` was the old name; all 6 definitions now agree on the current version:
+
+> rezCost 2, scrap 4, "Surgical, Tarot. Scheme 2: The first time you Interface **HeadSpace**
+> each turn gain 3 Actions."
+
+Updated in `deckTwo.ts`, `enemyOne.ts` (both live), plus `deckThree.ts`, `deckThree.js`,
+`binder.ts`, `orangeBinder.ts`. The rename also restores art, since `imgObj` is keyed
+`Precognition`.
+
+The trigger target changed **Pandora → HeadSpace**, so the ability was retargeted and renamed
+`GainActionsOnPandoraInterface` → `GainActionsOnHeadSpaceInterface`; it now matches
+`eventData.targetType === 'HEADSPACE'`. "First time each turn" is the existing
+`entity.abilityActivated` gate, which `startTurn` resets.
+
+Two dangling ability references in `orangeBinder.ts` were removed in the process: neither
+`PrecognitionEffect` nor `Scheme` is implemented in `glossary.js`. Scheme works off the
+`schemeThreshold` + `scheming` card fields (read by `advancement.js`, `core.js`,
+`BoardContainer.js`), so that entry now uses those instead of the fake `Scheme` ability.
+Also hardened the amount lookup — it was `.find(...).effect.amount`, which would throw
+outright if the ability name didn't match.
+
+### Manual ability names made generic
+Because cost is now declarative `cost` metadata, encoding it in the name was redundant, and
+two names were outright wrong (`ExhaustForBit` granted Freeze, not a bit; `ExhaustForHeal`
+granted Boost + Pounce, not healing). Renamed to describe the effect:
+
+| Old | New |
+|---|---|
+| `PayBitsForStats` | `BuffSelfWithFreeze` |
+| `PayBitsForBoost` | `BoostSelf` |
+| `PayBitsForActionAndWound` | `GainActionWithWound` |
+| `PayBitsForDevelop` | `DevelopFriendlyPlacesAndThings` |
+| `PayBitsExhaustForAlliedBoost` | `BoostFriendlyEntities` |
+| `ExhaustForBit` | `FreezeTargetJaw` |
+| `ExhaustForHeal` | `BoostAndPounceTargetAlly` |
+| `ActionForVengeanceAndWound` | `GainVengeanceWithWound` |
+
+Verified 0 stale references remain and each new name resolves in both `glossary.js` and
+`orangeBinder.ts`.
+
+⚠️ These orange abilities are referenced **only** from `orangeBinder.ts`, never from the
+playable decks (`deckThree.js` etc.), so none of them are reachable in an actual game yet.
+
+### Fixed while triaging
+- `confirmManualAbility` (`helpers/abilities.js`) read `state.selectedCard.abilities` and treated
+  `pendingManualAbility` as a name string, though `selection.js` sets `{entity, ability}`; it also
+  called `onPlay` instead of `execute`. Targeted manual abilities could never resolve. Fixed.
+- `isValidAbilityTarget` had the same shape bug. Fixed.
+- `selection.js` hardcoded `side: 'ENEMY'` and ignored each ability's `targetFilter`. Now honors
+  `targetSide` / `targetFilter`, so friendly-target abilities (Pharmacist) work.
+- Three undefined references in `glossary.js` that would throw at runtime:
+  `sacrificeEntity` → `handleDeadCard`, `getRealmSetters` → two `getRealmAndSetter` calls, and a
+  dead `getEntitySide` fallback removed.
+
+## Dead events: subscribed but never published
+
+Mechanically verified by diffing every `triggers: [...]` in `glossary.js` against every
+`eventManager.publish(...)` in `src/ui`. Four events had **zero publishers**, so every
+ability listening on them was dead code.
+
+| Event | Abilities affected | Status |
+|---|---|---|
+| `entityEntered` | 5 abilities | ✅ now published |
+| `interface` | 1 ability | ✅ now published |
+| `firstAttack` | `Crusade` | ✅ now published |
+| `soloAttack` | `Solo` | ⚠️ intentionally left dead — see below |
+
+**`firstAttack`** = the first time a side attacks with any entity that round (drives `Crusade`).
+Published from `handlePlayerBattle` and `handleEnemyBattle` in `battle.js`, guarded by the
+existing `playerFirstAttack` / `enemyFirstAttack` flags which `startTurn` already resets.
+
+Two latent bugs had to be fixed to make this work at all:
+- `setPlayerFirstAttack` / `setEnemyFirstAttack` were declared in `state.js` but **never
+  registered** in `BoardContainer`'s `initializeSetters` call, so they stayed `null`. Since
+  `startTurn` already called `setPlayerFirstAttack(true)`, this was throwing a TypeError on
+  **every turn start**. Both setters are now implemented.
+- `enemyFirstAttack` was missing from the initial `state` object (only `playerFirstAttack`
+  was declared). Added.
+
+**`soloAttack` is deliberately still unpublished.** `Solo` in `glossary.js` and
+`applySoloEffect` in `effects.js` are **duplicate implementations** of the same mechanic
+(both grant +power, +HP and Boost by the solo amount). `battle.js` already calls
+`applySoloEffect` directly, so publishing `soloAttack` would apply Solo **twice**. One of the
+two needs to be deleted first — that's a design call: keep the direct call, or migrate to the
+event and delete `applySoloEffect`.
+
+**`entityEntered`** is now published at the three places an entity genuinely enters play:
+`BoardContainer.js:782` (player rez), `core.js:937` (enemy landmark/location),
+`enemy.js:134` (enemy rez). Payload: `{ side, entity, realm }`.
+
+Deliberately **not** published from inside `activateAbilities`, even though that would have
+covered all sites in one edit: `BoardContainer.js:1297` also calls `activateAbilities` from an
+ability-click path, which is not an entry and would have produced false triggers.
+
+**`interface`** is now published from `handleAccessPhase` in `interfacing.js:104`, payload
+`{ side, targetType, battleRealm, count }`, where `side` is the side *performing* the Interface.
+
+### Interface == Access (answers old Open Question #2/#4)
+Confirmed from `interfacing.js`: "Interface" is the Access action. `targetType === 'PANDORA'`
+accesses the opponent's library (deck); `'HEADSPACE'` accesses their hand; `'SYM'`/`'SNIP'`
+access a specific card. Note the `Interfaced*` flags are set on the **opposite** side from the
+actor — when PLAYER accesses, `setEnemyInterfacedPandora(true)` fires, i.e. the flag means
+"this side's Pandora *was* interfaced."
+
+### Runtime crashes fixed in the Interface path
+`interfacing.js` had 8 undefined references that would throw the moment a trash-prompt or
+overload effect ran: `playerLoseBits` / `enemyLoseBits` and `playerGainOverload` /
+`enemyGainOverload` were used but never imported, and `playerBits` / `enemyBits` were read as
+bare locals instead of `state.playerBits` / `state.enemyBits`. All fixed; the file is now
+lint-clean.
+
+**Trash cost resolved: `scrap` is authoritative.** Both handlers previously *gated* on
+`card.card.trashCost` while *charging* `card.card.scrap`. `trashCost` **exists nowhere in the
+codebase or card data** — the gate was comparing bits against `undefined`, which is always
+false, so trashing an accessed card was impossible. All three sites now use `scrap`.
 
 ### 1. **Sabotage** - TerraBite, Operator
-- **Status**: ❌ UNKNOWN TRIGGER
-- **Risk**: HIGH - No code found for "Sabotage" trigger
-- **Question**: What event triggers Sabotage? Is this a new mechanic or renamed?
-
-### 2. **Hacking** - Poser, Z0MBI, Dread
-- **Status**: ⚠️ PARTIAL - Uses `state.playerInterfaced` which DOESN'T EXIST in state.js
-- **Risk**: HIGH - Code references non-existent state properties
-- **Evidence**: `glossary.js` line 305: `const hasHacked = side === 'PLAYER' ? state.playerInterfaced : state.enemyInterfaced;`
-- **Fix Needed**: Add `playerInterfaced`, `enemyInterfaced`, `playerInterfacedHeadSpace` to state.js
+- **Status**: ✅ RESOLVED - the state properties now exist and are fully wired
+- **Evidence**: `state.js:69-75` defines `playerInterfaced` / `playerInterfacedHeadSpace` /
+  `playerInterfacedPandora` (+ enemy equivalents); setters declared at `state.js:164-170`,
+  implemented in `BoardContainer.js:423-447`, and actually set in `battle.js:278-283`,
+  `battle.js:520-525`, `interfacing.js:83-91`, and reset in `battle.js:207-208`.
 
 ### 3. **Scheme** - Precognition, Data Bomb
 - **Status**: ⚠️ PARTIAL - `scheming` and `schemeUnlocked` logic exists but untested
 - **Risk**: MEDIUM - Complex threshold-based unlocking
 - **Cards Affected**: 
-  - Precognition: "Scheme 2: The first time you Interface Pandora each turn..."
+  - Precognition: "Scheme 2: The first time you Interface HeadSpace each turn gain 3 Actions."
   - Data Bomb: "Scheme 2: Sacrifice ➔ Target entity gains Freeze 5"
+- **Note**: `canActivateManualAbility` refuses activation while `scheming && !schemeUnlocked`,
+  and the UI greys the cost out, so the gate is at least enforced in the manual-ability path.
 
 ### 4. **Interface** Mechanic - Multiple Cards
-- **Status**: ⚠️ UNCLEAR IMPLEMENTATION
-- **Risk**: HIGH - Referenced throughout but no clear system
+- **Status**: ✅ RESOLVED - Interface is the Access action; see "Interface == Access" above
 - **Cards**: Precognition, Quantum Stabilizer, Data Bomb, Brain Freeze, Multi Threading, Wasteland
-- **Question**: What exactly is "Interface"? Is it the same as "Access" or "Steal"?
+- **Remaining risk**: the `Interfaced*` flags are set on the **opposite** side from the actor,
+  which is easy to misread when writing new abilities.
 
 ### 5. **Venom** - Z0MBI
 - **Status**: ⚠️ PARTIAL - `venom` property tracked on entities but system incomplete
@@ -56,9 +235,9 @@
 - **Question**: What triggers "Surrender"? Is this a player action or game event?
 
 ### 9. **Bit-Payment Abilities** - Blood Sugar, Nova Kane, Memory Leak
-- **Status**: ⚠️ UNCLEAR
-- **Risk**: MEDIUM - "1 Bit ➔ Gain +1/+1" type effects
-- **Question**: Are these Exhaust abilities? Manual activated? What's the UI?
+- **Status**: ✅ RESOLVED - manual abilities, activated by clicking the cost text on the card
+- **UI**: the cost clause is a `role="button"` span (gold on hover, greyed when unaffordable);
+  see the manual ability section at the top of this doc
 
 ### 10. **Search Pandora** - Implants
 - **Status**: ❌ NOT IMPLEMENTED

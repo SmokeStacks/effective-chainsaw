@@ -177,6 +177,7 @@ export function handleDeadCard(location, entityId, side) {
         console.log(`Card has Deathless: ${hasDeathless}`);
 
         // Publish death event
+        state.entityDiedThisTurn = true;
         eventManager.publish('entityDied', { entityId: numericEntityId, realmName: location, owner: side });
 
         // Gain ashes based on side
@@ -270,6 +271,7 @@ export function handleDeadCards(deadList, side) {
     // Deactivate abilities and handle deathless etc. before removal
     for (const { location, entity } of allEntities) {
         deactivateAbilities(entity, side);
+        state.entityDiedThisTurn = true;
         eventManager.publish('entityDied', { entityId: entity.id, realmName: location, owner: side });
 
         if (side === 'PLAYER') {

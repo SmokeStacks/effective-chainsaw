@@ -83,6 +83,7 @@ export const state = {
 
     // Other state
     playerFirstAttack: true,
+    enemyFirstAttack: true,
     awaitingImpostor: false,
     awaitingSacrifices: false,
     rezCard: null,
@@ -91,6 +92,9 @@ export const state = {
     soulSelections: [],
     focus: null,
     awaitingFocus: false,
+    // Set when any entity dies, cleared at the start of each turn. Rapture reads
+    // this to discount the cost of cards that carry the keyword.
+    entityDiedThisTurn: false,
 };
 
 // State setters

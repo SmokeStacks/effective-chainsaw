@@ -16,6 +16,26 @@ export const handleCardSelect = (cardEntity, inHand) => {
     console.log('inHand:', inHand);
     console.log('Current state:', state);
 
+    // A click on a board card while a target request is open answers that
+    // request. This has to happen before the resets below, which clear
+    // targetSelection and pendingRitual and would otherwise cancel the very
+    // selection this click is meant to make.
+    if (!inHand && state.targetSelection && state.targetSelection.enabled) {
+        const { filter, onSelect } = state.targetSelection;
+
+        if (typeof onSelect === 'function') {
+            if (typeof filter === 'function' && !filter(cardEntity)) {
+                // Ignore the misclick and keep waiting rather than silently
+                // cancelling the pending ability or ritual.
+                console.log(`${cardEntity?.card?.name} is not a legal target.`);
+                return;
+            }
+
+            onSelect(cardEntity);
+            return;
+        }
+    }
+
     stateSetters.setSelectedCard(cardEntity);
     stateSetters.setSelectedInHand(inHand);
     stateSetters.setDraftSelected(false);
@@ -145,10 +165,10 @@ export const handleAbilityClick = (entity) => {
                     stateSetters.setPendingManualAbility({ entity, ability });
                     stateSetters.setTargetSelection({
                         enabled: true,
-                        side: 'ENEMY', // Assuming you target enemy entities
+                        side: abilityDef.targetSide || 'ENEMY',
                         filter: (target) => {
-                            // Define any filters for valid targets
-                            return target.card.category === 'ENTITY';
+                            if (target.card.category !== 'ENTITY') return false;
+                            return abilityDef.targetFilter ? abilityDef.targetFilter(target) : true;
                         },
                         onSelect: (target) => {
                             confirmManualAbility(target);

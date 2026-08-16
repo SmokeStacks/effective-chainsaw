@@ -136,7 +136,8 @@ class RealmCardDisplay extends Component {
             entity,
             isFaceUp, // todo
             isPlayerCard,
-            onRezPlayerCard
+            onRezPlayerCard,
+            inHand = false
         } = this.props;
 
         const isCreatureOrRitual = category === "ENTITY" || category === "RITUAL";
