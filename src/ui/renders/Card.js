@@ -63,8 +63,13 @@ class Card extends Component {
     const {
       name,
       faction,
+      category,
       subTypes,
       rezCost,
+      power,
+      HP,
+      runes,
+      plot,
       soul,
       ash,
       magi,
@@ -76,8 +81,6 @@ class Card extends Component {
     } = this.props.entity.card;
 
     const {
-      power,
-      HP,
       steps,
       wounds,
       freeze,
@@ -96,7 +99,7 @@ class Card extends Component {
 
     if(!entity.online && entity.owner === 'ENEMY' && !revealed) {
       return (
-        <div className={`card-container neutral-border`} onClick={() => onCardSelect(entity, inHand)}>
+        <div className={`card-container ${faction}`} onClick={() => onCardSelect(entity, inHand)}>
           <div className="art-container">
             <img className="art" src={unknown} alt='unknown' />
             <div className="overlay-content">
@@ -163,33 +166,59 @@ class Card extends Component {
                     {rezCost}
                   </div>}
               </div>
-              <div className="type">entity</div>
+              <div className="type">{category?.toLowerCase() || 'entity'}</div>
               {subTypes ? <div className="type">{subTypes}</div> : null}
             </div>
             {this.renderSoulAshes(soul, ash)}
             {this.renderTypes(magi, phys, tech)}
             <div className="bottom-container">
+              {(category === 'LANDMARK' || category === 'SYM' || category === 'LOCATION') && runes ? (
+                <div className="runes-container">
+                  <FeatherIcon className="icon star-icon" icon="star" />
+                  {runes}
+                </div>
+              ) : null}
               {keywords ? <div className="abilities">{keywords}</div> : null}
               {description ? (
                 <div className="description">{description}</div>
               ) : null}
-              <div className="body">
-                <div className="power">
-                  {power}
-                  <FeatherIcon className="stats-icon" icon="crosshair" />
+              {category === 'ENTITY' && (
+                <div className="body">
+                  <div className="power">
+                    {power || 0}
+                    <FeatherIcon className="stats-icon" icon="crosshair" />
+                  </div>
+                  <div className="health">
+                    <FeatherIcon className="stats-icon" icon="heart" />
+                    {(HP || 0) - (wounds || 0)}
+                  </div>
                 </div>
-                <div className="health">
-                  <FeatherIcon className="stats-icon" icon="heart" />
-                  {HP - wounds}
+              )}
+              {(category === 'LANDMARK' || category === 'SYM' || category === 'LOCATION') && (
+                <div className="location-body">
+                  <div className="health">
+                    <FeatherIcon className="stats-icon" icon="shield" />
+                    {(HP || 0) - (wounds || 0)}
+                  </div>
+                </div>
+              )}
+            </div>
+            {category === 'ENTITY' && (
+              <div className={`timer ${faction}`}>
+                <div className="timer-content">
+                  {Math.max(0, (timer || 0) - (steps || 0) + (freeze || 0))}
+                  <FeatherIcon className="icon timer-icon" icon="clock" />
                 </div>
               </div>
-            </div>
-            <div className={`timer ${faction}`}>
-              <div className="timer-content">
-                {Math.max(0, timer - steps + freeze)}
-                <FeatherIcon className="icon timer-icon" icon="clock" />
+            )}
+            {(category === 'LANDMARK' || category === 'SYM' || category === 'LOCATION') && plot ? (
+              <div className={`timer ${faction}`}>
+                <div className="timer-content">
+                  <FeatherIcon className="icon plot-icon" icon="calendar" />
+                  {(plot || 0) - (this.props.entity.development || 0)}
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </div>
       </div>

@@ -10,21 +10,23 @@ export function handleDevelopCard(cardEntity) {
         // Directly set the attackMode property in the state object
         state.attackMode = 'NONE';
 
-        // Check if the card can be developed
-        if (
-            cardEntity.owner !== 'PLAYER' ||
-            !(
-                cardEntity.card.category === 'SYM' ||
-                cardEntity.card.category === 'LANDMARK' ||
-                cardEntity.scheming
-            )
-        ) {
-            console.log('This card cannot be developed.');
+        // Any facedown SYM or SNIP can be advanced (the Action + 1 Bit cost is
+        // paid up-front in handleDevelopButton). Landmarks also develop here.
+        // Only SYMs/Landmarks gain Development, and only Scheme cards gain Scheme;
+        // a plain SNIP can still be "advanced" but gains no benefit (this avoids
+        // leaking whether a facedown card is a Scheme card).
+        const category = cardEntity.card.category;
+        const canAdvance =
+            cardEntity.owner === 'PLAYER' &&
+            (category === 'SYM' || category === 'SNIP' || category === 'LANDMARK');
+
+        if (!canAdvance) {
+            console.log('This card cannot be advanced.');
             return;
         }
 
         // Increase Development or Scheme points
-        if (cardEntity.card.category === 'SYM' || cardEntity.card.category === 'LANDMARK') {
+        if (category === 'SYM' || category === 'LANDMARK') {
             const newDevelopment = (cardEntity.development || 0) + 1;
 
             // Check for Ascension
@@ -46,6 +48,9 @@ export function handleDevelopCard(cardEntity) {
                 // Update the entity's scheme
                 updateEntityInRealm(cardEntity, { scheme: newScheme }, 'PLAYER');
             }
+        } else {
+            // Plain SNIP: advanced with no benefit (cost already paid).
+            console.log(`${cardEntity.card.name} was advanced, but gains no benefit.`);
         }
     }
 

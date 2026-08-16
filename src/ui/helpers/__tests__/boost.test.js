@@ -261,12 +261,12 @@ describe('handleDevelopCard', () => {
         expect(state.playerGrid.people[0].development ?? undefined).toBeUndefined();
     });
 
-    test('scheme card: increments scheme', () => {
+    test('scheme card (SNIP): increments scheme', () => {
         const entity = makeEntity('dc4', 'Underpass', {
             scheme: 1,
             scheming: true,
             owner: 'PLAYER',
-            card: { name: 'dc4', HP: 5, category: 'ENTITY', schemeThreshold: 5 },
+            card: { name: 'dc4', HP: 5, category: 'SNIP', schemeThreshold: 5 },
         });
         placeInRealm(entity);
 
@@ -280,7 +280,7 @@ describe('handleDevelopCard', () => {
             scheme: 4,
             scheming: true,
             owner: 'PLAYER',
-            card: { name: 'dc5', HP: 5, category: 'ENTITY', schemeThreshold: 5 },
+            card: { name: 'dc5', HP: 5, category: 'SNIP', schemeThreshold: 5 },
         });
         placeInRealm(entity);
 
@@ -289,6 +289,23 @@ describe('handleDevelopCard', () => {
         const updated = state.playerUnderpass.people[0];
         expect(updated.scheme).toBe(5);
         expect(updated.schemeUnlocked).toBe(true);
+    });
+
+    test('plain SNIP (non-scheming): can be advanced but gains no scheme/development', () => {
+        const entity = makeEntity('dc7', 'Grid', {
+            owner: 'PLAYER',
+            card: { name: 'dc7', HP: 5, category: 'SNIP' },
+        });
+        placeInRealm(entity);
+
+        handleDevelopCard(entity);
+
+        const updated = state.playerGrid.people[0];
+        // No benefit: neither scheme nor development is set
+        expect(updated.scheme ?? undefined).toBeUndefined();
+        expect(updated.development ?? undefined).toBeUndefined();
+        // But it was a valid advance target (attackMode cleared)
+        expect(state.attackMode).toBe('NONE');
     });
 
     test('resets attackMode to NONE', () => {

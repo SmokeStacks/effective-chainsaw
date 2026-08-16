@@ -1,104 +1,78 @@
-    import { state, stateSetters, getRealmAndSetter } from '../state';
+import { state, stateSetters, getRealmAndSetter } from '../state';
 import { activateAbilities } from '../../abilities/glossary';
 
-// Destructure state variables
-const { 
-    enemySolarium, enemyTheater, enemyUnderpass, enemyGrid 
-} = state;
+const REALM_NAMES = ['Solarium', 'Theater', 'Underpass', 'Grid'];
 
-// Main function to handle enemy rez cards
+const realmSetterMap = () => ({
+    Solarium:  stateSetters.setEnemySolarium,
+    Theater:   stateSetters.setEnemyTheater,
+    Underpass: stateSetters.setEnemyUnderpass,
+    Grid:      stateSetters.setEnemyGrid,
+});
+
+// Returns true if an enemy entity is ready to rez right before combat:
+// timer met (steps >= timer), not frozen, not yet online.
+function canEnemyRez(e) {
+    return (
+        e && e.card &&
+        e.card.category === 'ENTITY' &&
+        !e.online &&
+        e.freeze === 0 &&
+        e.card.timer != null &&
+        e.steps >= e.card.timer
+    );
+}
+
+// Rez eligible entities in one realm — called right before enemy attacks/defends.
+export function rezEnemyEntitiesInRealm(realmName) {
+    const setter = realmSetterMap()[realmName];
+    if (!setter) return;
+    const realm = state[`enemy${realmName}`];
+    if (!realm) return;
+    const rezIds = new Set(
+        (realm.people || []).filter(canEnemyRez).map(e => e.id)
+    );
+    if (rezIds.size === 0) return;
+    setter(prev => ({
+        ...prev,
+        people: (prev.people || []).map(e =>
+            rezIds.has(e.id) ? { ...e, online: true } : e
+        ),
+    }));
+    (realm.people || []).filter(e => rezIds.has(e.id)).forEach(e => {
+        activateAbilities({ ...e, online: true }, 'ENEMY');
+    });
+}
+
+// Main function to handle enemy rez cards (general pre-action pass).
+// Entities only rez right before attacking/defending (see rezEnemyEntitiesInRealm).
+// This pass only handles SNIPs/traps that come online automatically.
 export async function enemyRezCards() {
     console.log('--- enemyRezCards Invoked ---');
-
     try {
-        // Function to activate abilities for entities being rez'd
-        const rezActiveEntities = async (cardList) => {
-            if (!cardList || !Array.isArray(cardList)) {
-                console.log('Warning: cardList is undefined or not an array in rezActiveEntities');
-                return Promise.resolve([]);
-            }
-            
-            return Promise.all(cardList.map(async (cardEntity) => {
-                if (
-                    cardEntity && 
-                    cardEntity.card && 
-                    cardEntity.card.timer &&
-                    cardEntity.steps >= cardEntity.card.timer &&
-                    cardEntity.freeze === 0 &&
-                    !cardEntity.online
-                ) {
-                    console.log(`ACTIVATING ABILITIES for entity "${cardEntity.card.name}" (ID: ${cardEntity.id}) in realm.`);
-                    await activateAbilities(cardEntity, 'ENEMY');
+        const setters = realmSetterMap();
+        for (const realmName of REALM_NAMES) {
+            const realm = state[`enemy${realmName}`];
+            if (!realm) continue;
+            const setter = setters[realmName];
+
+            // SNIPs that aren't traps come online automatically
+            let changed = false;
+            const updatedThings = (realm.things || []).map(e => {
+                if (e && e.card && e.card.category === 'SNIP' && !e.card.trap && !e.online) {
+                    activateAbilities(e, 'ENEMY');
+                    changed = true;
+                    return { ...e, online: true };
                 }
-                return cardEntity;
-            }));
-        };
-
-        // Function to activate abilities for things being rez'd (traps)
-        const rezActiveThings = async (cardList) => {
-            if (!cardList || !Array.isArray(cardList)) {
-                console.log('Warning: cardList is undefined or not an array in rezActiveThings');
-                return Promise.resolve([]);
-            }
-            
-            return Promise.all(cardList.map(async (cardEntity) => {
-                if (
-                    cardEntity && 
-                    cardEntity.card && 
-                    !cardEntity.card.trap && 
-                    !cardEntity.online && 
-                    cardEntity.card.category === 'SNIP'
-                ) {
-                    console.log(`ACTIVATING ABILITIES for thing "${cardEntity.card.name}" (ID: ${cardEntity.id}) in realm.`);
-                    await activateAbilities(cardEntity, 'ENEMY');
-                } else if (cardEntity && cardEntity.card) {
-                    console.log(`Trap skipped: "${cardEntity.card.name}"`);
-                }
-                return cardEntity;
-            }));
-        };
-
-        // Update Enemy Solarium Realm
-        if (enemySolarium) {
-            await rezActiveEntities(enemySolarium.people);
-            await rezActiveThings(enemySolarium.things);
-            stateSetters.setEnemySolarium(prevRealm => ({ ...prevRealm }));
-        } else {
-            console.log('Warning: enemySolarium is undefined');
+                return e;
+            });
+            if (changed) setter(prev => ({ ...prev, things: updatedThings }));
         }
-
-        // Update Enemy Theater Realm
-        if (enemyTheater) {
-            await rezActiveEntities(enemyTheater.people);
-            await rezActiveThings(enemyTheater.things);
-            stateSetters.setEnemyTheater(prevRealm => ({ ...prevRealm }));
-        } else {
-            console.log('Warning: enemyTheater is undefined');
-        }
-
-        // Update Enemy Underpass Realm
-        if (enemyUnderpass) {
-            await rezActiveEntities(enemyUnderpass.people);
-            await rezActiveThings(enemyUnderpass.things);
-            stateSetters.setEnemyUnderpass(prevRealm => ({ ...prevRealm }));
-        } else {
-            console.log('Warning: enemyUnderpass is undefined');
-        }
-
-        // Update Enemy Grid Realm
-        if (enemyGrid) {
-            await rezActiveEntities(enemyGrid.people);
-            await rezActiveThings(enemyGrid.things);
-            stateSetters.setEnemyGrid(prevRealm => ({ ...prevRealm }));
-        } else {
-            console.log('Warning: enemyGrid is undefined');
-        }
-        
         console.log('--- enemyRezCards Completed ---');
-        return Promise.resolve(true);
+        return true;
     } catch (error) {
         console.error('Error in enemyRezCards:', error);
-        return Promise.resolve(false);
+        return false;
     }
 }
 

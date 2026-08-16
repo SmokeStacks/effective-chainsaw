@@ -3,6 +3,7 @@ import { state, stateSetters } from '../state';
 import { getPlayerRealmByName } from '../utils';
 import { removeFromRealm } from '../core';
 import { setAttackMode, setGameState } from '../game';
+import { rezEnemyEntitiesInRealm } from './rez';
 
 export function enemyPlanAttack() {
     console.log('PLAN ATTACK');
@@ -58,25 +59,29 @@ export function enemyPlanAttack() {
 
     const newSlots = Array(6).fill(null);
 
-    for (const { realm, name, aspects } of realms) {
+    for (const { name, aspects } of realms) {
+        // Rez eligible entities (timer ≤ 0) right before attacking — free, no cost.
+        // Re-read from live state AFTER rez so online flags are current.
+        rezEnemyEntitiesInRealm(name);
+        const liveRealm = ensureRealmStructure(state[`enemy${name}`], name);
         console.log(`Checking realm: ${name}`);
         
-        if (!realm) {
+        if (!liveRealm) {
             console.log(`Realm ${name} is undefined, skipping`);
             continue;
         }
         
-        if (!realm.people || !Array.isArray(realm.people)) {
+        if (!liveRealm.people || !Array.isArray(liveRealm.people)) {
             console.log(`Realm ${name} has no people array, skipping`);
             continue;
         }
         
-        console.log(`Realm ${name} has ${realm.people.length} people`);
+        console.log(`Realm ${name} has ${liveRealm.people.length} people`);
         
         for (const aspect of aspects) {
             console.log(`Checking aspect: ${aspect} in realm ${name}`);
             
-            const matchingCreatures = realm.people.filter(
+            const matchingCreatures = liveRealm.people.filter(
                 creature => creature && creature.card && creature.card[aspect] && creature.online && creature.readied && !creature.card.defensive
             );
             

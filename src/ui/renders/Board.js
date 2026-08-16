@@ -9,16 +9,7 @@ function RealmLayout({ realmClass, label, serverNode, onRealmSelect, onRealmCard
                 {serverNode}
             </div>
             <div className="realm-board">
-                {/* Row 1: Enemy entities (top) */}
-                <div className="realm-row realm-row--enemy-entities">
-                    <RealmCreatures
-                        cards={enemyState.people}
-                        onCardSelect={onRealmCardSelect}
-                        isPlayerCard={false}
-                    />
-                </div>
-
-                {/* Row 2: Shared places & things — enemy cards at top, player cards at bottom */}
+                {/* Places & things for both sides */}
                 <div className="realm-row realm-row--stuff">
                     <RealmStuff className="stuff-enemy-card" onCardSelect={onRealmCardSelect} cards={enemyState.places} isPlayerCard={false} />
                     <RealmStuff className="stuff-enemy-card" onCardSelect={onRealmCardSelect} cards={enemyState.things} isPlayerCard={false} />

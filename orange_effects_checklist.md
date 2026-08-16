@@ -4,31 +4,31 @@
 
 | Card | Effect | Status |
 |------|--------|--------|
-| **TerraBite** | Sabotage ➔ Inflict 3 Wounds | Needs ability handler |
-| **GooTooth** | Action ➔ Gain 2 Vengeance and 1 Wound | Needs ability handler |
-| **MouseByte** | Exhaust ➔ Target JAW gains 1 Freeze | Needs ability handler |
-| **VyperDrive** | Maintain ➔ Gain 2 Vengeance | Needs trigger on timer reduce |
-| **CatPhish** | Your entities are Surgical | Passive - needs combat check |
-| **SylkWorm** | Online enemy entities gain Freeze 2 | Aura - needs game state hook |
-| **Pharmacist** | Exhaust ➔ Target friendly Online entity gains 2 Boost and Pounce | Needs ability handler |
-| **Operator** | Sabotage ➔ Inflict 2 Lag | Needs ability handler |
-| **Poser** | Hacking ➔ inflict 3 Overload | Needs hack success trigger |
-| **Recruiter** | Your Dreamers are Impostors | Needs deck/card creation hook |
-| **Con Artist** | Dominance ➔ Inflict 2 Overload and gain Lifeless | Needs domination trigger |
-| **Blood Sugar** | 1 Bit ➔ Gain +1/+1 and 1 Freeze | Needs bit-payment ability |
-| **Chronomancer** | Other entities have Buffer 2 | Aura - needs stat calc hook |
-| **Architect** | 2 Bits, Action ➔ Friendly Places and Things gain 2 Develop | Needs ability handler |
-| **Freight Train** | 1 Bit, Exhaust ➔ Friendly entities gain 1 Boost | Needs ability handler |
-| **Z0MBI** | Hacking ➔ Inflict Freeze equal to Venom on enemy entities, then +1 Venom | Needs hack trigger + venom tracking |
-| **Nova Kane** | 1 Bit ➔ Gain 1 Boost | Needs bit-payment ability |
-| **Dread** | Dominance ➔ Inflict 3 Overload. Surrender ➔ Gain 3 Overload | Needs dominance/surrender triggers |
+| **TerraBite** | Sabotage ➔ Inflict 3 Wounds | ✅ Handler exists, triggers on 'cardStolen' |
+| **GooTooth** | Action ➔ Gain 2 Vengeance and 1 Wound | ✅ Implemented |
+| **MouseByte** | Exhaust ➔ Target JAW gains 1 Freeze | ✅ Implemented |
+| **VyperDrive** | Maintain ➔ Gain 2 Vengeance | ✅ Implemented, triggers on 'maintain' event |
+| **CatPhish** | Your entities are Surgical | ✅ Aura implemented |
+| **SylkWorm** | Online enemy entities gain Freeze 2 | ✅ Aura implemented |
+| **Pharmacist** | Exhaust ➔ Target friendly Online entity gains 2 Boost and Pounce | ✅ Implemented |
+| **Operator** | Sabotage ➔ Inflict 2 Lag | ✅ Handler exists, triggers on 'cardStolen' |
+| **Poser** | Hacking ➔ inflict 3 Overload | ✅ Implemented, triggers on 'successfulHack' |
+| **Recruiter** | Your Dreamers are Impostors | ⚠️ Impostor logic exists, needs testing |
+| **Con Artist** | Dominance ➔ Inflict 2 Overload and gain Lifeless | ✅ Implemented |
+| **Blood Sugar** | 1 Bit ➔ Gain +1/+1 and 1 Freeze | ✅ Implemented |
+| **Chronomancer** | Other entities have Buffer 2 | ✅ Aura implemented |
+| **Architect** | 2 Bits, Action ➔ Friendly Places and Things gain 2 Develop | ✅ Implemented |
+| **Freight Train** | 1 Bit, Exhaust ➔ Friendly entities gain 1 Boost | ✅ Implemented |
+| **Z0MBI** | Hacking ➔ Inflict Freeze equal to Venom on enemy entities, then +1 Venom | ✅ Implemented |
+| **Nova Kane** | 1 Bit ➔ Gain 1 Boost | ✅ Implemented |
+| **Dread** | Dominance ➔ Inflict 3 Overload. Surrender ➔ Gain 3 Overload | ✅ Implemented (Surrender = 'dominanceLost') |
 
 ## Location Effects
 
 | Card | Effect | Status |
 |------|--------|--------|
-| **Memory Leak** | 1 Bit ➔ Gain 1 Action and 1 Wound | Needs ability handler |
-| **Insurgency** | 2 Actions ➔ Deal 2 Damage to target Place and gain 2 Ash | Needs ability handler |
+| **Memory Leak** | 1 Bit ➔ Gain 1 Action and 1 Wound | ✅ Implemented |
+| **Insurgency** | 2 Actions ➔ Deal 2 Damage to target Place and gain 2 Ash | ✅ Implemented |
 
 ## Snip Effects
 
@@ -67,15 +67,15 @@
 
 ## Key Mechanics to Verify:
 
-- [ ] **Sabotage** - Is this implemented? What triggers it?
-- [ ] **Hacking** trigger - For Poser, Z0MBI, Dread
-- [ ] **Dominance** trigger - For Con Artist, Dread
-- [ ] **Surrender** mechanic - For Dread
-- [ ] **Maintain** - Timer reduction trigger (VyperDrive)
-- [ ] **Scheme** system - For Precognition, Data Bomb
-- [ ] **Interface** mechanic - For Pandora/HeadSpace interfacing
-- [ ] **Impostor** - Card exchange control mechanic
-- [ ] **Venom** tracking - For Z0MBI
-- [ ] **Ascend/Ascended** state - For Syms and Landmarks
-- [ ] **Lifeless** - End of turn sacrifice
-- [ ] **Surgical** - Bit cost paid with Surge
+- [x] **Sabotage** - ✅ Triggers on 'cardStolen' event
+- [x] **Hacking** trigger - ✅ Triggers on 'successfulHack' event
+- [x] **Dominance** trigger - ✅ Triggers on 'dominanceWon' event
+- [x] **Surrender** mechanic - ✅ Implemented as 'dominanceLost' event
+- [x] **Maintain** trigger - ✅ Fires during timer reduction phase
+- [ ] **Scheme** system - ⚠️ Logic exists, needs thorough testing
+- [x] **Interface** mechanic - ✅ Published as 'successfulHack' event
+- [ ] **Impostor** - ⚠️ Logic exists, needs edge case testing
+- [x] **Venom** tracking - ✅ Z0MBI fully implemented
+- [x] **Ascend/Ascended** state - ✅ Handlers exist
+- [x] **Lifeless** - ✅ Status effect implemented
+- [x] **Surgical** - ✅ Aura implemented for CatPhish

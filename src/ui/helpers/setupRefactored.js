@@ -1,64 +1,34 @@
-import { playerMainDeck } from '../../playerDecks/playerDeck';
+import { mixedDeckOne } from '../../playerDecks/deckTwoRefactored';
 import { resolveDeckReferences } from '../../rules/deckResolver';
-import { initializeStartingResources, createPlayerStartingHand, createEnemyStartingHand, processBitIncome } from './setupNewRules';
 import enemyOne from '../../systemDecks/enemyOne';
 
 export function shuffle(array) {
-        let currentIndex = array.length;
-        while (currentIndex !== 0) {
-            let randomIndex = Math.floor(Math.random() * currentIndex);
-            currentIndex--;
-            [array[currentIndex], array[randomIndex]] = [
-                array[randomIndex], array[currentIndex]];
-        }
+    let currentIndex = array.length;
+    while (currentIndex !== 0) {
+        let randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+        [array[currentIndex], array[randomIndex]] = [
+            array[randomIndex], array[currentIndex]];
     }
+}
 
 export const createLibrary = () => {
-    console.log('Creating player library with new rules...');
+    console.log('Creating player library...');
+    console.log('Player deck source (references):', mixedDeckOne);
     
-    // Initialize starting resources (4 bits for both sides)
-    initializeStartingResources();
+    // Resolve card references to actual card objects
+    const resolvedCards = resolveDeckReferences(mixedDeckOne);
+    console.log('Resolved cards:', resolvedCards.length);
     
-    // Create starting hand with 4 cards
-    const playerStart = createPlayerStartingHand();
-    const enemyStart = createEnemyStartingHand();
-    
-    console.log('Player starting hand:', playerStart.hand.map(card => card.name));
-    console.log('Enemy starting hand:', enemyStart.hand.map(card => card.name));
-    
-    // Convert hand cards to instances
-    const playerHandInstances = playerStart.hand.map((card, index) => 
-        buildCardInstance(`p${index}`, card, 'PLAYER')
-    );
-    
-    const enemyHandInstances = enemyStart.hand.map((card, index) => 
-        buildCardInstance(`e${index}`, card, 'ENEMY')
-    );
-    
-    // Convert remaining deck to instances
-    const playerLibraryInstances = playerStart.deck.map((card, index) => 
-        buildCardInstance(`p${index + 4}`, card, 'PLAYER')
-    );
-    
-    const enemyLibraryInstances = enemyStart.deck.map((card, index) => 
-        buildCardInstance(`e${index + 4}`, card, 'ENEMY')
-    );
-    
-    // Shuffle libraries
-    shuffle(playerLibraryInstances);
-    shuffle(enemyLibraryInstances);
-    
-    console.log('Created player hand:', playerHandInstances.length, 'cards');
-    console.log('Created player library:', playerLibraryInstances.length, 'cards');
-    console.log('Created enemy hand:', enemyHandInstances.length, 'cards');
-    console.log('Created enemy library:', enemyLibraryInstances.length, 'cards');
-    
-    return {
-        playerHand: playerHandInstances,
-        playerLibrary: playerLibraryInstances,
-        enemyHand: enemyHandInstances,
-        enemyLibrary: enemyLibraryInstances
-    };
+    const libraryInstanceArray = [];
+    for (let i = 0; i < resolvedCards.length; i++) {
+        const card = resolvedCards[i];
+        const cardEntityInstance = buildCardInstance(`a${i}`, card, 'PLAYER');
+        libraryInstanceArray.push(cardEntityInstance);
+    }
+    console.log('Created player library:', libraryInstanceArray);
+    shuffle(libraryInstanceArray);
+    return libraryInstanceArray;
 };
 
 // Builds a runtime card instance with all per-card counters initialized to
@@ -123,6 +93,26 @@ export const createEnemyLibrary = () => {
         libraryInstanceArray.push(cardEntityInstance);
     }
     console.log('Created enemy library:', libraryInstanceArray);
+    shuffle(libraryInstanceArray);
+    return libraryInstanceArray;
+};
+
+// Alternative function to create library from any deck reference
+export const createLibraryFromDeck = (deckReferences) => {
+    console.log('Creating library from deck references...');
+    console.log('Deck references:', deckReferences);
+    
+    // Resolve card references to actual card objects
+    const resolvedCards = resolveDeckReferences(deckReferences);
+    console.log('Resolved cards:', resolvedCards.length);
+    
+    const libraryInstanceArray = [];
+    for (let i = 0; i < resolvedCards.length; i++) {
+        const card = resolvedCards[i];
+        const cardEntityInstance = buildCardInstance(`a${i}`, card, 'PLAYER');
+        libraryInstanceArray.push(cardEntityInstance);
+    }
+    console.log('Created library:', libraryInstanceArray);
     shuffle(libraryInstanceArray);
     return libraryInstanceArray;
 };

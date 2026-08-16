@@ -113,3 +113,5 @@
 // // Usage:
 // const slopOperatorInstance = new SharedSlotOperator();
 
+export {};
+
