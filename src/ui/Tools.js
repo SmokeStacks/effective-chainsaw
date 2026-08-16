@@ -231,7 +231,7 @@ export const imgObj = {
   CatPhish: catphish,
   "Con Artist": conartist,
   "Data Bomb": databomb,
-  SilkWorm: silkworm,
+  SylkWorm: silkworm,
   Dread: dread,
   Exploit: exploit,
   'Freight Train': train,

@@ -75,7 +75,7 @@ const binder: Card[] = [
   {
     faction: 'orange-border',
     id: 101,
-    name: "SilkWorm",
+    name: "SylkWorm",
     category: "ENTITY",
     subTypes: ["JAWbreaker"],
     rezCost: 1,
