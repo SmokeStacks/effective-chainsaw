@@ -3,7 +3,12 @@
 // The bug: this module destructured enemySolarium/Theater/Underpass/Grid from
 // state once at import time. The realm setters replace those objects instead of
 // mutating them, so the snapshot kept pointing at the original empty realms.
-// Any entity placed after module load was invisible, so the enemy never rezzed.
+// Any entity placed after module load was invisible.
+//
+// Since then, entity rez was split out into rezEnemyEntitiesInRealm (see
+// rezEnemyEntitiesInRealm.test.js) which fires right before combat.
+// enemyRezCards is now the general pre-action pass and only auto-onlines
+// non-trap SNIPs; it still needs to read every enemy realm live from state.
 
 import { setupTestEnv } from '../testHarness';
 import { state } from '../state';
@@ -21,19 +26,17 @@ afterEach(() => {
     jest.restoreAllMocks();
 });
 
-const readyEntity = (over = {}) => ({
-    id: 'e1',
-    steps: 3,
-    freeze: 0,
+const snipThing = (over = {}) => ({
+    id: 'sn1',
     online: false,
-    card: { name: 'Timed Entity', category: 'ENTITY', timer: 2 },
+    card: { name: 'Snip', category: 'SNIP' },
     ...over,
 });
 
 describe('enemyRezCards — realms are read at call time', () => {
-    test('activates an entity in a realm object replaced after module load', async () => {
+    test('activates a SNIP thing in a realm object replaced after module load', async () => {
         // Simulates what the realm setters do: swap in a brand new object.
-        state.enemyGrid = { people: [readyEntity()], places: [], things: [] };
+        state.enemyGrid = { people: [], places: [], things: [snipThing()] };
 
         await enemyRezCards();
 
@@ -42,34 +45,18 @@ describe('enemyRezCards — realms are read at call time', () => {
     });
 
     test('scans every enemy realm', async () => {
-        state.enemySolarium = { people: [readyEntity({ id: 's1' })], places: [], things: [] };
-        state.enemyTheater = { people: [readyEntity({ id: 't1' })], places: [], things: [] };
-        state.enemyUnderpass = { people: [readyEntity({ id: 'u1' })], places: [], things: [] };
-        state.enemyGrid = { people: [readyEntity({ id: 'g1' })], places: [], things: [] };
+        state.enemySolarium = { people: [], places: [], things: [snipThing({ id: 's1' })] };
+        state.enemyTheater = { people: [], places: [], things: [snipThing({ id: 't1' })] };
+        state.enemyUnderpass = { people: [], places: [], things: [snipThing({ id: 'u1' })] };
+        state.enemyGrid = { people: [], places: [], things: [snipThing({ id: 'g1' })] };
 
         await enemyRezCards();
 
         expect(activateSpy).toHaveBeenCalledTimes(4);
     });
 
-    test('does not activate an entity whose timer has not elapsed', async () => {
-        state.enemyGrid = {
-            people: [readyEntity({ steps: 1, card: { name: 'Slow', timer: 5 } })],
-            places: [],
-            things: [],
-        };
-
-        await enemyRezCards();
-
-        expect(activateSpy).not.toHaveBeenCalled();
-    });
-
-    test('does not activate a frozen or already online entity', async () => {
-        state.enemyGrid = {
-            people: [readyEntity({ id: 'f1', freeze: 2 }), readyEntity({ id: 'o1', online: true })],
-            places: [],
-            things: [],
-        };
+    test('does not re-activate an already online SNIP', async () => {
+        state.enemyGrid = { people: [], places: [], things: [snipThing({ online: true })] };
 
         await enemyRezCards();
 

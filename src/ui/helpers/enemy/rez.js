@@ -1,87 +1,78 @@
-    import { state, stateSetters, getRealmAndSetter } from '../state';
+import { state, stateSetters, getRealmAndSetter } from '../state';
 import { activateAbilities } from '../../abilities/glossary';
 
-const ENEMY_REALMS = ['Solarium', 'Theater', 'Underpass', 'Grid'];
+const REALM_NAMES = ['Solarium', 'Theater', 'Underpass', 'Grid'];
 
-// Main function to handle enemy rez cards.
-//
-// The enemy rezzes on a timer and deliberately pays no Bits/Ash cost; that is
-// how the single-player opponent works for now.
-//
-// Realms are read from `state` on every call. This module used to destructure
-// them once at import time, but the realm setters replace those objects rather
-// than mutating them, so the snapshot stayed pointed at the original empty
-// realms and the enemy never rezzed anything placed after load.
+const realmSetterMap = () => ({
+    Solarium:  stateSetters.setEnemySolarium,
+    Theater:   stateSetters.setEnemyTheater,
+    Underpass: stateSetters.setEnemyUnderpass,
+    Grid:      stateSetters.setEnemyGrid,
+});
+
+// Returns true if an enemy entity is ready to rez right before combat:
+// timer met (steps >= timer), not frozen, not yet online.
+function canEnemyRez(e) {
+    return (
+        e && e.card &&
+        e.card.category === 'ENTITY' &&
+        !e.online &&
+        e.freeze === 0 &&
+        e.card.timer != null &&
+        e.steps >= e.card.timer
+    );
+}
+
+// Rez eligible entities in one realm — called right before enemy attacks/defends.
+export function rezEnemyEntitiesInRealm(realmName) {
+    const setter = realmSetterMap()[realmName];
+    if (!setter) return;
+    const realm = state[`enemy${realmName}`];
+    if (!realm) return;
+    const rezIds = new Set(
+        (realm.people || []).filter(canEnemyRez).map(e => e.id)
+    );
+    if (rezIds.size === 0) return;
+    setter(prev => ({
+        ...prev,
+        people: (prev.people || []).map(e =>
+            rezIds.has(e.id) ? { ...e, online: true } : e
+        ),
+    }));
+    (realm.people || []).filter(e => rezIds.has(e.id)).forEach(e => {
+        activateAbilities({ ...e, online: true }, 'ENEMY');
+    });
+}
+
+// Main function to handle enemy rez cards (general pre-action pass).
+// Entities only rez right before attacking/defending (see rezEnemyEntitiesInRealm).
+// This pass only handles SNIPs/traps that come online automatically.
 export async function enemyRezCards() {
     console.log('--- enemyRezCards Invoked ---');
-
     try {
-        // Function to activate abilities for entities being rez'd
-        const rezActiveEntities = async (cardList) => {
-            if (!cardList || !Array.isArray(cardList)) {
-                console.log('Warning: cardList is undefined or not an array in rezActiveEntities');
-                return Promise.resolve([]);
-            }
-            
-            return Promise.all(cardList.map(async (cardEntity) => {
-                if (
-                    cardEntity && 
-                    cardEntity.card && 
-                    cardEntity.card.timer &&
-                    cardEntity.steps >= cardEntity.card.timer &&
-                    cardEntity.freeze === 0 &&
-                    !cardEntity.online
-                ) {
-                    console.log(`ACTIVATING ABILITIES for entity "${cardEntity.card.name}" (ID: ${cardEntity.id}) in realm.`);
-                    await activateAbilities(cardEntity, 'ENEMY');
+        const setters = realmSetterMap();
+        for (const realmName of REALM_NAMES) {
+            const realm = state[`enemy${realmName}`];
+            if (!realm) continue;
+            const setter = setters[realmName];
+
+            // SNIPs that aren't traps come online automatically
+            let changed = false;
+            const updatedThings = (realm.things || []).map(e => {
+                if (e && e.card && e.card.category === 'SNIP' && !e.card.trap && !e.online) {
+                    activateAbilities(e, 'ENEMY');
+                    changed = true;
+                    return { ...e, online: true };
                 }
-                return cardEntity;
-            }));
-        };
-
-        // Function to activate abilities for things being rez'd (traps)
-        const rezActiveThings = async (cardList) => {
-            if (!cardList || !Array.isArray(cardList)) {
-                console.log('Warning: cardList is undefined or not an array in rezActiveThings');
-                return Promise.resolve([]);
-            }
-            
-            return Promise.all(cardList.map(async (cardEntity) => {
-                if (
-                    cardEntity && 
-                    cardEntity.card && 
-                    !cardEntity.card.trap && 
-                    !cardEntity.online && 
-                    cardEntity.card.category === 'SNIP'
-                ) {
-                    console.log(`ACTIVATING ABILITIES for thing "${cardEntity.card.name}" (ID: ${cardEntity.id}) in realm.`);
-                    await activateAbilities(cardEntity, 'ENEMY');
-                } else if (cardEntity && cardEntity.card) {
-                    console.log(`Trap skipped: "${cardEntity.card.name}"`);
-                }
-                return cardEntity;
-            }));
-        };
-
-        for (const name of ENEMY_REALMS) {
-            const realm = state[`enemy${name}`];
-
-            if (!realm) {
-                console.log(`Warning: enemy${name} is undefined`);
-                continue;
-            }
-
-            await rezActiveEntities(realm.people);
-            await rezActiveThings(realm.things);
-            stateSetters[`setEnemy${name}`](prevRealm => ({ ...prevRealm }));
+                return e;
+            });
+            if (changed) setter(prev => ({ ...prev, things: updatedThings }));
         }
-
-
         console.log('--- enemyRezCards Completed ---');
-        return Promise.resolve(true);
+        return true;
     } catch (error) {
         console.error('Error in enemyRezCards:', error);
-        return Promise.resolve(false);
+        return false;
     }
 }
 

@@ -1,4 +1,6 @@
-import { cardList1 } from '../../playerDecks/deckTwo';
+import { playerMainDeck } from '../../playerDecks/playerDeck';
+import { resolveDeckReferences } from '../../rules/deckResolver';
+import { initializeStartingResources, createPlayerStartingHand, createEnemyStartingHand, processBitIncome } from './setupNewRules';
 import enemyOne from '../../systemDecks/enemyOne';
 import { reportDeckRunes } from './deckValidation';
 
@@ -13,18 +15,51 @@ export function shuffle(array) {
     }
 
 export const createLibrary = () => {
-    console.log('Creating player library...');
-    console.log('Player deck source:', cardList1);
-    reportDeckRunes(cardList1, 'Player deck');
-    const libraryInstanceArray = [];
-    for (let i = 0; i < cardList1.length; i++) {
-        const card = cardList1[i];
-        const cardEntityInstance = buildCardInstance(`a${i}`, card, 'PLAYER');
-        libraryInstanceArray.push(cardEntityInstance);
-    }
-    console.log('Created player library:', libraryInstanceArray);
-    shuffle(libraryInstanceArray);
-    return libraryInstanceArray;
+    console.log('Creating player library with new rules...');
+    
+    // Initialize starting resources (4 bits for both sides)
+    initializeStartingResources();
+    
+    // Create starting hand with 4 cards
+    const playerStart = createPlayerStartingHand();
+    const enemyStart = createEnemyStartingHand();
+    
+    console.log('Player starting hand:', playerStart.hand.map(card => card.name));
+    console.log('Enemy starting hand:', enemyStart.hand.map(card => card.name));
+    
+    // Convert hand cards to instances
+    const playerHandInstances = playerStart.hand.map((card, index) => 
+        buildCardInstance(`p${index}`, card, 'PLAYER')
+    );
+    
+    const enemyHandInstances = enemyStart.hand.map((card, index) => 
+        buildCardInstance(`e${index}`, card, 'ENEMY')
+    );
+    
+    // Convert remaining deck to instances
+    const playerLibraryInstances = playerStart.deck.map((card, index) => 
+        buildCardInstance(`p${index + 4}`, card, 'PLAYER')
+    );
+    
+    const enemyLibraryInstances = enemyStart.deck.map((card, index) => 
+        buildCardInstance(`e${index + 4}`, card, 'ENEMY')
+    );
+    
+    // Shuffle libraries
+    shuffle(playerLibraryInstances);
+    shuffle(enemyLibraryInstances);
+    
+    console.log('Created player hand:', playerHandInstances.length, 'cards');
+    console.log('Created player library:', playerLibraryInstances.length, 'cards');
+    console.log('Created enemy hand:', enemyHandInstances.length, 'cards');
+    console.log('Created enemy library:', enemyLibraryInstances.length, 'cards');
+    
+    return {
+        playerHand: playerHandInstances,
+        playerLibrary: playerLibraryInstances,
+        enemyHand: enemyHandInstances,
+        enemyLibrary: enemyLibraryInstances
+    };
 };
 
 // Some cards express a keyword stat as a bare field (`solo: 2`) and others as an

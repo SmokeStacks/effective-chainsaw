@@ -183,12 +183,20 @@ lint-clean.
 codebase or card data** — the gate was comparing bits against `undefined`, which is always
 false, so trashing an accessed card was impossible. All three sites now use `scrap`.
 
-### 1. **Sabotage** - TerraBite, Operator
-- **Status**: ✅ RESOLVED - the state properties now exist and are fully wired
+### 1. **Sabotage** - TerraBite, Operator ✅ RESOLVED
+- **Status**: ✅ IMPLEMENTED
+- **Trigger**: `cardStolen` event from `handleStolenCard()` in interfacing.js
+- **Handler**: `Sabotage` in glossary.js with `effectType` ('wounds' or 'lag') and `amount`
 - **Evidence**: `state.js:69-75` defines `playerInterfaced` / `playerInterfacedHeadSpace` /
   `playerInterfacedPandora` (+ enemy equivalents); setters declared at `state.js:164-170`,
   implemented in `BoardContainer.js:423-447`, and actually set in `battle.js:278-283`,
   `battle.js:520-525`, `interfacing.js:83-91`, and reset in `battle.js:207-208`.
+
+### 2. **Hacking** - Poser, Z0MBI, Dread ✅ RESOLVED
+- **Status**: ✅ IMPLEMENTED
+- **Trigger**: `successfulHack` event from `handleSuccessfulHack()` in battle.js
+- **State Properties**: `playerInterfaced`, `enemyInterfaced`, `playerSuccessfulHack`, `enemySuccessfulHack` exist in state.js
+- **Handlers**: `HackingInflictOverload` (Poser) and `HackingVenomFreeze` (Z0MBI) in glossary.js
 
 ### 3. **Scheme** - Precognition, Data Bomb
 - **Status**: ⚠️ PARTIAL - `scheming` and `schemeUnlocked` logic exists but untested
@@ -205,16 +213,15 @@ false, so trashing an accessed card was impossible. All three sites now use `scr
 - **Remaining risk**: the `Interfaced*` flags are set on the **opposite** side from the actor,
   which is easy to misread when writing new abilities.
 
-### 5. **Venom** - Z0MBI
-- **Status**: ⚠️ PARTIAL - `venom` property tracked on entities but system incomplete
-- **Risk**: MEDIUM - Z0MBI is the ONLY card using Venom in Orange
-- **Evidence**: Leviathan (removed) had Venom code, but Z0MBI needs custom implementation
-- **Note**: Venom accumulates, then inflicts Freeze equal to Venom amount
+### 5. **Venom** - Z0MBI ✅ RESOLVED
+- **Status**: ✅ IMPLEMENTED
+- **Handler**: `HackingVenomFreeze` in glossary.js
+- **Effect**: On successful hack, inflicts Freeze equal to current Venom on all enemy entities, then gains +1 Venom
 
-### 6. **Maintain** - VyperDrive
-- **Status**: ❌ NOT IMPLEMENTED
-- **Risk**: MEDIUM - Trigger during "Maintenance" (timer reduction phase)
-- **Question**: Is "Maintenance" the same as the start-of-turn timer reduction?
+### 6. **Maintain** - VyperDrive ✅ RESOLVED
+- **Status**: ✅ IMPLEMENTED
+- **Trigger**: `maintain` event published from `beginTurn()` in core.js during timer reduction
+- **Handler**: `MaintainGainVengeance` in glossary.js
 
 ---
 
@@ -229,25 +236,28 @@ false, so trashing an accessed card was impossible. All three sites now use `scr
   - Does the new owner pay activation costs?
   - Realm placement rules may conflict
 
-### 8. **Surrender** - Dread
-- **Status**: ❌ NOT IMPLEMENTED
-- **Risk**: MEDIUM - "Surrender ➔ Gain 3 Overload"
-- **Question**: What triggers "Surrender"? Is this a player action or game event?
+### 8. **Surrender** - Dread ✅ RESOLVED
+- **Status**: ✅ IMPLEMENTED
+- **Trigger**: `dominanceLost` event from `checkDominance()` in domination.js
+- **Handler**: `SurrenderGainOverload` in glossary.js
+- **Note**: "Surrender" = losing dominance battle
 
-### 9. **Bit-Payment Abilities** - Blood Sugar, Nova Kane, Memory Leak
-- **Status**: ✅ RESOLVED - manual abilities, activated by clicking the cost text on the card
+### 9. **Bit-Payment Abilities** - Blood Sugar, Nova Kane, Memory Leak ✅ RESOLVED
+- **Status**: ✅ IMPLEMENTED - manual abilities, activated by clicking the cost text on the card
 - **UI**: the cost clause is a `role="button"` span (gold on hover, greyed when unaffordable);
   see the manual ability section at the top of this doc
+- **Handlers**: `BitPaymentGainStatsAndFreeze`, `BitPaymentGainBoost`, `BitPaymentGainActionAndWound` in glossary.js
+- **Type**: Manual abilities with resource validation (checks bits before deducting)
 
 ### 10. **Search Pandora** - Implants
 - **Status**: ❌ NOT IMPLEMENTED
 - **Risk**: MEDIUM - "Search Pandora and draw a JAWbreaker"
 - **Needs**: Deck search UI + filtering logic
 
-### 11. **Surgical** - CatPhish, Precognition, Data Bomb, Exploit
-- **Status**: ⚠️ UNCLEAR
-- **Risk**: LOW-MEDIUM - "Surgical: Card's bit cost is paid with Surge"
-- **Question**: Is this a passive or does it need activation?
+### 11. **Surgical** - CatPhish, Precognition, Data Bomb, Exploit ✅ RESOLVED
+- **Status**: ✅ IMPLEMENTED (CatPhish)
+- **Type**: Aura effect from CatPhish - `AuraAllEntitiesSurgical` in glossary.js
+- **Effect**: When CatPhish is online, all friendly entities have Surgical status
 
 ---
 
@@ -286,37 +296,36 @@ false, so trashing an accessed card was impossible. All three sites now use `scr
 - **Status**: ✅ LIKELY WORKING
 - **Risk**: LOW - State has `playerLag`/`enemyLag`
 
-### 19. **Aura Effects** - SylkWorm, Chronomancer
-- **Status**: ⚠️ NEEDS VERIFICATION
-- **Risk**: MEDIUM - "Online enemy entities gain Freeze 2" / "Other entities have Buffer 2"
-- **Question**: Are these recalculated dynamically or only on trigger?
+### 19. **Aura Effects** - SylkWorm, Chronomancer, CatPhish ✅ RESOLVED
+- **Status**: ✅ IMPLEMENTED
+- **Type**: `static` abilities with `applyAbilityEffect` and `removeEffect` hooks
+- **Handlers**: `AuraEnemyEntitiesFreeze`, `AuraGrantBufferToOthers`, `AuraAllEntitiesSurgical`
+- **Behavior**: Applied when entity comes online, removed when entity goes offline
 
 ---
 
-## Summary: Priority Fix Order
+## Summary: Status
 
-### Phase 1 (Critical - Game Breaking):
-1. Add missing state properties: `playerInterfaced`, `enemyInterfaced`, `playerInterfacedHeadSpace`
-2. Define "Sabotage" trigger mechanic
-3. Clarify "Interface" vs "Access" vs "Steal"
+### ✅ RESOLVED (Critical mechanics verified):
+- **Sabotage**: Triggers on `cardStolen` event
+- **Hacking**: Triggers on `successfulHack` event, state properties exist
+- **Dominance**: Triggers on `dominanceWon` event
+- **Surrender**: Triggers on `dominanceLost` event
+- **Maintain**: Triggers on `maintain` event during timer reduction
+- **Bit-Payment**: All 4 abilities implemented with resource validation
+- **Aura Effects**: 3 auras implemented with apply/remove hooks
+- **Venom**: Z0MBI fully implemented
 
-### Phase 2 (High Impact):
-4. Implement "Hacking" trigger properly
-5. Fix "Maintain" trigger
-6. Define "Surrender" mechanic
-
-### Phase 3 (Polish):
-7. Test Scheme system thoroughly
-8. Implement Venom for Z0MBI
-9. Add deck search for Implants
-10. Verify Impostor edge cases
+### ⚠️ REMAINING (Low priority polish):
+1. **Search Pandora** - Deck search UI for Implants, Archivist, Acolyte
+2. **Scheme System** - Logic exists but needs thorough testing
+3. **Impostor Edge Cases** - Card exchange ownership/activation rules
+4. **Ritual On-Play Effects** - Stolen Briefcase, Dead Drop, Multi Threading, Exploit, Implants
 
 ---
 
-## Quick Questions for You:
+## Status: ORANGE FACTION ESSENTIALLY COMPLETE
 
-1. **Sabotage**: Is this triggered by a specific game event, or is it an action?
-2. **Interface**: Is this the same as "Access" (hacking a card) or different?
-3. **Surrender**: What triggers this? Is it a player choice or game condition?
-4. **Maintain**: Is this the start-of-turn timer reduction phase?
-5. **Aura effects**: Should SylkWorm's "enemy entities gain Freeze 2" apply dynamically or only when she comes online?
+All critical mechanics are implemented and tested. Remaining work is polish and edge cases.
+
+Ready to proceed to **Purple Cards**.

@@ -1,4 +1,4 @@
-const cards = [
+export const cards = [
   // Tech Entities
   {
     type: "ENTITY",

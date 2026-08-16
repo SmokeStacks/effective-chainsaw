@@ -6,19 +6,21 @@ import {
     enemyGainFate, enemyGainOverload,
     playerGainBits, enemyGainBits,
     playerGainWounds, enemyGainWounds,
+    playerGainBurden, enemyGainBurden,
     playerGainActions, enemyGainActions,
     playerGainAshes, enemyGainAshes,
     playerGainSurge, enemyGainSurge,
-    playerGainBurden, enemyGainBurden,
     getFriendlyEntities
 } from '../helpers/core';
 
 import { applyBoost } from '../helpers/advancement';
-import { handleDamage, handleDeadCard, handlePlaceDamage, handleDestroyedThing } from '../helpers/damage';
-import { getOppositeSide, getRealmAndSetter, getArrayNameForCategory } from '../helpers/utils';
+import { handleDamage, handleDeadCard, handlePlaceDamage, handleDestroyedThing, handleDestroyedPlace } from '../helpers/damage';
+import { getOppositeSide, getRealmAndSetter, getArrayNameForCategory, getAllPlayerRealms, getAllEnemyRealms } from '../helpers/utils';
+import { draw as playerDraw } from '../helpers/player';
+import { draw as enemyDraw } from '../helpers/enemy';
 import { applyEffect, applyFreezeToAllEntities, applyOverload } from '../helpers/effects';
 import { updateEntityInRealm, drawSpecificCard } from '../helpers/entity';
-import { buildCardInstance, keywordAmount } from '../helpers/setup';
+import { keywordAmount } from '../helpers/setup';
 
 
 // Define ability helpers for internal use
@@ -299,35 +301,28 @@ const abilitiesDefinitions = {
         type: 'onPlay',
         condition: 'successfulHack',
         requiresTarget: true,
-        targetFilter: (target, entity, side) =>
-            target &&
+        targetFilter: (target) =>
             target.card.subTypes?.includes('JAWbreaker') &&
-            target.owner === side &&
+            target.owner === 'PLAYER' &&
             target.online,
         onPlay: function (entity, gameState, side, target) {
-            // Hacker: successful hack this turn
-            const hasHacked = side === 'PLAYER' ? state.playerSuccessfulHack : state.enemySuccessfulHack;
+            const hasHacked = side === 'PLAYER' ? state.playerInterfaced : state.enemyInterfaced;
             if (hasHacked && target) {
-                // +1/+1
                 applyEffect(target.id, target.realm, side, {
                     type: 'stat',
                     field: 'power',
-                    value: 1,
+                    value: 2,
                 });
                 applyEffect(target.id, target.realm, side, {
                     type: 'stat',
                     field: 'HP',
-                    value: 1,
+                    value: 2,
                 });
-                // Stealth
                 applyEffect(target.id, target.realm, side, {
                     type: 'status',
                     status: 'Stealth',
                     amount: 1,
                 });
-                // Charge (ready the entity immediately)
-                target.readied = true;
-                updateEntityInRealm(target, side);
             }
         },
     },
@@ -656,24 +651,23 @@ const abilitiesDefinitions = {
             console.log(`${entity.card.name} decreases Dividend count.`);
         },
     }),
-    'GainActionsOnHeadSpaceInterface': {
-        name: 'GainActionsOnHeadSpaceInterface',
+    'GainActionsOnPandoraInterface': {
+        name: 'GainActionsOnPandoraInterface',
         type: 'triggered',
         triggers: ['successfulHack'],
         eventHandler: function (entity, eventData, gameState, side) {
             if (entity.scheming && !entity.schemeUnlocked) {
                 return;
             }
-            if (eventData.side === side && eventData.targetType === 'HEADSPACE') {
+            if (eventData.side === side && eventData.targetType === 'PANDORA') {
                 if (!entity.abilityActivated) {
-                    const ability = entity.card.abilities.find(a => a.name === 'GainActionsOnHeadSpaceInterface');
-                    const amount = ability?.effect?.amount || 3;
+                    const amount = entity.card.abilities.find(ability => ability.name === 'GainActionsOnPandoraInterface').effect.amount || 3;
                     if (side === 'PLAYER') {
                         stateSetters.setPlayerActions(prevActions => prevActions + amount);
                     } else {
                         stateSetters.setEnemyActions(prevActions => prevActions + amount);
                     }
-                    console.log(`${entity.card.name} grants ${amount} Actions upon interfacing with HeadSpace.`);
+                    console.log(`${entity.card.name} grants ${amount} Actions upon interfacing with Pandora.`);
                     entity.abilityActivated = true;
                 }
             }
@@ -740,11 +734,29 @@ const abilitiesDefinitions = {
             }
         },
     },
-    // Solo is implemented by applySoloEffect() in helpers/effects.js, which
-    // battle.js calls directly for the lone attacker. It reads entity.solo
-    // (populated from card.solo by setup.js). A duplicate triggered 'Solo'
-    // ability used to live here listening on a 'soloAttack' event that was never
-    // published; publishing it would have applied Solo twice.
+    'Solo': {
+        name: 'Solo',
+        type: 'triggered',
+        triggers: ['soloAttack'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.entityId === entity.id) {
+                const soloLevel = entity.card.abilities.find(a => a.name === 'Solo').amount || 1;
+
+                // Apply Solo effects
+                // Increase power and HP by +1 per level
+                entity.currentPower = (entity.power || entity.card.power || 0) + soloLevel;
+                entity.HP = (entity.HP || entity.card.HP || 0) + soloLevel;
+
+                // Apply Boost per level
+                applyBoost(entity, soloLevel, side);
+
+                // Update the entity in its realm or battle slot
+                updateEntityInRealm(entity, side);
+
+                console.log(`${entity.card.name} gains Solo effects: +${soloLevel} Power, +${soloLevel} HP, +${soloLevel} Boost.`);
+            }
+        },
+    },
     'GainStealth': {
         name: 'GainStealth',
         type: 'manual',
@@ -873,9 +885,7 @@ const abilitiesDefinitions = {
         triggers: ['maintain'], // Fires during timer reduction phase
         eventHandler: function (entity, eventData, gameState, side) {
             // VyperDrive: Maintain ➔ Gain 2 Vengeance
-            // 'maintain' is a phase event with no entityId; this handler is already
-            // registered per entity, so matching the side is enough.
-            if (eventData.side === side && entity.online) {
+            if (eventData.side === side && eventData.entityId === entity.id) {
                 const ability = entity.card.abilities?.find(a => a.name === 'MaintainGainVengeance');
                 const amount = ability?.amount || 2;
 
@@ -906,131 +916,6 @@ const abilitiesDefinitions = {
             }
         },
     },
-    'DominanceInflictOverloadAndGainLifeless': {
-        name: 'DominanceInflictOverloadAndGainLifeless',
-        type: 'triggered',
-        triggers: ['dominanceWon'],
-        eventHandler: function (entity, eventData, gameState, side) {
-            // Con Artist: Dominance ➔ Inflict 2 Overload and gain Lifeless
-            if (eventData.side === side) {
-                const ability = entity.card.abilities?.find(a => a.name === 'DominanceInflictOverloadAndGainLifeless');
-                const amount = ability?.amount || 2;
-                const targetSide = getOppositeSide(side);
-
-                applyOverload(targetSide, amount);
-
-                entity.lifeless = true;
-                updateEntityInRealm(entity, side);
-
-                console.log(`${entity.card.name} Dominance: Inflicted ${amount} Overload and gained Lifeless`);
-            }
-        },
-    },
-    'SylkWormAura': {
-        name: 'SylkWormAura',
-        type: 'triggered',
-        triggers: ['maintain', 'entityEntered', 'entityDied'],
-        eventHandler: function (entity, eventData, gameState, side) {
-            // SylkWorm: Online enemy entities gain Freeze 2
-            if (!entity.online) return;
-
-            const enemySide = getOppositeSide(side);
-            const enemyRealms = ['Solarium', 'Theater', 'Underpass', 'Grid'].map(name => {
-                return enemySide === 'PLAYER' ? state[`player${name}`] : state[`enemy${name}`];
-            });
-
-            enemyRealms.forEach(realm => {
-                if (!realm || !realm.people) return;
-                realm.people.forEach(target => {
-                    if (target.online) {
-                        applyEffect(target.id, target.realm, enemySide, {
-                            type: 'status',
-                            status: 'freeze',
-                            amount: 2
-                        });
-                    }
-                });
-            });
-
-            console.log(`${entity.card.name} aura: Enemy online entities gain Freeze 2`);
-        },
-    },
-    'CatPhishSurgicalAura': {
-        name: 'CatPhishSurgicalAura',
-        type: 'triggered',
-        triggers: ['entityEntered', 'maintain'],
-        eventHandler: function (entity, eventData, gameState, side) {
-            // CatPhish: Your entities are Surgical
-            if (!entity.online) return;
-
-            const friendlyRealms = ['Solarium', 'Theater', 'Underpass', 'Grid'].map(name => {
-                return side === 'PLAYER' ? state[`player${name}`] : state[`enemy${name}`];
-            });
-
-            friendlyRealms.forEach(realm => {
-                if (!realm || !realm.people) return;
-                realm.people.forEach(target => {
-                    if (target.online && !target.hasSurgical) {
-                        target.hasSurgical = true;
-                        updateEntityInRealm(target, side);
-                    }
-                });
-            });
-
-            console.log(`${entity.card.name} aura: Friendly entities are Surgical`);
-        },
-    },
-    'Lifeless': {
-        name: 'Lifeless',
-        type: 'triggered',
-        triggers: ['endTurn'],
-        eventHandler: function (entity, eventData, gameState, side) {
-            // Lifeless: Sacrifice this entity at end of turn
-            if (eventData.side === side && entity.lifeless) {
-                handleDeadCard(entity.realm, entity.id, side);
-                console.log(`${entity.card.name} Lifeless: Sacrificed at end of turn`);
-            }
-        },
-    },
-    'DominanceInflictBurden': {
-        name: 'DominanceInflictBurden',
-        type: 'triggered',
-        triggers: ['dominationResolved'],
-        eventHandler: function (entity, eventData, gameState, side) {
-            // Dread: Dominance ➔ Inflict 3 Burden on the opponent
-            if (eventData.winner === side) {
-                const ability = entity.card.abilities?.find(a => a.name === 'DominanceInflictBurden');
-                const amount = ability?.amount || 3;
-                const enemySide = getOppositeSide(side);
-
-                if (enemySide === 'PLAYER') {
-                    playerGainBurden(amount);
-                } else {
-                    enemyGainBurden(amount);
-                }
-                console.log(`${entity.card.name} Dominance: inflicted ${amount} Burden on ${enemySide}`);
-            }
-        },
-    },
-    'SurrenderGainBurden': {
-        name: 'SurrenderGainBurden',
-        type: 'triggered',
-        triggers: ['dominanceLost'], // Surrender = lose dominance
-        eventHandler: function (entity, eventData, gameState, side) {
-            // Dread: Surrender ➔ Gain 3 Burden
-            if (eventData.side === side) {
-                const ability = entity.card.abilities?.find(a => a.name === 'SurrenderGainBurden');
-                const amount = ability?.amount || 3;
-
-                if (side === 'PLAYER') {
-                    playerGainBurden(amount);
-                } else {
-                    enemyGainBurden(amount);
-                }
-                console.log(`${entity.card.name} Surrender: gained ${amount} Burden`);
-            }
-        },
-    },
     'SurrenderGainOverload': {
         name: 'SurrenderGainOverload',
         type: 'triggered',
@@ -1043,308 +928,6 @@ const abilitiesDefinitions = {
 
                 applyOverload(side, amount);
                 console.log(`${entity.card.name} Surrender: Gained ${amount} Overload`);
-            }
-        },
-    },
-    'WastelandInterfaceWound': {
-        name: 'WastelandInterfaceWound',
-        type: 'triggered',
-        triggers: ['interface'],
-        eventHandler: function (entity, eventData, gameState, side) {
-            // Wasteland: When you Interface, all entities gain 1 Wound
-            if (eventData.side !== side) return;
-
-            const allSides = ['PLAYER', 'ENEMY'];
-            allSides.forEach(s => {
-                const realms = ['Solarium', 'Theater', 'Underpass', 'Grid'].map(name => {
-                    return s === 'PLAYER' ? state[`player${name}`] : state[`enemy${name}`];
-                });
-                realms.forEach(realm => {
-                    if (!realm || !realm.people) return;
-                    realm.people.forEach(target => {
-                        applyEffect(target.id, target.realm, s, {
-                            type: 'wound',
-                            amount: 1
-                        });
-                    });
-                });
-            });
-
-            console.log(`${entity.card.name}: All entities gain 1 Wound from Interface`);
-        },
-    },
-    'LeviathanSchemeEffect': {
-        name: 'LeviathanSchemeEffect',
-        type: 'manual',
-        requiresTarget: true,
-        targetType: 'entity',
-        targetFilter: (target) => target && target.online,
-        execute: function (entity, effect, side, target) {
-            // Leviathan Scheme 2: Interface, target entity gains 2 Wounds
-            if (entity.scheming && !entity.schemeUnlocked) {
-                console.log(`${entity.card.name}'s Scheme ability is not yet unlocked.`);
-                return;
-            }
-            if (target) {
-                applyEffect(target.id, target.realm, side, {
-                    type: 'wound',
-                    amount: 2
-                });
-                console.log(`${entity.card.name} Scheme: ${target.card.name} gains 2 Wounds.`);
-            }
-        },
-    },
-    'ImitationGameDividend': {
-        name: 'ImitationGameDividend',
-        type: 'triggered',
-        triggers: ['entityEntered'],
-        eventHandler: function (entity, eventData, gameState, side) {
-            // Imitation Game Dividend 2: When a friendly entity enters, you may Impostor
-            if (eventData.side !== side) return;
-            if (entity.scheming && !entity.schemeUnlocked) {
-                return;
-            }
-            // Only activate if the card has not yet been used for Impostor this turn
-            if (!entity.abilityActivated) {
-                entity.abilityActivated = true;
-                console.log(`${entity.card.name} Dividend: Impostor opportunity triggered`);
-            }
-        },
-    },
-    'ChronomancerBufferAura': {
-        name: 'ChronomancerBufferAura',
-        type: 'triggered',
-        triggers: ['entityEntered', 'maintain'],
-        eventHandler: function (entity, eventData, gameState, side) {
-            // Chronomancer: Other entities have Buffer 2
-            if (!entity.online) return;
-
-            const allSides = ['PLAYER', 'ENEMY'];
-            allSides.forEach(s => {
-                const realms = ['Solarium', 'Theater', 'Underpass', 'Grid'].map(name => {
-                    return s === 'PLAYER' ? state[`player${name}`] : state[`enemy${name}`];
-                });
-                realms.forEach(realm => {
-                    if (!realm || !realm.people) return;
-                    realm.people.forEach(target => {
-                        if (target && target.id !== entity.id && !target.chronomancerBuffer) {
-                            target.chronomancerBuffer = true;
-                            target.bufferAmount = (target.bufferAmount || 0) + 2;
-                            updateEntityInRealm(target, s);
-                        }
-                    });
-                });
-            });
-
-            console.log(`${entity.card.name} aura: Other entities have Buffer 2`);
-        },
-    },
-    'BuffSelfWithFreeze': {
-        name: 'BuffSelfWithFreeze',
-        type: 'manual',
-        cost: { bits: 1 },
-        execute: function (entity, effect, side) {
-            // Blood Sugar: Pay 1 Bit ➔ Gain +1/+1 and 1 Freeze
-            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
-            const bitsSetter = side === 'PLAYER' ? stateSetters.setPlayerBits : stateSetters.setEnemyBits;
-            if (bits >= 1 && bitsSetter) {
-                bitsSetter(prev => prev - 1);
-                entity.power = (entity.power || 0) + 1;
-                entity.HP = (entity.HP || 0) + 1;
-                applyEffect(entity.id, entity.realm, side, {
-                    type: 'status',
-                    status: 'freeze',
-                    amount: 1
-                });
-                updateEntityInRealm(entity, side);
-                console.log(`${entity.card.name}: Paid 1 bit for +1/+1 and Freeze 1`);
-            } else {
-                console.log(`${entity.card.name}: Not enough bits`);
-            }
-        },
-    },
-    'BoostSelf': {
-        name: 'BoostSelf',
-        type: 'manual',
-        cost: { bits: 1 },
-        execute: function (entity, effect, side) {
-            // Nova Kane: Pay 1 Bit ➔ Gain 1 Boost
-            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
-            const bitsSetter = side === 'PLAYER' ? stateSetters.setPlayerBits : stateSetters.setEnemyBits;
-            if (bits >= 1 && bitsSetter) {
-                bitsSetter(prev => prev - 1);
-                applyEffect(entity.id, entity.realm, side, {
-                    type: 'boost',
-                    amount: 1
-                });
-                console.log(`${entity.card.name}: Paid 1 bit for Boost 1`);
-            } else {
-                console.log(`${entity.card.name}: Not enough bits`);
-            }
-        },
-    },
-    'GainActionWithWound': {
-        name: 'GainActionWithWound',
-        type: 'manual',
-        cost: { bits: 1 },
-        execute: function (entity, effect, side) {
-            // Memory Leak: Pay 1 Bit ➔ Gain 1 Action and 1 Wound
-            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
-            const bitsSetter = side === 'PLAYER' ? stateSetters.setPlayerBits : stateSetters.setEnemyBits;
-            const actionsSetter = side === 'PLAYER' ? stateSetters.setPlayerActions : stateSetters.setEnemyActions;
-            if (bits >= 1 && bitsSetter) {
-                bitsSetter(prev => prev - 1);
-                if (actionsSetter) actionsSetter(prev => prev + 1);
-                applyEffect(entity.id, entity.realm, side, {
-                    type: 'wound',
-                    amount: 1
-                });
-                console.log(`${entity.card.name}: Paid 1 bit for +1 Action and 1 Wound`);
-            } else {
-                console.log(`${entity.card.name}: Not enough bits`);
-            }
-        },
-    },
-    'DevelopFriendlyPlacesAndThings': {
-        name: 'DevelopFriendlyPlacesAndThings',
-        type: 'manual',
-        cost: { bits: 2, actions: 1 },
-        execute: function (entity, effect, side) {
-            // Architect: Pay 2 Bits, Action ➔ Friendly Places and Things gain 2 Develop
-            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
-            const bitsSetter = side === 'PLAYER' ? stateSetters.setPlayerBits : stateSetters.setEnemyBits;
-            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
-            const actionsSetter = side === 'PLAYER' ? stateSetters.setPlayerActions : stateSetters.setEnemyActions;
-            if (bits >= 2 && bitsSetter && actions >= 1 && actionsSetter) {
-                bitsSetter(prev => prev - 2);
-                actionsSetter(prev => prev - 1);
-
-                const friendlyRealms = ['Solarium', 'Theater', 'Underpass', 'Grid'].map(name => {
-                    return side === 'PLAYER' ? state[`player${name}`] : state[`enemy${name}`];
-                });
-                friendlyRealms.forEach(realm => {
-                    if (!realm) return;
-                    ['places', 'things'].forEach(arrayName => {
-                        (realm[arrayName] || []).forEach(target => {
-                            target.development = (target.development || 0) + 2;
-                            updateEntityInRealm(target, side);
-                        });
-                    });
-                });
-
-                console.log(`${entity.card.name}: Paid 2 bits for friendly Places and Things to gain 2 Develop`);
-            } else {
-                console.log(`${entity.card.name}: Not enough bits`);
-            }
-        },
-    },
-    'BoostFriendlyEntities': {
-        name: 'BoostFriendlyEntities',
-        type: 'manual',
-        cost: { bits: 1, exhaust: true },
-        execute: function (entity, effect, side) {
-            // Freight Train: Pay 1 Bit, Exhaust ➔ Friendly entities gain 1 Boost
-            if (entity.exhausted) {
-                console.log(`${entity.card.name} is already exhausted.`);
-                return;
-            }
-            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
-            const bitsSetter = side === 'PLAYER' ? stateSetters.setPlayerBits : stateSetters.setEnemyBits;
-            if (bits >= 1 && bitsSetter) {
-                bitsSetter(prev => prev - 1);
-                exhaustEntity(entity, side);
-
-                const friendlyRealms = ['Solarium', 'Theater', 'Underpass', 'Grid'].map(name => {
-                    return side === 'PLAYER' ? state[`player${name}`] : state[`enemy${name}`];
-                });
-                friendlyRealms.forEach(realm => {
-                    if (!realm || !realm.people) return;
-                    realm.people.forEach(target => {
-                        applyEffect(target.id, target.realm, side, {
-                            type: 'boost',
-                            amount: 1
-                        });
-                    });
-                });
-
-                console.log(`${entity.card.name}: Paid 1 bit and Exhausted to give friendly entities Boost 1`);
-            } else {
-                console.log(`${entity.card.name}: Not enough bits`);
-            }
-        },
-    },
-    'FreezeTargetJaw': {
-        name: 'FreezeTargetJaw',
-        type: 'manual',
-        cost: { exhaust: true },
-        requiresTarget: true,
-        targetType: 'entity',
-        targetFilter: (target) => target?.card?.subTypes?.includes('JAWbreaker'),
-        execute: function (entity, effect, side, target) {
-            // MouseByte: Exhaust ➔ Target JAW gains 1 Freeze
-            if (entity.exhausted) {
-                console.log(`${entity.card.name} is already exhausted.`);
-                return;
-            }
-            if (target) {
-                applyEffect(target.id, target.realm, side, {
-                    type: 'status',
-                    status: 'freeze',
-                    amount: 1
-                });
-                exhaustEntity(entity, side);
-                console.log(`${entity.card.name}: Exhausted to give target JAW Freeze 1`);
-            }
-        },
-    },
-    'BoostAndPounceTargetAlly': {
-        name: 'BoostAndPounceTargetAlly',
-        type: 'manual',
-        cost: { exhaust: true },
-        requiresTarget: true,
-        targetType: 'entity',
-        targetSide: 'PLAYER',
-        targetFilter: (target) => target?.online,
-        execute: function (entity, effect, side, target) {
-            // Pharmacist: Exhaust ➔ Target friendly Online entity gains 2 Boost and Pounce
-            if (entity.exhausted) {
-                console.log(`${entity.card.name} is already exhausted.`);
-                return;
-            }
-            if (target && target.online) {
-                applyEffect(target.id, target.realm, side, {
-                    type: 'boost',
-                    amount: 2
-                });
-                target.hasPounce = true;
-                updateEntityInRealm(target, side);
-                exhaustEntity(entity, side);
-                console.log(`${entity.card.name}: Exhausted to give target friendly Online entity +2 Boost and Pounce`);
-            }
-        },
-    },
-    'GainVengeanceWithWound': {
-        name: 'GainVengeanceWithWound',
-        type: 'manual',
-        cost: { actions: 1 },
-        execute: function (entity, effect, side) {
-            // GooTooth: Action ➔ Gain 2 Vengeance and 1 Wound
-            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
-            const actionsSetter = side === 'PLAYER' ? stateSetters.setPlayerActions : stateSetters.setEnemyActions;
-            if (actions >= 1 && actionsSetter) {
-                actionsSetter(prev => prev - 1);
-                applyEffect(entity.id, entity.realm, side, {
-                    type: 'status',
-                    status: 'vengeance',
-                    amount: 2
-                });
-                applyEffect(entity.id, entity.realm, side, {
-                    type: 'wound',
-                    amount: 1
-                });
-                console.log(`${entity.card.name}: Paid 1 action for 2 Vengeance and 1 Wound`);
-            } else {
-                console.log(`${entity.card.name}: Not enough actions`);
             }
         },
     },
@@ -1667,6 +1250,1329 @@ const abilitiesDefinitions = {
             }
         }
     },
+    // Orange Cards - Action Abilities
+    'ActionGainVengeanceAndWound': {
+        name: 'ActionGainVengeanceAndWound',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            // GooTooth: Action ➔ Gain 2 Vengeance and 1 Wound
+            const vengeanceAmount = effect.vengeanceAmount || 2;
+            const woundAmount = effect.woundAmount || 1;
+
+            // Apply Vengeance
+            applyEffect(entity.id, entity.realm, side, {
+                type: 'status',
+                status: 'Vengeance',
+                amount: vengeanceAmount
+            });
+
+            // Apply Wounds to self
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerWounds(prev => prev + woundAmount);
+            } else {
+                stateSetters.setEnemyWounds(prev => prev + woundAmount);
+            }
+
+            console.log(`${entity.card.name} Action: Gained ${vengeanceAmount} Vengeance and ${woundAmount} Wound.`);
+        }
+    },
+    'ExhaustTargetJAWFreeze': {
+        name: 'ExhaustTargetJAWFreeze',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target) => target.card.subTypes?.includes('JAWbreaker'),
+        execute: function (entity, effect, side, target) {
+            // MouseByte: Exhaust ➔ Target JAW gains 1 Freeze
+            if (!target) {
+                console.log('No target selected for ExhaustTargetJAWFreeze');
+                return;
+            }
+
+            const freezeAmount = effect.freezeAmount || 1;
+
+            // Exhaust the entity
+            exhaustEntity(entity, side);
+
+            // Apply Freeze to target
+            applyEffect(target.id, target.realm, target.owner, {
+                type: 'status',
+                status: 'freeze',
+                amount: freezeAmount
+            });
+
+            console.log(`${entity.card.name} Exhaust: ${target.card.name} gains Freeze ${freezeAmount}.`);
+        }
+    },
+    'ExhaustGrantBoostAndPounce': {
+        name: 'ExhaustGrantBoostAndPounce',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target, entity) => target.owner === entity.owner && target.online,
+        execute: function (entity, effect, side, target) {
+            // Pharmacist: Exhaust ➔ Target friendly Online entity gains 2 Boost and Pounce
+            if (!target) {
+                console.log('No target selected for ExhaustGrantBoostAndPounce');
+                return;
+            }
+
+            const boostAmount = effect.boostAmount || 2;
+
+            // Exhaust the entity
+            exhaustEntity(entity, side);
+
+            // Apply Boost
+            applyBoost(target, boostAmount, side);
+
+            // Grant Pounce
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'pounce',
+                amount: 1
+            });
+
+            console.log(`${entity.card.name} Exhaust: ${target.card.name} gains Boost ${boostAmount} and Pounce.`);
+        }
+    },
+    'DominanceInflictOverloadAndLifeless': {
+        name: 'DominanceInflictOverloadAndLifeless',
+        type: 'triggered',
+        triggers: ['dominanceWon'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Con Artist: Dominance ➔ Inflict 2 Overload and gain Lifeless
+            if (eventData.side === side) {
+                const overloadAmount = entity.card.abilities?.find(a => a.name === 'DominanceInflictOverloadAndLifeless')?.overloadAmount || 2;
+                const targetSide = getOppositeSide(side);
+
+                // Inflict Overload
+                applyOverload(targetSide, overloadAmount);
+
+                // Gain Lifeless
+                applyEffect(entity.id, entity.realm, side, {
+                    type: 'status',
+                    status: 'lifeless',
+                    amount: 1
+                });
+
+                console.log(`${entity.card.name} Dominance: Inflicted ${overloadAmount} Overload to ${targetSide} and gained Lifeless.`);
+            }
+        }
+    },
+    'BitPaymentGainStatsAndFreeze': {
+        name: 'BitPaymentGainStatsAndFreeze',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            // Blood Sugar: 1 Bit ➔ Gain +1/+1 and 1 Freeze
+            const bitCost = effect.bitCost || 1;
+            const powerGain = effect.powerGain || 1;
+            const hpGain = effect.hpGain || 1;
+            const freezeAmount = effect.freezeAmount || 1;
+
+            // Check if player has enough bits
+            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
+            if (bits < bitCost) {
+                console.log(`Not enough bits to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct bits
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerBits(prev => prev - bitCost);
+            } else {
+                stateSetters.setEnemyBits(prev => prev - bitCost);
+            }
+
+            // Apply stat gains
+            applyEffect(entity.id, entity.realm, side, {
+                type: 'stat',
+                field: 'power',
+                value: powerGain
+            });
+            applyEffect(entity.id, entity.realm, side, {
+                type: 'stat',
+                field: 'HP',
+                value: hpGain
+            });
+
+            // Apply Freeze to self
+            applyEffect(entity.id, entity.realm, side, {
+                type: 'status',
+                status: 'freeze',
+                amount: freezeAmount
+            });
+
+            console.log(`${entity.card.name} paid ${bitCost} Bit: Gained +${powerGain}/+${hpGain} and Freeze ${freezeAmount}.`);
+        }
+    },
+    'AuraGrantBufferToOthers': {
+        name: 'AuraGrantBufferToOthers',
+        type: 'static',
+        applyAbilityEffect: function (entity, gameState, side) {
+            // Chronomancer: Other entities have Buffer 2
+            const bufferAmount = entity.card.abilities?.find(a => a.name === 'AuraGrantBufferToOthers')?.bufferAmount || 2;
+
+            // Get all friendly entities in the same realm except self
+            const [realm] = getRealmAndSetter(entity.realm, side);
+            realm.people.forEach(otherEntity => {
+                if (otherEntity.id !== entity.id) {
+                    applyEffect(otherEntity.id, otherEntity.realm, side, {
+                        type: 'status',
+                        status: 'buffer',
+                        amount: bufferAmount
+                    });
+                }
+            });
+
+            console.log(`${entity.card.name} Aura: Other entities in ${entity.realm} gain Buffer ${bufferAmount}.`);
+        },
+        removeEffect: function (entity, gameState, side) {
+            const bufferAmount = entity.card.abilities?.find(a => a.name === 'AuraGrantBufferToOthers')?.bufferAmount || 2;
+
+            // Remove buffer from other entities when Chronomancer leaves play
+            const [realm] = getRealmAndSetter(entity.realm, side);
+            realm.people.forEach(otherEntity => {
+                if (otherEntity.id !== entity.id) {
+                    applyEffect(otherEntity.id, otherEntity.realm, side, {
+                        type: 'status',
+                        status: 'buffer',
+                        amount: -bufferAmount
+                    });
+                }
+            });
+
+            console.log(`${entity.card.name} Aura removed: Buffer ${bufferAmount} removed from other entities.`);
+        }
+    },
+    'ActionDevelopPlacesAndThings': {
+        name: 'ActionDevelopPlacesAndThings',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            // Architect: 2 Bits, Action ➔ Friendly Places and Things gain 2 Develop
+            const bitCost = effect.bitCost || 2;
+            const developAmount = effect.developAmount || 2;
+
+            // Check actions and bits
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
+
+            if (actions < 1 || bits < bitCost) {
+                console.log(`Not enough resources to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct action and bits
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerActions(prev => prev - 1);
+                stateSetters.setPlayerBits(prev => prev - bitCost);
+            } else {
+                stateSetters.setEnemyActions(prev => prev - 1);
+                stateSetters.setEnemyBits(prev => prev - bitCost);
+            }
+
+            // Apply Develop to friendly Places and Things
+            const [realm] = getRealmAndSetter(entity.realm, side);
+            [...realm.places, ...realm.things].forEach(target => {
+                applyEffect(target.id, target.realm, side, {
+                    type: 'status',
+                    status: 'development',
+                    amount: developAmount
+                });
+            });
+
+            console.log(`${entity.card.name} Action: Friendly Places and Things gain Develop ${developAmount}.`);
+        }
+    },
+    'ExhaustGrantBoostToAllies': {
+        name: 'ExhaustGrantBoostToAllies',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            // Freight Train: 1 Bit, Exhaust ➔ Friendly entities gain 1 Boost
+            const bitCost = effect.bitCost || 1;
+            const boostAmount = effect.boostAmount || 1;
+
+            // Check bits
+            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
+            if (bits < bitCost) {
+                console.log(`Not enough bits to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct bits
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerBits(prev => prev - bitCost);
+            } else {
+                stateSetters.setEnemyBits(prev => prev - bitCost);
+            }
+
+            // Exhaust the entity
+            exhaustEntity(entity, side);
+
+            // Apply Boost to all friendly entities
+            const [realm] = getRealmAndSetter(entity.realm, side);
+            realm.people.forEach(target => {
+                if (target.id !== entity.id) {
+                    applyBoost(target, boostAmount, side);
+                }
+            });
+
+            console.log(`${entity.card.name} Exhaust: Friendly entities gain Boost ${boostAmount}.`);
+        }
+    },
+    'BitPaymentGainBoost': {
+        name: 'BitPaymentGainBoost',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            // Nova Kane: 1 Bit ➔ Gain 1 Boost
+            const bitCost = effect.bitCost || 1;
+            const boostAmount = effect.boostAmount || 1;
+
+            // Check bits
+            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
+            if (bits < bitCost) {
+                console.log(`Not enough bits to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct bits
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerBits(prev => prev - bitCost);
+            } else {
+                stateSetters.setEnemyBits(prev => prev - bitCost);
+            }
+
+            // Apply Boost
+            applyBoost(entity, boostAmount, side);
+
+            console.log(`${entity.card.name} paid ${bitCost} Bit: Gained Boost ${boostAmount}.`);
+        }
+    },
+    'BitPaymentGainActionAndWound': {
+        name: 'BitPaymentGainActionAndWound',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            // Memory Leak: 1 Bit ➔ Gain 1 Action and 1 Wound
+            const bitCost = effect.bitCost || 1;
+            const actionAmount = effect.actionAmount || 1;
+            const woundAmount = effect.woundAmount || 1;
+
+            // Check bits
+            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
+            if (bits < bitCost) {
+                console.log(`Not enough bits to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct bits
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerBits(prev => prev - bitCost);
+            } else {
+                stateSetters.setEnemyBits(prev => prev - bitCost);
+            }
+
+            // Gain Actions
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerActions(prev => prev + actionAmount);
+            } else {
+                stateSetters.setEnemyActions(prev => prev + actionAmount);
+            }
+
+            // Gain Wounds
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerWounds(prev => prev + woundAmount);
+            } else {
+                stateSetters.setEnemyWounds(prev => prev + woundAmount);
+            }
+
+            console.log(`${entity.card.name} paid ${bitCost} Bit: Gained ${actionAmount} Action and ${woundAmount} Wound.`);
+        }
+    },
+    'ActionDamagePlaceAndGainAsh': {
+        name: 'ActionDamagePlaceAndGainAsh',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target) => target.card.category === 'LOCATION' || target.card.category === 'LANDMARK',
+        execute: function (entity, effect, side, target) {
+            // Insurgency: 2 Actions ➔ Deal 2 Damage to target Place and gain 2 Ash
+            if (!target) {
+                console.log('No target Place selected for ActionDamagePlaceAndGainAsh');
+                return;
+            }
+
+            const actionCost = effect.actionCost || 2;
+            const damageAmount = effect.damageAmount || 2;
+            const ashAmount = effect.ashAmount || 2;
+
+            // Check actions
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct actions
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerActions(prev => prev - actionCost);
+            } else {
+                stateSetters.setEnemyActions(prev => prev - actionCost);
+            }
+
+            // Deal damage to target Place
+            const targetSide = target.owner;
+            handlePlaceDamage(target.realm, target.id, damageAmount, targetSide);
+
+            // Gain Ash
+            if (side === 'PLAYER') {
+                playerGainAshes(ashAmount);
+            } else {
+                enemyGainAshes(ashAmount);
+            }
+
+            console.log(`${entity.card.name} Action: Dealt ${damageAmount} damage to ${target.card.name} and gained ${ashAmount} Ash.`);
+        }
+    },
+    // Aura Effects
+    'AuraAllEntitiesSurgical': {
+        name: 'AuraAllEntitiesSurgical',
+        type: 'static',
+        applyAbilityEffect: function (entity, gameState, side) {
+            // CatPhish: Your entities are Surgical
+            // Surgical means card's bit cost is paid with Surge
+            // This is a passive effect that modifies how bit costs are paid
+            // Applied to all friendly entities when CatPhish comes online
+
+            const [realm] = getRealmAndSetter(entity.realm, side);
+            realm.people.forEach(friendlyEntity => {
+                applyEffect(friendlyEntity.id, friendlyEntity.realm, side, {
+                    type: 'status',
+                    status: 'surgical',
+                    amount: 1
+                });
+            });
+
+            console.log(`${entity.card.name} Aura: All friendly entities are now Surgical.`);
+        },
+        removeEffect: function (entity, gameState, side) {
+            // Remove Surgical from all friendly entities when CatPhish leaves play
+            const [realm] = getRealmAndSetter(entity.realm, side);
+            realm.people.forEach(friendlyEntity => {
+                applyEffect(friendlyEntity.id, friendlyEntity.realm, side, {
+                    type: 'status',
+                    status: 'surgical',
+                    amount: -1
+                });
+            });
+
+            console.log(`${entity.card.name} Aura removed: Surgical removed from friendly entities.`);
+        }
+    },
+    'AuraEnemyEntitiesFreeze': {
+        name: 'AuraEnemyEntitiesFreeze',
+        type: 'static',
+        applyAbilityEffect: function (entity, gameState, side) {
+            // SylkWorm: Online enemy entities gain Freeze 2
+            const freezeAmount = 2;
+            const enemySide = getOppositeSide(side);
+
+            // Get all enemy realms
+            const enemyRealms = ['Solarium', 'Theater', 'Underpass', 'Grid'].map(name => {
+                const realmName = enemySide === 'PLAYER' ? `player${name}` : `enemy${name}`;
+                return state[realmName];
+            });
+
+            // Apply Freeze to all online enemy entities
+            enemyRealms.forEach(realm => {
+                if (!realm || !realm.people) return;
+                realm.people.forEach(target => {
+                    if (target.online) {
+                        applyEffect(target.id, target.realm, enemySide, {
+                            type: 'status',
+                            status: 'freeze',
+                            amount: freezeAmount
+                        });
+                    }
+                });
+            });
+
+            console.log(`${entity.card.name} Aura: Online enemy entities gain Freeze ${freezeAmount}.`);
+        },
+        removeEffect: function (entity, gameState, side) {
+            // Remove Freeze from enemy entities when SylkWorm leaves play
+            const freezeAmount = 2;
+            const enemySide = getOppositeSide(side);
+
+            const enemyRealms = ['Solarium', 'Theater', 'Underpass', 'Grid'].map(name => {
+                const realmName = enemySide === 'PLAYER' ? `player${name}` : `enemy${name}`;
+                return state[realmName];
+            });
+
+            enemyRealms.forEach(realm => {
+                if (!realm || !realm.people) return;
+                realm.people.forEach(target => {
+                    if (target.online) {
+                        applyEffect(target.id, target.realm, enemySide, {
+                            type: 'status',
+                            status: 'freeze',
+                            amount: -freezeAmount
+                        });
+                    }
+                });
+            });
+
+            console.log(`${entity.card.name} Aura removed: Freeze ${freezeAmount} removed from enemy entities.`);
+        }
+    },
+    // Purple Cards - Ritual On-Play Effects
+    'OnPlayGrantStatsFortifyFreeze': {
+        name: 'OnPlayGrantStatsFortifyFreeze',
+        type: 'onPlay',
+        onPlay: function (entity, state, side, target) {
+            // Crystalize: Target entity gains +4/+4, Fortify, and Freeze 2
+            if (!target) {
+                console.log('Crystalize requires a target entity');
+                return;
+            }
+            const powerGain = entity.card.abilities?.find(a => a.name === 'OnPlayGrantStatsFortifyFreeze')?.powerGain || 4;
+            const hpGain = entity.card.abilities?.find(a => a.name === 'OnPlayGrantStatsFortifyFreeze')?.hpGain || 4;
+            const freezeAmount = entity.card.abilities?.find(a => a.name === 'OnPlayGrantStatsFortifyFreeze')?.freezeAmount || 2;
+
+            // Apply stat gains
+            applyEffect(target.id, target.realm, side, {
+                type: 'stat',
+                field: 'power',
+                value: powerGain
+            });
+            applyEffect(target.id, target.realm, side, {
+                type: 'stat',
+                field: 'HP',
+                value: hpGain
+            });
+
+            // Apply Fortify
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'fortify',
+                amount: 1
+            });
+
+            // Apply Freeze
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'freeze',
+                amount: freezeAmount
+            });
+
+            console.log(`Crystalize: ${target.card.name} gains +${powerGain}/+${hpGain}, Fortify, and Freeze ${freezeAmount}.`);
+        }
+    },
+    'OnPlayGainBitsOnAttack': {
+        name: 'OnPlayGainBitsOnAttack',
+        type: 'onPlay',
+        onPlay: function (entity, state, side) {
+            // Tithing: Gain 4 Bits whenever a player attacks this turn
+            const bitAmount = entity.card.abilities?.find(a => a.name === 'OnPlayGainBitsOnAttack')?.bitAmount || 4;
+
+            // Set up a one-time listener for attacks this turn
+            const attackHandler = (eventData) => {
+                if (eventData.side === side) {
+                    if (side === 'PLAYER') {
+                        stateSetters.setPlayerBits(prev => prev + bitAmount);
+                    } else {
+                        stateSetters.setEnemyBits(prev => prev + bitAmount);
+                    }
+                    console.log(`Tithing: Gained ${bitAmount} Bits from attack.`);
+                }
+            };
+
+            eventManager.subscribe('attackCommitted', attackHandler);
+
+            // Unsubscribe at end of turn
+            const endTurnHandler = () => {
+                eventManager.unsubscribe('attackCommitted', attackHandler);
+                eventManager.unsubscribe('endTurn', endTurnHandler);
+            };
+            eventManager.subscribe('endTurn', endTurnHandler);
+
+            console.log(`Tithing: Will gain ${bitAmount} Bits per attack this turn.`);
+        }
+    },
+    'OnPlayCreatePoltergeists': {
+        name: 'OnPlayCreatePoltergeists',
+        type: 'onPlay',
+        onPlay: function (entity, state, side) {
+            // Seance: Place three created [Poltergeist]
+            const count = entity.card.abilities?.find(a => a.name === 'OnPlayCreatePoltergeists')?.count || 3;
+
+            // Create Poltergeist tokens in the player's realm
+            const [realm, setRealm] = getRealmAndSetter(entity.realm, side);
+
+            for (let i = 0; i < count; i++) {
+                const poltergeistId = `poltergeist_${side}_${Date.now()}_${i}`;
+                const poltergeist = {
+                    id: poltergeistId,
+                    card: {
+                        name: 'Poltergeist',
+                        category: 'ENTITY',
+                        power: 3,
+                        HP: 2,
+                        timer: 1,
+                        keywords: 'Duelist, Deathless, Devour. Lifeless, Soulless, Horrific 2.',
+                        magi: true,
+                        phys: true,
+                        tech: false
+                    },
+                    power: 3,
+                    HP: 2,
+                    timer: 1,
+                    owner: side,
+                    realm: entity.realm,
+                    online: false,
+                    token: true
+                };
+
+                // Add to realm
+                setRealm(prev => ({
+                    ...prev,
+                    people: [...prev.people, poltergeist]
+                }));
+            }
+
+            console.log(`Seance: Created ${count} Poltergeist tokens in ${entity.realm}.`);
+        }
+    },
+    'OnPlayGrantBoostAndDamage': {
+        name: 'OnPlayGrantBoostAndDamage',
+        type: 'onPlay',
+        onPlay: function (entity, state, side, target) {
+            // Ignition: Target Online entity gains Boost 3 and takes 2 Damage
+            if (!target) {
+                console.log('Ignition requires a target entity');
+                return;
+            }
+
+            const boostAmount = entity.card.abilities?.find(a => a.name === 'OnPlayGrantBoostAndDamage')?.boostAmount || 3;
+            const damageAmount = entity.card.abilities?.find(a => a.name === 'OnPlayGrantBoostAndDamage')?.damageAmount || 2;
+
+            // Apply Boost
+            applyBoost(target, boostAmount, side);
+
+            // Apply Damage
+            handleDamage(target.realm, target.id, damageAmount, side);
+
+            console.log(`Ignition: ${target.card.name} gains Boost ${boostAmount} and takes ${damageAmount} damage.`);
+        }
+    },
+    'OnPlayActivateAndGrantVengeance': {
+        name: 'OnPlayActivateAndGrantVengeance',
+        type: 'onPlay',
+        onPlay: function (entity, state, side, target) {
+            // Royal Decree: Activate target friendly Offline entity and give it 2 Vengeance
+            if (!target) {
+                console.log('Royal Decree requires a target entity');
+                return;
+            }
+
+            const vengeanceAmount = entity.card.abilities?.find(a => a.name === 'OnPlayActivateAndGrantVengeance')?.vengeanceAmount || 2;
+
+            // Activate the entity (set online)
+            applyEffect(target.id, target.realm, side, {
+                type: 'setOnline',
+                value: true
+            });
+
+            // Grant Vengeance
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'Vengeance',
+                amount: vengeanceAmount
+            });
+
+            console.log(`Royal Decree: ${target.card.name} activated and gains ${vengeanceAmount} Vengeance.`);
+        }
+    },
+    // Purple Cards - Exhaust Abilities
+    'ExhaustDestroyAllOtherEntities': {
+        name: 'ExhaustDestroyAllOtherEntities',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            // Mortician: Exhaust ➔ Destroy all other entities
+            const [realm] = getRealmAndSetter(entity.realm, side);
+
+            // Get all other entities in the same realm
+            const otherEntities = realm.people.filter(e => e.id !== entity.id);
+
+            // Destroy each other entity
+            otherEntities.forEach(target => {
+                handleDeadCard(target.realm, target.id, side);
+            });
+
+            // Exhaust the Mortician
+            exhaustEntity(entity, side);
+
+            console.log(`${entity.card.name} Exhaust: Destroyed ${otherEntities.length} other entities.`);
+        }
+    },
+    'ExhaustActivateOfflineEntity': {
+        name: 'ExhaustActivateOfflineEntity',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target, entity) => target.owner === entity.owner && !target.online,
+        execute: function (entity, effect, side, target) {
+            // False Prophet: Exhaust ➔ Activate target friendly Offline entity, it gains Boost 2 and Lifeless
+            if (!target) {
+                console.log('No target selected for ExhaustActivateOfflineEntity');
+                return;
+            }
+
+            const boostAmount = effect.boostAmount || 2;
+
+            // Exhaust the False Prophet
+            exhaustEntity(entity, side);
+
+            // Activate the target
+            applyEffect(target.id, target.realm, side, {
+                type: 'setOnline',
+                value: true
+            });
+
+            // Apply Boost
+            applyBoost(target, boostAmount, side);
+
+            // Grant Lifeless
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'lifeless',
+                amount: 1
+            });
+
+            console.log(`${entity.card.name} Exhaust: ${target.card.name} activated, gains Boost ${boostAmount} and Lifeless.`);
+        }
+    },
+    // Purple Cards - BitPayment Abilities
+    'BitPaymentGrantArmored': {
+        name: 'BitPaymentGrantArmored',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target, entity) => target.owner === entity.owner,
+        execute: function (entity, effect, side, target) {
+            // Oracle: 2 Bits ➔ Target friendly entity gains Armored
+            if (!target) {
+                console.log('No target selected for BitPaymentGrantArmored');
+                return;
+            }
+
+            const bitCost = effect.bitCost || 2;
+
+            // Check bits
+            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
+            if (bits < bitCost) {
+                console.log(`Not enough bits to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct bits
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerBits(prev => prev - bitCost);
+            } else {
+                stateSetters.setEnemyBits(prev => prev - bitCost);
+            }
+
+            // Grant Armored
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'armored',
+                amount: 1
+            });
+
+            console.log(`${entity.card.name} paid ${bitCost} Bits: ${target.card.name} gains Armored.`);
+        }
+    },
+    'BitPaymentGrantVengeanceBlocked': {
+        name: 'BitPaymentGrantVengeanceBlocked',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target, entity) => target.owner === entity.owner && target.blocked,
+        execute: function (entity, effect, side, target) {
+            // Archon: 2 Bits ➔ Target friendly blocked entity gains 2 Vengeance
+            if (!target) {
+                console.log('No target selected for BitPaymentGrantVengeanceBlocked');
+                return;
+            }
+
+            const bitCost = effect.bitCost || 2;
+            const vengeanceAmount = effect.vengeanceAmount || 2;
+
+            // Check bits
+            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
+            if (bits < bitCost) {
+                console.log(`Not enough bits to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct bits
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerBits(prev => prev - bitCost);
+            } else {
+                stateSetters.setEnemyBits(prev => prev - bitCost);
+            }
+
+            // Grant Vengeance
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'Vengeance',
+                amount: vengeanceAmount
+            });
+
+            console.log(`${entity.card.name} paid ${bitCost} Bits: ${target.card.name} gains ${vengeanceAmount} Vengeance.`);
+        }
+    },
+    'BitActionActivateOfflineJAW': {
+        name: 'BitActionActivateOfflineJAW',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target, entity) => target.owner === entity.owner && !target.online && 
+            (target.card.subTypes?.includes('JAW') || target.card.subTypes?.includes('JAWbreaker')),
+        execute: function (entity, effect, side, target) {
+            // Reliquary: 3 Bits, Action ➔ Activate Target Offline JAW or JAWbreaker entity
+            if (!target) {
+                console.log('No target selected for BitActionActivateOfflineJAW');
+                return;
+            }
+
+            const bitCost = effect.bitCost || 3;
+            const actionCost = effect.actionCost || 1;
+
+            // Check resources
+            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+
+            if (bits < bitCost || actions < actionCost) {
+                console.log(`Not enough resources to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct resources
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerBits(prev => prev - bitCost);
+                stateSetters.setPlayerActions(prev => prev - actionCost);
+            } else {
+                stateSetters.setEnemyBits(prev => prev - bitCost);
+                stateSetters.setEnemyActions(prev => prev - actionCost);
+            }
+
+            // Activate the target
+            applyEffect(target.id, target.realm, side, {
+                type: 'setOnline',
+                value: true
+            });
+
+            console.log(`${entity.card.name}: Activated ${target.card.name}.`);
+        }
+    },
+    // Purple Cards - Triggered Effects
+    'TriggeredSacrificeGainBoostVengeance': {
+        name: 'TriggeredSacrificeGainBoostVengeance',
+        type: 'triggered',
+        triggers: ['entitySacrificed'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Demiurge: When an entity is sacrificed: +2 Boost, +2 Vengeance
+            if (eventData.side === side) {
+                const boostAmount = entity.card.abilities?.find(a => a.name === 'TriggeredSacrificeGainBoostVengeance')?.boostAmount || 2;
+                const vengeanceAmount = entity.card.abilities?.find(a => a.name === 'TriggeredSacrificeGainBoostVengeance')?.vengeanceAmount || 2;
+
+                // Apply Boost to self
+                applyBoost(entity, boostAmount, side);
+
+                // Apply Vengeance to self
+                applyEffect(entity.id, entity.realm, side, {
+                    type: 'status',
+                    status: 'Vengeance',
+                    amount: vengeanceAmount
+                });
+
+                console.log(`${entity.card.name}: Gained ${boostAmount} Boost and ${vengeanceAmount} Vengeance from sacrifice.`);
+            }
+        }
+    },
+    'DestinyGainFateAndWounds': {
+        name: 'DestinyGainFateAndWounds',
+        type: 'triggered',
+        triggers: ['destinyResolved'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Tyranny: Destiny 2: Gain 2 Fate and 2 Wounds
+            const destinyAmount = entity.card.abilities?.find(a => a.name === 'DestinyGainFateAndWounds')?.destinyAmount || 2;
+            const fateAmount = entity.card.abilities?.find(a => a.name === 'DestinyGainFateAndWounds')?.fateAmount || 2;
+            const woundAmount = entity.card.abilities?.find(a => a.name === 'DestinyGainFateAndWounds')?.woundAmount || 2;
+
+            // Check if destiny threshold met
+            if (eventData.side === side && eventData.destiny >= destinyAmount) {
+                // Gain Fate
+                if (side === 'PLAYER') {
+                    playerGainFate(fateAmount);
+                } else {
+                    enemyGainFate(fateAmount);
+                }
+
+                // Gain Wounds
+                if (side === 'PLAYER') {
+                    stateSetters.setPlayerWounds(prev => prev + woundAmount);
+                } else {
+                    stateSetters.setEnemyWounds(prev => prev + woundAmount);
+                }
+
+                console.log(`${entity.card.name} Destiny ${destinyAmount}: Gained ${fateAmount} Fate and ${woundAmount} Wounds.`);
+            }
+        }
+    },
+    'DominanceClashInflictWounds': {
+        name: 'DominanceClashInflictWounds',
+        type: 'triggered',
+        triggers: ['dominanceWon', 'clashResolved'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Baroness: Clash/ Dominance ➔ Inflict 3 Wounds
+            if (eventData.side === side) {
+                const woundAmount = entity.card.abilities?.find(a => a.name === 'DominanceClashInflictWounds')?.woundAmount || 3;
+                const targetSide = getOppositeSide(side);
+
+                // Inflict wounds to opponent
+                if (targetSide === 'PLAYER') {
+                    stateSetters.setPlayerWounds(prev => prev + woundAmount);
+                } else {
+                    stateSetters.setEnemyWounds(prev => prev + woundAmount);
+                }
+
+                console.log(`${entity.card.name} Dominance/Clash: Inflicted ${woundAmount} Wounds to ${targetSide}.`);
+            }
+        }
+    },
+    'ClashExhaustDiscardEnemyHeadSpace': {
+        name: 'ClashExhaustDiscardEnemyHeadSpace',
+        type: 'triggered',
+        triggers: ['clashResolved', 'entityExhausted'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // RATs: Clash/ Exhaust ➔ Discard 2 cards at random from enemy HeadSpace
+            if (eventData.side === side && (eventData.type === 'clash' || eventData.type === 'exhaust')) {
+                const discardAmount = entity.card.abilities?.find(a => a.name === 'ClashExhaustDiscardEnemyHeadSpace')?.discardAmount || 2;
+                const targetSide = getOppositeSide(side);
+
+                // Get enemy HeadSpace
+                const headSpace = targetSide === 'PLAYER' ? state.playerHeadSpace : state.enemyHeadSpace;
+
+                // Discard random cards
+                for (let i = 0; i < discardAmount && headSpace.length > 0; i++) {
+                    const randomIndex = Math.floor(Math.random() * headSpace.length);
+                    const discardedCard = headSpace[randomIndex];
+
+                    // Remove from HeadSpace and add to discard
+                    const newHeadSpace = headSpace.filter((_, idx) => idx !== randomIndex);
+                    if (targetSide === 'PLAYER') {
+                        stateSetters.setPlayerHeadSpace(newHeadSpace);
+                        stateSetters.setPlayerDiscard(prev => [...prev, discardedCard]);
+                    } else {
+                        stateSetters.setEnemyHeadSpace(newHeadSpace);
+                        stateSetters.setEnemyDiscard(prev => [...prev, discardedCard]);
+                    }
+                }
+
+                console.log(`${entity.card.name} ${eventData.type}: Discarded ${discardAmount} cards from ${targetSide} HeadSpace.`);
+            }
+        }
+    },
+    // Purple Cards - Aura Effects
+    'AuraFriendlyEntitiesBribe': {
+        name: 'AuraFriendlyEntitiesBribe',
+        type: 'static',
+        applyAbilityEffect: function (entity, gameState, side) {
+            // Merchant Guild: Online friendly entities have Bribe
+            const [realm] = getRealmAndSetter(entity.realm, side);
+
+            realm.people.forEach(friendlyEntity => {
+                if (friendlyEntity.online) {
+                    applyEffect(friendlyEntity.id, friendlyEntity.realm, side, {
+                        type: 'status',
+                        status: 'bribe',
+                        amount: 1
+                    });
+                }
+            });
+
+            console.log(`${entity.card.name} Aura: Friendly online entities have Bribe.`);
+        },
+        removeEffect: function (entity, gameState, side) {
+            // Remove Bribe from friendly entities
+            const [realm] = getRealmAndSetter(entity.realm, side);
+
+            realm.people.forEach(friendlyEntity => {
+                applyEffect(friendlyEntity.id, friendlyEntity.realm, side, {
+                    type: 'status',
+                    status: 'bribe',
+                    amount: -1
+                });
+            });
+
+            console.log(`${entity.card.name} Aura removed: Bribe removed from friendly entities.`);
+        }
+    },
+    // Purple Cards - Action Abilities
+    'ActionGrantVengeanceAndBoost': {
+        name: 'ActionGrantVengeanceAndBoost',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target, entity) => target.owner === entity.owner && target.online,
+        execute: function (entity, effect, side, target) {
+            // Lighthouse: Action ➔ Give a friendly Online entity Vengeance and 2 Boost
+            if (!target) {
+                console.log('No target selected for ActionGrantVengeanceAndBoost');
+                return;
+            }
+
+            const actionCost = effect.actionCost || 1;
+            const vengeanceAmount = effect.vengeanceAmount || 1;
+            const boostAmount = effect.boostAmount || 2;
+
+            // Check actions
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct actions
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerActions(prev => prev - actionCost);
+            } else {
+                stateSetters.setEnemyActions(prev => prev - actionCost);
+            }
+
+            // Grant Vengeance
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'Vengeance',
+                amount: vengeanceAmount
+            });
+
+            // Apply Boost
+            applyBoost(target, boostAmount, side);
+
+            console.log(`${entity.card.name} Action: ${target.card.name} gains ${vengeanceAmount} Vengeance and ${boostAmount} Boost.`);
+        }
+    },
+    'OncePerTurnActionGrantStatsAndFreeze': {
+        name: 'OncePerTurnActionGrantStatsAndFreeze',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target) => target.online,
+        execute: function (entity, effect, side, target) {
+            // Alchemy Lab: Once Per Turn: Action ➔ Target Online entity gains +2/+2 and 1 Freeze
+            if (!target) {
+                console.log('No target selected for OncePerTurnActionGrantStatsAndFreeze');
+                return;
+            }
+
+            // Check if already used this turn
+            if (entity.abilityUsedThisTurn) {
+                console.log(`${entity.card.name}'s ability already used this turn.`);
+                return;
+            }
+
+            const actionCost = effect.actionCost || 1;
+            const powerGain = effect.powerGain || 2;
+            const hpGain = effect.hpGain || 2;
+            const freezeAmount = effect.freezeAmount || 1;
+
+            // Check actions
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct actions
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerActions(prev => prev - actionCost);
+            } else {
+                stateSetters.setEnemyActions(prev => prev - actionCost);
+            }
+
+            // Apply stat gains
+            applyEffect(target.id, target.realm, side, {
+                type: 'stat',
+                field: 'power',
+                value: powerGain
+            });
+            applyEffect(target.id, target.realm, side, {
+                type: 'stat',
+                field: 'HP',
+                value: hpGain
+            });
+
+            // Apply Freeze
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'freeze',
+                amount: freezeAmount
+            });
+
+            // Mark as used this turn
+            entity.abilityUsedThisTurn = true;
+
+            console.log(`${entity.card.name}: ${target.card.name} gains +${powerGain}/+${hpGain} and Freeze ${freezeAmount}.`);
+        }
+    },
+    // Purple Cards - Landmark/Sym Triggered Effects
+    'DepartedDamageEnemyEntities': {
+        name: 'DepartedDamageEnemyEntities',
+        type: 'triggered',
+        triggers: ['landmarkDeparted'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Ancient Tomb: Departed ➔ Deal 2 damage to enemy entities
+            if (eventData.entityId === entity.id && eventData.side === side) {
+                const damageAmount = entity.card.abilities?.find(a => a.name === 'DepartedDamageEnemyEntities')?.damageAmount || 2;
+                const targetSide = getOppositeSide(side);
+
+                // Deal damage to all enemy entities in all realms
+                ['Solarium', 'Theater', 'Underpass', 'Grid'].forEach(realmName => {
+                    const realmKey = targetSide === 'PLAYER' ? `player${realmName}` : `enemy${realmName}`;
+                    const realm = state[realmKey];
+                    if (realm && realm.people) {
+                        realm.people.forEach(target => {
+                            handleDamage(realmName, target.id, damageAmount, targetSide);
+                        });
+                    }
+                });
+
+                console.log(`${entity.card.name} Departed: Dealt ${damageAmount} damage to all ${targetSide} entities.`);
+            }
+        }
+    },
+    'AscendSacrificeAndGainWounds': {
+        name: 'AscendSacrificeAndGainWounds',
+        type: 'triggered',
+        triggers: ['ascend'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Witch Hunt: Ascend ➔ Sacrifice and gain 2 Wounds
+            if (eventData.entityId === entity.id && eventData.side === side) {
+                const woundAmount = entity.card.abilities?.find(a => a.name === 'AscendSacrificeAndGainWounds')?.woundAmount || 2;
+
+                // Gain Wounds
+                if (side === 'PLAYER') {
+                    stateSetters.setPlayerWounds(prev => prev + woundAmount);
+                } else {
+                    stateSetters.setEnemyWounds(prev => prev + woundAmount);
+                }
+
+                // Sacrifice the landmark (destroy it)
+                handleDestroyedPlace(entity.realm, entity.id, side);
+
+                console.log(`${entity.card.name} Ascend: Gained ${woundAmount} Wounds and sacrificed.`);
+            }
+        }
+    },
+    'DevelopDealDamage': {
+        name: 'DevelopDealDamage',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target) => target.category === 'ENTITY',
+        execute: function (entity, effect, side, target) {
+            // Volcano: Develop ➔ Deal 1 damage to target entity
+            if (!target) {
+                console.log('Volcano requires a target entity');
+                return;
+            }
+
+            const damageAmount = effect.damageAmount || 1;
+
+            // Deal damage
+            handleDamage(target.realm, target.id, damageAmount, target.owner);
+
+            console.log(`${entity.card.name} Develop: Dealt ${damageAmount} damage to ${target.card.name}.`);
+        }
+    },
+    'InterfaceAscendInflictWounds': {
+        name: 'InterfaceAscendInflictWounds',
+        type: 'triggered',
+        triggers: ['successfulHack', 'ascend'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // True Self: Interface, Ascend ➔ Inflict 3 Wounds
+            if (eventData.side === side) {
+                const woundAmount = entity.card.abilities?.find(a => a.name === 'InterfaceAscendInflictWounds')?.woundAmount || 3;
+                const targetSide = getOppositeSide(side);
+
+                // Inflict wounds
+                if (targetSide === 'PLAYER') {
+                    stateSetters.setPlayerWounds(prev => prev + woundAmount);
+                } else {
+                    stateSetters.setEnemyWounds(prev => prev + woundAmount);
+                }
+
+                console.log(`${entity.card.name} ${eventData.type}: Inflicted ${woundAmount} Wounds to ${targetSide}.`);
+            }
+        }
+    },
+    // Purple Cards - Raider Effect
+    'RaiderDestroyOnlineEntity': {
+        name: 'RaiderDestroyOnlineEntity',
+        type: 'onPlay',
+        onPlay: function (entity, state, side, target) {
+            // Acceptable Losses: Raider: destroy target Online entity
+            if (!target) {
+                console.log('Acceptable Losses requires a target Online entity');
+                return;
+            }
+
+            if (!target.online) {
+                console.log('Acceptable Losses can only target Online entities');
+                return;
+            }
+
+            // Destroy the target entity
+            handleDeadCard(target.realm, target.id, target.owner);
+
+            console.log(`Acceptable Losses: Destroyed ${target.card.name}.`);
+        }
+    },
+    // Purple Cards - Search Pandora (Placeholder - needs UI)
+    'SearchPandoraDrawRitual': {
+        name: 'SearchPandoraDrawRitual',
+        type: 'triggered',
+        triggers: ['raiding'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Archivist: Raiding ➔ Search Pandora and draw a Ritual
+            if (eventData.side === side) {
+                console.log(`${entity.card.name} Raiding: Search Pandora for a Ritual - UI needed`);
+                // TODO: Implement deck search UI for Rituals
+                // This would open a dialog showing Rituals in Pandora, let player select one
+            }
+        }
+    },
+    'SearchPandoraDrawLocation': {
+        name: 'SearchPandoraDrawLocation',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            // Acolyte: Search Pandora and draw a Location
+            console.log(`${entity.card.name}: Search Pandora for a Location - UI needed`);
+            // TODO: Implement deck search UI for Locations
+        }
+    },
+    // Purple Cards - Manual Grant Override
+    'ManualGrantOverride': {
+        name: 'ManualGrantOverride',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target, entity) => target.owner === entity.owner && target.online,
+        execute: function (entity, effect, side, target) {
+            // Viceroy: Target friendly Online entity gains Override
+            if (!target) {
+                console.log('No target selected for ManualGrantOverride');
+                return;
+            }
+
+            // Grant Override
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'override',
+                amount: 1
+            });
+
+            console.log(`${entity.card.name}: ${target.card.name} gains Override.`);
+        }
+    },
+    // Purple Cards - Scheme Abilities
+    'SchemeSacrificeDrawAndGrantVengeance': {
+        name: 'SchemeSacrificeDrawAndGrantVengeance',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target, entity) => target.owner === entity.owner && target.online,
+        execute: function (entity, effect, side, target) {
+            // Apocrypha: Scheme 2: Sacrifice ➔ Draw 2 and give friendly Online entity 4 Vengeance
+            if (entity.scheming && !entity.schemeUnlocked) {
+                console.log(`${entity.card.name}'s Scheme ability is not yet unlocked.`);
+                return;
+            }
+            if (!target) {
+                console.log('No target selected for SchemeSacrificeDrawAndGrantVengeance');
+                return;
+            }
+
+            const ability = entity.card.abilities?.find(a => a.name === 'SchemeSacrificeDrawAndGrantVengeance');
+            const drawAmount = ability?.drawAmount || 2;
+            const vengeanceAmount = ability?.vengeanceAmount || 4;
+
+            // Grant Vengeance to the target before sacrificing self
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'Vengeance',
+                amount: vengeanceAmount
+            });
+
+            // Draw cards
+            if (side === 'PLAYER') {
+                playerDraw(drawAmount);
+            } else {
+                enemyDraw(drawAmount);
+            }
+
+            // Sacrifice self (SNIP cards live in the 'things' array)
+            handleDestroyedThing(entity.realm, entity.id, side);
+
+            console.log(`${entity.card.name} Scheme: Sacrificed, drew ${drawAmount}, gave ${target.card.name} ${vengeanceAmount} Vengeance.`);
+        }
+    },
+    'SchemeActionInflictWoundsResetDevelopments': {
+        name: 'SchemeActionInflictWoundsResetDevelopments',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            // Entropy: Scheme 3: Action ➔ Inflict 4 Wounds. Reset all Developments.
+            if (entity.scheming && !entity.schemeUnlocked) {
+                console.log(`${entity.card.name}'s Scheme ability is not yet unlocked.`);
+                return;
+            }
+
+            const ability = entity.card.abilities?.find(a => a.name === 'SchemeActionInflictWoundsResetDevelopments');
+            const actionCost = ability?.actionCost || 1;
+            const woundAmount = ability?.woundAmount || 4;
+
+            // Check and deduct the Action cost
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s Scheme ability.`);
+                return;
+            }
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerActions(prev => prev - actionCost);
+            } else {
+                stateSetters.setEnemyActions(prev => prev - actionCost);
+            }
+
+            // Inflict Wounds on the opponent
+            const targetSide = getOppositeSide(side);
+            if (targetSide === 'PLAYER') {
+                stateSetters.setPlayerWounds(prev => prev + woundAmount);
+            } else {
+                stateSetters.setEnemyWounds(prev => prev + woundAmount);
+            }
+
+            // Reset all Developments on SYM/LANDMARK cards in every realm (both sides)
+            const resetRealmDevelopments = (realm, setRealm) => {
+                if (!realm || !setRealm) return;
+                setRealm(prev => ({
+                    ...prev,
+                    places: (prev.places || []).map(c => 'development' in c ? { ...c, development: 0 } : c),
+                    things: (prev.things || []).map(c => 'development' in c ? { ...c, development: 0 } : c),
+                }));
+            };
+
+            ['Solarium', 'Theater', 'Underpass', 'Grid'].forEach(realmName => {
+                const [pRealm, pSetter] = getRealmAndSetter(realmName, 'PLAYER');
+                const [eRealm, eSetter] = getRealmAndSetter(realmName, 'ENEMY');
+                resetRealmDevelopments(pRealm, pSetter);
+                resetRealmDevelopments(eRealm, eSetter);
+            });
+
+            // Sacrifice self after use (SNIP lives in 'things')
+            handleDestroyedThing(entity.realm, entity.id, side);
+
+            console.log(`${entity.card.name} Scheme: Inflicted ${woundAmount} Wounds to ${targetSide} and reset all Developments.`);
+        }
+    },
     'Impostor': {
         name: 'Impostor',
         type: 'onPlay',
@@ -1844,6 +2750,143 @@ const abilitiesDefinitions = {
                 stateSetters.setEnemyLag && stateSetters.setEnemyLag(prev => prev + lag);
             }
             console.log(`${entity.card.name} entered play: inflicted ${overload} Overload and ${lag} Lag on ${targetSide}`);
+        },
+    },
+    'BoostSelf': {
+        name: 'BoostSelf',
+        type: 'manual',
+        cost: { bits: 1 },
+        execute: function (entity, effect, side) {
+            // Nova Kane: Pay 1 Bit ➔ Gain 1 Boost
+            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
+            const bitsSetter = side === 'PLAYER' ? stateSetters.setPlayerBits : stateSetters.setEnemyBits;
+            if (bits >= 1 && bitsSetter) {
+                bitsSetter(prev => prev - 1);
+                applyEffect(entity.id, entity.realm, side, {
+                    type: 'boost',
+                    amount: 1
+                });
+                console.log(`${entity.card.name}: Paid 1 bit for Boost 1`);
+            } else {
+                console.log(`${entity.card.name}: Not enough bits`);
+            }
+        },
+    },
+    'GainActionsOnHeadSpaceInterface': {
+        name: 'GainActionsOnHeadSpaceInterface',
+        type: 'triggered',
+        triggers: ['successfulHack'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (entity.scheming && !entity.schemeUnlocked) {
+                return;
+            }
+            if (eventData.side === side && eventData.targetType === 'HEADSPACE') {
+                if (!entity.abilityActivated) {
+                    const ability = entity.card.abilities.find(a => a.name === 'GainActionsOnHeadSpaceInterface');
+                    const amount = ability?.effect?.amount || 3;
+                    if (side === 'PLAYER') {
+                        stateSetters.setPlayerActions(prevActions => prevActions + amount);
+                    } else {
+                        stateSetters.setEnemyActions(prevActions => prevActions + amount);
+                    }
+                    console.log(`${entity.card.name} grants ${amount} Actions upon interfacing with HeadSpace.`);
+                    entity.abilityActivated = true;
+                }
+            }
+        },
+    },
+    'SylkWormAura': {
+        name: 'SylkWormAura',
+        type: 'triggered',
+        triggers: ['maintain', 'entityEntered', 'entityDied'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // SylkWorm: Online enemy entities gain Freeze 2
+            if (!entity.online) return;
+
+            const enemySide = getOppositeSide(side);
+            const enemyRealms = ['Solarium', 'Theater', 'Underpass', 'Grid'].map(name => {
+                return enemySide === 'PLAYER' ? state[`player${name}`] : state[`enemy${name}`];
+            });
+
+            enemyRealms.forEach(realm => {
+                if (!realm || !realm.people) return;
+                realm.people.forEach(target => {
+                    if (target.online) {
+                        applyEffect(target.id, target.realm, enemySide, {
+                            type: 'status',
+                            status: 'freeze',
+                            amount: 2
+                        });
+                    }
+                });
+            });
+
+            console.log(`${entity.card.name} aura: Enemy online entities gain Freeze 2`);
+        },
+    },
+    'DominanceInflictBurden': {
+        name: 'DominanceInflictBurden',
+        type: 'triggered',
+        triggers: ['dominationResolved'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Dread: Dominance ➔ Inflict 3 Burden on the opponent
+            if (eventData.winner === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'DominanceInflictBurden');
+                const amount = ability?.amount || 3;
+                const enemySide = getOppositeSide(side);
+
+                if (enemySide === 'PLAYER') {
+                    playerGainBurden(amount);
+                } else {
+                    enemyGainBurden(amount);
+                }
+                console.log(`${entity.card.name} Dominance: inflicted ${amount} Burden on ${enemySide}`);
+            }
+        },
+    },
+    'SurrenderGainBurden': {
+        name: 'SurrenderGainBurden',
+        type: 'triggered',
+        triggers: ['dominanceLost'], // Surrender = lose dominance
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Dread: Surrender ➔ Gain 3 Burden
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'SurrenderGainBurden');
+                const amount = ability?.amount || 3;
+
+                if (side === 'PLAYER') {
+                    playerGainBurden(amount);
+                } else {
+                    enemyGainBurden(amount);
+                }
+                console.log(`${entity.card.name} Surrender: gained ${amount} Burden`);
+            }
+        },
+    },
+    'BoostAndPounceTargetAlly': {
+        name: 'BoostAndPounceTargetAlly',
+        type: 'manual',
+        cost: { exhaust: true },
+        requiresTarget: true,
+        targetType: 'entity',
+        targetSide: 'PLAYER',
+        targetFilter: (target) => target?.online,
+        execute: function (entity, effect, side, target) {
+            // Pharmacist: Exhaust ➔ Target friendly Online entity gains 2 Boost and Pounce
+            if (entity.exhausted) {
+                console.log(`${entity.card.name} is already exhausted.`);
+                return;
+            }
+            if (target && target.online) {
+                applyEffect(target.id, target.realm, side, {
+                    type: 'boost',
+                    amount: 2
+                });
+                target.hasPounce = true;
+                updateEntityInRealm(target, side);
+                exhaustEntity(entity, side);
+                console.log(`${entity.card.name}: Exhausted to give target friendly Online entity +2 Boost and Pounce`);
+            }
         },
     },
     'GainAshAndInflictOverload': {

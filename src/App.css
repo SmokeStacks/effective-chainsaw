@@ -81,10 +81,9 @@
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
-  align-items: center;
-  margin-top: 5px;
+  align-items: stretch;
   width: 100%;
-  height: 150px; /* Fixed height for hand */
+  height: 100%;
   overflow-x: auto; /* Allow horizontal scrolling */
   padding: 10px 5px; /* Add padding for better spacing */
   scrollbar-width: thin; /* Thinner scrollbar for Firefox */
@@ -134,11 +133,11 @@
 }
 
 .neutral-border.timer {
-  background: #242323; /* Added #23d620 background */
+  background: #444;
 }
 
 .neutral-border {
-  border-color: #242323;
+  border-color: #888;
 }
 
 .orange-border.timer {
@@ -258,14 +257,14 @@
   border-top: 1px solid #333;
   background: #000;
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .player-entities-panel {
   display: flex;
   flex-direction: row;
   height: 100%;
-  align-items: flex-start;
+  align-items: stretch;
   padding-top: 4px;
 }
 
@@ -726,37 +725,36 @@ p {
   overflow: hidden;
 }
 
-/* Row 1: enemy entities — flex weight 3 (~30% of realm-board) */
-.realm-row--enemy-entities {
-  flex: 3;
-  border-bottom: 1px solid #333;
+/* Enemy entities top panel — above the board, mirrors the bottom panel */
+.enemy-entities-panel {
+  flex: 0 0 auto;
+  height: 28vh;
+  min-height: 120px;
+  border-bottom: 2px solid #f44;
   overflow-x: auto;
   overflow-y: hidden;
   display: flex;
   align-items: stretch;
-  min-height: 0;
+  background: rgba(255, 68, 68, 0.04);
 }
 
-.realm-row--enemy-entities .realm-creatures {
+.enemy-entities-panel .realm-creatures {
   display: flex;
   flex-direction: row;
   align-items: stretch;
   height: 100%;
 }
 
-/* Row 2: places & things — single shared row, cards align top (enemy) or bottom (player) */
+/* Places & things — single row fills the fixed board-main height.
+   Cards are 90% tall: enemy anchored to top, player anchored to bottom. */
 .realm-row--stuff {
-  flex: 4;
+  flex: 1;
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  border-top: 1px solid #333;
-  border-bottom: 1px solid #333;
   overflow-x: auto;
   overflow-y: hidden;
   min-height: 0;
-  padding: 2px;
-  gap: 2px;
 }
 
 /* Stuff row wrappers fill the row; the cards inside keep their canonical size */
@@ -764,7 +762,15 @@ p {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  height: 100%;
+  height: 90%;
+}
+
+.realm-row--stuff .stuff-enemy-card {
+  align-self: flex-start;
+}
+
+.realm-row--stuff .stuff-player-card {
+  align-self: flex-end;
 }
 
 /* Cards are all one size now, so the middle row offsets them by alignment
@@ -877,8 +883,9 @@ p {
 
 /* ── Main board area ─────────────────────────────────────────────── */
 .board-main {
-  flex: 1;
-  height: 0;
+  flex: 0 0 auto;
+  height: 32vh;
+  min-height: 150px;
   display: flex;
   overflow: hidden;
   position: relative;

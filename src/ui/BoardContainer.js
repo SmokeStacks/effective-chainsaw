@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startTurn, endTurn, playerGainBits, enemyLoseBits, enemyPerformAction, resolveRitual, playerDraft, removeCardFromHand, handleBoostButton, handleDevelopButton, handlePlayerMine } from './helpers/core';
+import { startTurn, endTurn, playerGainBits, playerLoseBits, enemyLoseBits, enemyPerformAction, consumePlayerAction, resolveRitual, playerDraft, removeCardFromHand, handleBoostButton, handleDevelopButton, handlePlayerMine } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { state, stateSetters, initializeSetters, currentPlayer, enemyActions } from './helpers/state';
@@ -12,6 +12,9 @@ import { calculateSoulsAvailable, rezCostFor } from './helpers/activation';
 import Gameboard from './Gameboard';
 import { draw, payRezCost } from './helpers/player';
 import { canPlaceInRealm } from './helpers/placement';
+import DeckVerification from './components/DeckVerification';
+import ProperBootstrapPhase from './components/ProperBootstrapPhase';
+import MulliganPhase from './components/MulliganPhase';
 
 // Factory for the 10 realm setters (player & enemy x 5 realms each). Each
 // returned setter:
@@ -100,6 +103,15 @@ export default function BoardContainer() {
         recruiterCount: 0
     });
 
+    // Deck verification state
+    const [showDeckVerification, setShowDeckVerification] = useState(false);
+    
+    // Bootstrap phase state
+    const [showBootstrap, setShowBootstrap] = useState(false);
+    
+    // Mulligan phase state
+    const [showMulligan, setShowMulligan] = useState(false);
+
     // UI state
     const [uiState, setUiState] = useState({
         trashPromptVisible: false,
@@ -137,15 +149,16 @@ export default function BoardContainer() {
     useEffect(() => {
         console.log('Initializing game state...');
 
-        // Create libraries
-        console.log('Creating libraries...');
-        const playerLib = createLibrary();
-        const enemyLib = createEnemyLibrary();
-
+        // Create libraries and starting hands using new setup system
+        console.log('Creating libraries and starting hands...');
+        const setupResult = createLibrary();
+        
         // Setting up libraries and initial state
-        console.log('Setting up libraries and initial state...');
-        console.log('Initial playerLibrary:', playerLib);
-        console.log('Initial enemyLibrary:', enemyLib);
+        console.log('Setup result:', setupResult);
+        console.log('Player hand:', setupResult.playerHand);
+        console.log('Player library:', setupResult.playerLibrary);
+        console.log('Enemy hand:', setupResult.enemyHand);
+        console.log('Enemy library:', setupResult.enemyLibrary);
 
         // Initialize all state setters in one place to avoid conflicts
         console.log('[BoardContainer useEffect] Running to initialize all setters.');
@@ -478,34 +491,39 @@ export default function BoardContainer() {
                 state.enemyLostDominance = value;
                 setGameState(prev => ({ ...prev, enemyLostDominance: value }));
             },
+            setPlayerFirstAttack: (value) => { state.playerFirstAttack = value; },
+            setEnemyFirstAttack: (value) => { state.enemyFirstAttack = value; },
+            endTurn,
         });
 
-        // Initialize state
-        state.playerLibrary = playerLib;
-        state.enemyLibrary = enemyLib;
-        state.playerHand = [];
+        // Initialize state with only libraries (hands will be dealt after bootstrap)
+        state.playerLibrary = setupResult.playerLibrary;
+        state.enemyLibrary = setupResult.enemyLibrary;
+        state.playerHand = []; // Start with empty hands
         state.enemyHand = [];
         
         // Update React state
-        setPlayerLibrary(playerLib);
-        setEnemyLibrary(enemyLib);
-        setPlayerHand([]);
+        setPlayerLibrary(setupResult.playerLibrary);
+        setEnemyLibrary(setupResult.enemyLibrary);
+        setPlayerHand([]); // Start with empty hands
         setEnemyHand([]);
 
         // Set game state
         setGameState(prev => ({
             ...prev,
-            mode: 'MULLIGAN',
+            mode: 'BOOTSTRAP',
             currentPlayer: 'PLAYER',
         }));
 
-        // Draw initial hands
-        console.log('Drawing initial hands...');
-        console.log('State before draw:', state);
-        draw(5);
-        enemyDraw(5);
+        console.log('Libraries initialized, hands will be dealt after bootstrap...');
+        
+        // Show deck verification first
+        setTimeout(() => {
+            console.log('Triggering deck verification');
+            setShowDeckVerification(true);
+        }, 1000);
 
-        console.log('Libraries initialized, ready for drawing initial hands...');
+        console.log('New setup system initialized, waiting for bootstrap phase...');
     }, []);
 
     // Set up UI state reset listener
@@ -618,7 +636,7 @@ export default function BoardContainer() {
     // including enemyActions in deps would fire this multiple times per turn.
     useEffect(() => {
         if (gameState.currentPlayer !== 'ENEMY') return;
-        if (gameState.mode !== 'NORMAL') return;
+        if (gameState.mode !== 'NORMAL' && gameState.mode !== 'PLAY') return;
         console.log('Dispatching enemy turn start');
         // Small delay to let startTurn settle before checking actions
         const t = setTimeout(() => {
@@ -985,23 +1003,22 @@ export default function BoardContainer() {
         // Reset attack mode
         state.attackMode = 'NONE';
         
-        // Check if the card can be developed
+        // Any facedown SYM or SNIP can be advanced (Action + 1 Bit paid up-front).
+        // Only SYMs/Landmarks gain Development and only Scheme cards gain Scheme;
+        // a plain SNIP advances with no benefit (avoids leaking facedown identity).
+        const category = cardEntity.card.category;
         if (
             cardEntity.owner !== 'PLAYER' ||
-            !(
-                cardEntity.card.category === 'SYM' ||
-                cardEntity.card.category === 'LANDMARK' ||
-                cardEntity.scheming
-            )
+            !(category === 'SYM' || category === 'SNIP' || category === 'LANDMARK')
         ) {
-            console.log('This card cannot be developed.');
+            console.log('This card cannot be advanced.');
             return;
         }
         
         let updatedCard = { ...cardEntity };
         
         // Increase Development or Scheme points
-        if (cardEntity.card.category === 'SYM' || cardEntity.card.category === 'LANDMARK') {
+        if (category === 'SYM' || category === 'LANDMARK') {
             const newDevelopment = (cardEntity.development || 0) + 1;
             
             // Check for Ascension
@@ -1027,6 +1044,9 @@ export default function BoardContainer() {
                 // Update scheme
                 updatedCard.scheme = newScheme;
             }
+        } else {
+            // Plain SNIP: advanced with no benefit (cost already paid).
+            console.log(`${cardEntity.card.name} was advanced, but gains no benefit.`);
         }
         
         // Update the realm
@@ -1081,9 +1101,10 @@ export default function BoardContainer() {
             phys: card.phys || false,
         };
 
-        // Focus filter: a card must match the currently-active focus to be
-        // playable this turn.
-        if (!cardFocusAttrs[focus]) {
+        // Focus filter: only ENTITY cards need an affinity match.
+        // Landmarks, Locations, SYMs, SNIPs, and Rituals are focus-free.
+        const requiresFocus = card.category === 'ENTITY';
+        if (requiresFocus && !cardFocusAttrs[focus]) {
             console.log('Focus does not match (focus=', focus, ', card attrs=', cardFocusAttrs, ')');
             return;
         }
@@ -1161,12 +1182,16 @@ export default function BoardContainer() {
             [decision.array]: [...(prevRealm[decision.array] || []), updatedCard],
         }));
 
-        // Resources are deducted at activation time, not at placement time.
+        // LOCATIONs come online immediately and pay their rezCost now.
+        // LANDMARKs and SYMs are free. ENTITYs and SNIPs pay at activation time.
+        if (card.category === 'LOCATION' && card.rezCost > 0) {
+            playerLoseBits(card.rezCost);
+        }
         removeCardFromHand(selectedCard);
         setSelectedCard(null);
         setDraftSelected(false);
         setTargetType('none');
-        setCurrentPlayer('ENEMY');
+        consumePlayerAction();
     };
 
     const handleBattleCardSelect = useCallback((card) => {
@@ -1362,6 +1387,82 @@ export default function BoardContainer() {
                 selectedInHand={gameState.selectedInHand}
                 onCancelSelection={handleCancel}
             />
+            
+            {/* Only show one phase at a time */}
+            {showDeckVerification && (
+                <DeckVerification 
+                    onConfirm={() => {
+                        console.log('Deck verification confirmed, starting bootstrap...');
+                        setShowDeckVerification(false);
+                        setShowBootstrap(true);
+                    }}
+                />
+            )}
+            
+            {showBootstrap && (
+                <ProperBootstrapPhase 
+                    onComplete={({ playerCard, playerRealm, enemyCard, enemyRealm }) => {
+                        console.log('Bootstrap phase completed, dealing starting hands...');
+
+                        // Place player bootstrap card into the correct realm (people array)
+                        const playerRealmSetters = {
+                            Solarium: setPlayerSolarium,
+                            Theater: setPlayerTheater,
+                            Underpass: setPlayerUnderpass,
+                            Grid: setPlayerGrid,
+                        };
+                        const enemyRealmSetters = {
+                            Solarium: stateSetters.setEnemySolarium,
+                            Theater: stateSetters.setEnemyTheater,
+                            Underpass: stateSetters.setEnemyUnderpass,
+                            Grid: stateSetters.setEnemyGrid,
+                        };
+                        if (playerRealmSetters[playerRealm]) {
+                            playerRealmSetters[playerRealm](prev => ({
+                                ...prev,
+                                people: [...(prev.people || []), playerCard],
+                            }));
+                        }
+                        if (enemyRealmSetters[enemyRealm]) {
+                            enemyRealmSetters[enemyRealm](prev => ({
+                                ...prev,
+                                people: [...(prev.people || []), enemyCard],
+                            }));
+                        }
+
+                        // Deal starting hands immediately
+                        const playerHand = state.playerLibrary.slice(0, 4);
+                        const enemyHand = state.enemyLibrary.slice(0, 4);
+                        const newPlayerLibrary = state.playerLibrary.slice(4);
+                        const newEnemyLibrary = state.enemyLibrary.slice(4);
+                        
+                        state.playerHand = playerHand;
+                        state.enemyHand = enemyHand;
+                        state.playerLibrary = newPlayerLibrary;
+                        state.enemyLibrary = newEnemyLibrary;
+                        
+                        setPlayerHand(playerHand);
+                        setEnemyHand(enemyHand);
+                        setPlayerLibrary(newPlayerLibrary);
+                        setEnemyLibrary(newEnemyLibrary);
+                        
+                        console.log('Starting hands dealt - Player:', playerHand.length, 'Enemy:', enemyHand.length);
+                        
+                        setShowBootstrap(false);
+                        setGameState(prev => ({ ...prev, mode: 'MULLIGAN' }));
+                        setShowMulligan(true);
+                    }}
+                />
+            )}
+            
+            {showMulligan && !showBootstrap && (
+                <MulliganPhase 
+                    onComplete={() => {
+                        setShowMulligan(false);
+                        setGameState(prev => ({ ...prev, mode: 'PLAY' }));
+                    }}
+                />
+            )}
         </div>
     );
 }

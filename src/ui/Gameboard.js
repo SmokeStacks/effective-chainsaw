@@ -20,6 +20,25 @@ class Gameboard extends Component {
         };
     }
 
+    componentDidUpdate(prevProps) {
+        const { showHand, currentRealmIndex } = this.state;
+        if (!showHand) return;
+        const realmName = REALM_NAMES[currentRealmIndex];
+        const propKeys = {
+            solarium: 'playerSolarium',
+            theater: 'playerTheater',
+            underpass: 'playerUnderpass',
+            grid: 'playerGrid',
+            elysium: 'playerElysium',
+        };
+        const propKey = propKeys[realmName];
+        const prevCount = ((prevProps[propKey] || {}).people || []).length;
+        const currCount = ((this.props[propKey] || {}).people || []).length;
+        if (currCount > prevCount) {
+            this.setState({ showHand: false });
+        }
+    }
+
     render() {
         const {
             playerOneHand,
@@ -108,6 +127,7 @@ class Gameboard extends Component {
         const currentRealmName = REALM_NAMES[currentRealmIndex];
         const CurrentRealmComponent = realmComponents[currentRealmIndex];
         const currentPlayerEntities = (playerRealmsState[currentRealmName] || {}).people || [];
+        const currentEnemyEntities = (enemyRealmsState[currentRealmName] || {}).people || [];
 
         const inTargetingMode = !!(selectedInHand && selectedCard);
 
@@ -139,15 +159,33 @@ class Gameboard extends Component {
                 <div className="left-side">
                     {/* Realm tab navigation */}
                     <div className="realm-tabs">
-                        {REALM_LABELS.map((label, i) => (
+                        {REALM_LABELS.map((label, i) => {
+                            const realmName = REALM_NAMES[i];
+                            const eRealm = enemyRealmsState[realmName] || {};
+                            const pRealm = playerRealmsState[realmName] || {};
+                            const enemyCount = (eRealm.people || []).length + (eRealm.places || []).length + (eRealm.things || []).length;
+                            const playerCount = (pRealm.people || []).length + (pRealm.places || []).length + (pRealm.things || []).length;
+                            return (
                             <button
                                 key={i}
                                 className={`realm-tab${currentRealmIndex === i ? ' realm-tab--active' : ''}`}
                                 onClick={() => this.setState({ currentRealmIndex: i })}
                             >
+                                {enemyCount > 0 && <span style={{ color: '#f44', marginRight: '4px', fontWeight: 'bold' }}>{enemyCount}</span>}
                                 {label}
+                                {playerCount > 0 && <span style={{ marginLeft: '4px', fontWeight: 'bold' }}>{playerCount}</span>}
                             </button>
-                        ))}
+                            );
+                        })}
+                    </div>
+
+                    {/* Enemy entities top panel */}
+                    <div className="enemy-entities-panel">
+                        <RealmCreatures
+                            cards={currentEnemyEntities}
+                            onCardSelect={onRealmCardSelect}
+                            isPlayerCard={false}
+                        />
                     </div>
 
                     {/* Single realm display */}

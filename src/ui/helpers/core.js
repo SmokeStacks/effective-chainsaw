@@ -172,6 +172,18 @@ export function playerLoseActions(amount) {
     stateSetters.setPlayerActions(Math.max(0, state.playerActions - amount));
 }
 
+// Spend one player action. If actions reach 0, automatically end the player's turn.
+export function consumePlayerAction() {
+    const remaining = Math.max(0, state.playerActions - 1);
+    stateSetters.setPlayerActions(remaining);
+    // Turns alternate after every action. Yield to enemy for ONE action if they have any,
+    // but only once the player's own actions are exhausted.
+    // When both reach 0, the domination useEffect in BoardContainer fires endTurn().
+    if (remaining === 0 && state.enemyActions > 0) {
+        endPlayerTurn();
+    }
+}
+
 export function enemyGainActions(amount) {
     stateSetters.setEnemyActions(prevActions => prevActions + amount);
 }
@@ -203,6 +215,8 @@ export function endPlayerTurn() {
     stateSetters.setTargetType('none');
     stateSetters.setPendingRitual(null);
     stateSetters.setTargetSelection({ enabled: false });
+    stateSetters.setMode('NORMAL');
+    state.attackMode = 'NONE';
     stateSetters.setCurrentPlayer('ENEMY');
 }
 
@@ -380,9 +394,7 @@ export const handleRealmSelect = (realmName) => {
             payRezCost(selectedCard.card);
         }
 
-        console.log('Actions before decrement:', playerActions);
-        stateSetters.setPlayerActions(Math.max(0, state.playerActions - 1)); // Use stateSetters
-        console.log('Actions after decrement:', playerActions);
+        consumePlayerAction();
 
         // Remove the card from the player's hand
         if (draftSelected) {
@@ -402,8 +414,6 @@ export const handleRealmSelect = (realmName) => {
         stateSetters.setSelectedCard(null);
         stateSetters.setDraftSelected(false);
         stateSetters.setTargetType('none');
-        stateSetters.setCurrentPlayer('ENEMY');
-
     } else {
         // Cannot place the card in this realm
         console.log('Cannot place the card in this realm.');
@@ -432,8 +442,11 @@ export const handleRealmSelect = (realmName) => {
  * @returns {void}
  */
 export function resolveRitual(entity, target = null) {
-    // Also spends the action.
     removeCardFromHand(entity);
+
+    // A Ritual costs an action but does not end the turn (see comment below),
+    // so decrement directly rather than going through consumePlayerAction.
+    stateSetters.setPlayerActions(Math.max(0, state.playerActions - 1));
 
     // The ritual is resolving now, so its Activation cost is due.
     payRezCost(entity.card);
@@ -482,9 +495,6 @@ export function removeCardFromHand(card) {
     // Use stateSetters.setPlayerHand to update the state
     stateSetters.setPlayerHand(newHand);
     console.log('Called stateSetters.setPlayerHand with:', newHand);
-    
-    // Deduct an action point
-    stateSetters.setPlayerActions(Math.max(0, state.playerActions - 1));
 }
 
 export function triggerRitualAbilities(entity, target, side) {
@@ -1039,11 +1049,10 @@ export const handleBoostButton = () => {
         console.log('Not enough resources to boost.');
         return;
     }
-    stateSetters.setPlayerActions(prev => prev - 1);
     stateSetters.setPlayerBits(prev => prev - 1);
     stateSetters.setMode('BOOST');
-    // Directly set the attackMode property in the state object
     state.attackMode = 'BOOST';
+    consumePlayerAction();
     console.log('Select a card to boost.');
 }
 
@@ -1052,11 +1061,10 @@ export const handleDevelopButton = () => {
         console.log('Not enough resources to develop a card.');
         return;
     }
-    stateSetters.setPlayerActions(prev => prev - 1);
     stateSetters.setPlayerBits(prev => prev - 1);
     stateSetters.setMode('DEVELOP');
-    // Directly set the attackMode property in the state object
     state.attackMode = 'DEVELOP';
+    consumePlayerAction();
     console.log('Select a card to develop.');
 }
 
@@ -1129,14 +1137,9 @@ export function handlePlayerMine() {
         return false;
     }
 
-    playerGainBits(1); // From game.js, calls stateSetters.setPlayerBits
-    stateSetters.setPlayerActions(prev => prev - 1); // Use stateSetters directly
-    
+    playerGainBits(1);
     eventManager.publish('actionTaken', { action: 'PHISH', cost: 1 });
-    
-    // Decision point: Should mining always end the turn?
-    // If yes, uncomment the next line:
-    // stateSetters.setCurrentPlayer('ENEMY'); // optional, use stateSetters directly if uncommented
+    consumePlayerAction();
     console.log('[Core handlePlayerMine] Phish action performed.');
     return true;
 }
@@ -1239,78 +1242,57 @@ function processEndOfTurnEffects() {
 export async function enemyPerformAction() {
     console.log('Enemy perform action:', {
         enemyActions: state.enemyActions,
-        enemyHandSize: state.enemyHand.length,
-        enemyHandContents: state.enemyHand,
+        playerActions: state.playerActions,
         currentPlayer: state.currentPlayer
     });
-    
-    // Debug the state to find discrepancies
-    console.log('State debug - enemyHand:', {
-        stateEnemyHand: state.enemyHand,
-        stateEnemyHandLength: state.enemyHand.length,
-        localEnemyHand: enemyHand,
-        localEnemyHandLength: enemyHand.length
-    });
+
+    // Helper: called after enemy spends one action.
+    // Returns to player if they have actions left; otherwise chains another
+    // enemy action. Domination useEffect handles both reaching 0.
+    function afterEnemyAction() {
+        if (state.playerActions > 0) {
+            stateSetters.setMode('NORMAL');
+            stateSetters.setCurrentPlayer('PLAYER');
+        } else if (state.enemyActions > 0) {
+            setTimeout(() => enemyPerformAction(), 1000);
+        }
+        // Both 0 → domination useEffect fires endTurn()
+    }
     
     try {
-        if (state.enemyActions > 0) {
-            // First try to rez cards
-            await performEnemyRez();
-            
-            // Then try to plan an attack
-            const attackPlanned = await Promise.resolve(planEnemyAttack());
-            
-            if (attackPlanned) {
-                console.log('Enemy planned an attack, consuming 1 action');
-                stateSetters.setEnemyActions(prev => prev - 1);
-                
-                // Continue the enemy turn without passing back to player
-                // This allows the enemy to use remaining actions
-                if (state.enemyActions > 0) {
-                    setTimeout(() => enemyPerformAction(), 1000); // Schedule next enemy action
-                } else {
-                    console.log('Enemy has no more actions, ending turn');
-                    stateSetters.setCurrentPlayer('PLAYER');
-                }
-                return;
-            } 
-            
-            // If no attack was planned, try to play a card
-            if (state.enemyHand.length > 0) {
-                console.log('Enemy attempting to play a card from hand');
-                enemyPlayCard();
-                stateSetters.setEnemyActions(prev => prev - 1);
-                
-                // Continue the enemy turn if there are actions left
-                if (state.enemyActions > 0) {
-                    setTimeout(() => enemyPerformAction(), 1000); // Schedule next enemy action
-                } else {
-                    console.log('Enemy has no more actions, ending turn');
-                    stateSetters.setCurrentPlayer('PLAYER');
-                }
-            } else {
-                // If no cards in hand, draw a card
-                console.log('Enemy has no cards in hand, drawing a card');
-                enemyDraw(1);
-                stateSetters.setEnemyActions(prev => prev - 1);
-                
-                // Continue the enemy turn if there are actions left
-                if (state.enemyActions > 0) {
-                    setTimeout(() => enemyPerformAction(), 1000); // Schedule next enemy action
-                } else {
-                    console.log('Enemy has no more actions, ending turn');
-                    stateSetters.setCurrentPlayer('PLAYER');
-                }
-            }
-        } else {
-            // No actions left, end turn
-            console.log('Enemy has no actions, ending turn');
-            stateSetters.setCurrentPlayer('PLAYER');
+        if (state.enemyActions <= 0) {
+            afterEnemyAction();
+            return;
         }
+
+        // Rez (no action cost)
+        await performEnemyRez();
+
+        // Try to plan an attack
+        const attackPlanned = await Promise.resolve(planEnemyAttack());
+        if (attackPlanned) {
+            console.log('Enemy planned an attack, consuming 1 action');
+            stateSetters.setEnemyActions(prev => prev - 1);
+            afterEnemyAction();
+            return;
+        }
+
+        // Try to play a card
+        if (state.enemyHand.length > 0) {
+            console.log('Enemy playing a card from hand');
+            enemyPlayCard();
+            stateSetters.setEnemyActions(prev => prev - 1);
+        } else {
+            // Draw as last resort
+            console.log('Enemy has no cards in hand, drawing');
+            enemyDraw(1);
+            stateSetters.setEnemyActions(prev => prev - 1);
+        }
+
+        afterEnemyAction();
     } catch (error) {
         console.error('Error in enemyPerformAction:', error);
-        // Make sure we always pass the turn to the player in case of an error
-        stateSetters.setCurrentPlayer('PLAYER');
+        afterEnemyAction();
     }
 }
 

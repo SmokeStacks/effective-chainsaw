@@ -52,7 +52,13 @@ import ignite from "../images/ignite.png";
 import losses from "../images/losses.png"; // Acceptable Losses
 import merchant from "../images/merchant.png";
 import mobrule from "../images/mobrule.png";
+import mortician from "../images/mortician.png";
+import lighthouse from "../images/lighthouse.png";
+import reliquary from "../images/reliquary.png";
+import entropy from "../images/entropy.png";
+import decree from "../images/decree.png"; // Royal Decree
 import oracle from "../images/oracle.png";
+import deaddrop from "../images/deaddrop.png";
 import poltergeist from "../images/poltergeist.png";
 import prophet from "../images/prophet.png"; // False Prophet
 import pyromancer from "../images/pyromancer.png";
@@ -84,7 +90,7 @@ import silkworm from "../images/silkworm.png";
 import dread from "../images/dread.png";
 import exploit from "../images/exploit.png";
 import gootooth from "../images/gootooth.png";
-import mousebyte from "../images/mouse.png";
+import mousebyte from "../images/mouseByte.png";
 import operator from "../images/operator.png";
 import chronomancer from "../images/chronomancer.png";
 import architect from "../images/architect.png";
@@ -187,14 +193,19 @@ export const imgObj = {
   Coronation: coronation,
   //
 
+  "Dead Drop": deaddrop,
+
   Dryad: dryad,
   Viceroy: viceroy,
   Sarcophagus: sarcophagus,
   Sovereign: sovereign,
   Gladiator: gladiator,
   Archeologist: archeologist,
+  Archivist: archeologist, // Archivist is the rename of Archeologist
   "Exiled Empress": empress,
+  Baroness: empress, // Baroness is the rename of Exiled Empress
   Oracle: oracle,
+  Mortician: mortician,
   "False Prophet": prophet,
   Demiurge: demiurge,
   Acolyte: acolyte,
@@ -202,20 +213,26 @@ export const imgObj = {
   Soothsayer: soothsayer,
   Poltergeist: poltergeist,
   Merchant: merchant,
+  "Merchant Guild": merchant,
   Automaton: automaton,
   Archon: archon,
   Technopagan: technopagan,
   RATs: rats,
   Tyranny: tyranny,
+  Lighthouse: lighthouse,
+  Reliquary: reliquary,
   "Mob Rule": mobrule,
   "Alchemy Lab": alchemy,
   Apocrypha: apocrypha,
+  Entropy: entropy,
   Cryptex: cryptex,
   Crystalize: crystalize,
   Tithing: tithing,
   "Acceptable Losses": losses,
   Seance: seance,
   Ignite: ignite,
+  Ignition: ignite,
+  "Royal Decree": decree,
   "True Self": trueself,
   "Ancient Tomb": tomb,
   "Witch Hunt": witch,

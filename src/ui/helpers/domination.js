@@ -64,11 +64,9 @@ export async function handleDominationPhase() {
         // Publish the dominationResolved event
         eventManager.publish('dominationResolved', { winner, loser });
         console.log('dominationResolved')
-        // Proceed to end the turn
-        stateSetters.endTurn();
+        // startTurn() is chained by the caller (endTurn) via .then()
     } else {
-        // If it's before turn 2, just end the turn
-        stateSetters.endTurn();
+        // Before turn 2 — startTurn() is chained by the caller via .then()
     }
 }
 
