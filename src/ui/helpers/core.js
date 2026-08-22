@@ -48,6 +48,7 @@ import { draftList } from '../../systemDecks/draft';
 // stale-destructuring bug the local implementation had.
 import { draw as playerDraw, payRezCost } from './player';
 import { rezCostFor } from './activation';
+import { healRegeneratingEntities } from './combatKeywords';
 
 // Re-export resource management functions
 export {
@@ -105,13 +106,24 @@ const {
 // This prevents stale references and ensures we always use the most up-to-date setters
 
 // Export functions
-export function adjustEntityPowerExternal(entity, side) {
+// `isAttacking` distinguishes the attacker's power calculation from the
+// defender's, so Aggro/Aggressive (which only apply while attacking, and for
+// Aggressive also penalize while defending) can be scored correctly.
+export function adjustEntityPowerExternal(entity, side, isAttacking = false) {
     if (!entity) return 0;
     let power = entity.power || 0;
     
     // Apply any external modifiers
     if (entity.powerBoost) power += entity.powerBoost;
     if (entity.powerPenalty) power -= entity.powerPenalty;
+
+    // Aggro: +1 Power while attacking.
+    if (entity.aggro > 0 && isAttacking) power += 1;
+
+    // Aggressive: +2 Power while attacking, -1 Power while defending.
+    if (entity.aggressive > 0) {
+        power += isAttacking ? 2 : -1;
+    }
     
     return Math.max(0, power);
 }
@@ -268,11 +280,15 @@ export const handleRealmSelect = (realmName) => {
 
         if (targetingAbilities.length > 0) {
             const ability = targetingAbilities[0]; // Handle first targeting ability
+            const abilityDef = abilitiesDefinitions[ability.name];
+            const filter = abilityDef && typeof abilityDef.targetFilter === 'function'
+                ? abilityDef.targetFilter
+                : (target) => target.card.category === 'ENTITY' && target.owner === 'PLAYER';
             stateSetters.setPendingRitual({ entity: selectedCard, ability });
             stateSetters.setTargetSelection({
                 enabled: true,
                 side: 'PLAYER',
-                filter: (target) => target.card.category === 'ENTITY' && target.owner === 'PLAYER',
+                filter,
                 onSelect: (target) => {
                     confirmRitualActivation(target);
                 },
@@ -306,9 +322,15 @@ export const handleRealmSelect = (realmName) => {
         }
     }
     if (!selectedInHand) return;
+    // Recruiter: "Your Dreamers are Impostors." Checked live against the
+    // realm rather than the stale `recruiterCount` (destructured once at
+    // module load and never updated).
+    const hasOnlineRecruiter = getFriendlyEntities('PLAYER').some(
+        (e) => e.card.name === 'Recruiter' && e.online
+    );
     const isImpostor = selectedCard.card.abilities?.some(
         (ability) => ability.name === 'Impostor'
-    ) || (draftSelected && recruiterCount > 0);
+    ) || (selectedCard.card.name === 'Dreamer' && hasOnlineRecruiter);
 
     if (isImpostor) {
         stateSetters.setAwaitingImpostor(true);
@@ -392,6 +414,18 @@ export const handleRealmSelect = (realmName) => {
         // Offline and is charged when rezzed.
         if (category === 'LOCATION') {
             payRezCost(selectedCard.card);
+        }
+
+        // Locations and Landmarks enter Online immediately (unlike Entities,
+        // which stay Offline until later rezzed via handleRez), so their
+        // abilities must activate now rather than waiting for a rez step.
+        if (category === 'LOCATION' || category === 'LANDMARK') {
+            activateAbilities(updatedCard, 'PLAYER');
+            eventManager.publish('entityEntered', {
+                side: 'PLAYER',
+                entity: updatedCard,
+                realm: updatedCard.realm,
+            });
         }
 
         consumePlayerAction();
@@ -1004,7 +1038,7 @@ export function performDetox(side) {
     }
 }
 
-function detoxEntities(side) { // todo apply effect
+export function detoxEntities(side) { // todo apply effect
     const realms = side === 'PLAYER'
         ? [playerSolarium, playerTheater, playerUnderpass, playerGrid]
         : [enemySolarium, enemyTheater, enemyUnderpass, enemyGrid];
@@ -1328,6 +1362,9 @@ export function startTurn(currentPriorityLeft) {
             if (cardEntity.abilityActivated) {
                 cardEntity.abilityActivated = false;
             }
+            if (cardEntity.abilityUsedThisTurn) {
+                cardEntity.abilityUsedThisTurn = false;
+            }
             return cardEntity;
         });
     };
@@ -1402,6 +1439,16 @@ export function startTurn(currentPriorityLeft) {
     enemyDraw(3); // Enemy draws 3 cards at start of turn
     stateSetters.setPlayerFirstAttack(true);
     stateSetters.setEnemyFirstAttack(true);
+
+    // "Interfaced Pandora/HeadSpace this turn" flags (Dead Drop, Precognition,
+    // etc. key off these) were previously set to true on a successful hack but
+    // never reset, so they stayed true for the rest of the game after the
+    // first hit. They are per-turn flags, so reset them here.
+    stateSetters.setPlayerInterfacedPandora && stateSetters.setPlayerInterfacedPandora(false);
+    stateSetters.setEnemyInterfacedPandora && stateSetters.setEnemyInterfacedPandora(false);
+    stateSetters.setPlayerInterfacedHeadSpace && stateSetters.setPlayerInterfacedHeadSpace(false);
+    stateSetters.setEnemyInterfacedHeadSpace && stateSetters.setEnemyInterfacedHeadSpace(false);
+
     playerAdvanceCards();
     enemyAdvanceCards();
 
@@ -1412,6 +1459,10 @@ export function startTurn(currentPriorityLeft) {
     // them repeatedly.
     eventManager.publish('maintain', { side: 'PLAYER' });
     eventManager.publish('maintain', { side: 'ENEMY' });
+
+    // Regen: heal entities with the Regen keyword at the start of each turn.
+    healRegeneratingEntities('PLAYER', stateSetters);
+    healRegeneratingEntities('ENEMY', stateSetters);
 
     // If it's the enemy's turn, perform their action
     if (state.currentPlayer === 'ENEMY') {

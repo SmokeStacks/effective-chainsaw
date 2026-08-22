@@ -5,15 +5,26 @@
 // This reports which ability names in the live decks have no implementation.
 
 import { abilitiesDefinitions } from '../../abilities/glossary';
-import { cardList1 } from '../../../playerDecks/deckTwo';
-import enemyOne from '../../../systemDecks/enemyOne';
+import { playerMainDeck } from '../../../playerDecks/playerDeck';
+import { getEnemyDeck } from '../../../systemDecks/enemyDeck';
+import { resolveDeckReferences } from '../../../rules/deckResolver';
 
 // Keyword-style entries are legitimately absent from the glossary -- they are
 // read directly by other systems rather than dispatched by activateAbilities:
-//   Buffer, Deathless      -> damage.js
-//   Pounce, Stealth        -> entity properties set on placement (core.js)
+//   Buffer, Deathless, Armored          -> damage.js
+//   Pounce, Stealth                     -> entity properties set on placement (core.js)
 //   Glitchy, Locality, Karmic, Soulless, Rapture -> rez-cost keywords
-//                             (activation.js, deckValidation.js)
+//                                           (activation.js, deckValidation.js)
+//   Sting, Ambush, Regen, Bribe         -> parsed into instance stats by
+//                                           keywordStacks() (setup.js) and
+//                                           applied directly in battle.js /
+//                                           core.js / damage.js / glossary.js
+//                                           (see combatKeywords.js)
+//   Aggro, Aggressive, Defensive, Charge -> same as above: instance stats
+//                                           read directly in
+//                                           adjustEntityPowerExternal (core.js)
+//                                           and the attacker-selection logic
+//                                           (selection.js, enemy/attack.js)
 const KEYWORDS = new Set([
     'Buffer',
     'Deathless',
@@ -24,6 +35,15 @@ const KEYWORDS = new Set([
     'Karmic',
     'Soulless',
     'Rapture',
+    'Armored',
+    'Sting',
+    'Ambush',
+    'Regen',
+    'Bribe',
+    'Aggro',
+    'Aggressive',
+    'Defensive',
+    'Charge',
 ]);
 
 const abilityNames = (deck) => {
@@ -44,15 +64,10 @@ const unimplemented = (deck) =>
 
 describe('ability coverage', () => {
     test('every ability on a live enemy card is implemented', () => {
-        expect(unimplemented(enemyOne)).toEqual([]);
+        expect(unimplemented(resolveDeckReferences(getEnemyDeck()))).toEqual([]);
     });
 
-    // MultiThreadingEffect is commented out in glossary.js ("Temporarily disabled
-    // until hack mechanics are implemented") while Multi Threading is still in the
-    // live deck, so the card is dealt but its effect never runs. Asserted as a
-    // known gap rather than [] so the list cannot grow unnoticed; delete the entry
-    // once the ability is re-enabled.
-    test('the only unimplemented player ability is the known Multi Threading gap', () => {
-        expect(unimplemented(cardList1)).toEqual(['MultiThreadingEffect']);
+    test('every ability on a live player card is implemented', () => {
+        expect(unimplemented(resolveDeckReferences(playerMainDeck))).toEqual([]);
     });
 });

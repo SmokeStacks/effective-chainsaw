@@ -1,7 +1,6 @@
 import { playerMainDeck } from '../../playerDecks/playerDeck';
 import { resolveDeckReferences } from '../../rules/deckResolver';
 import { initializeStartingResources, createPlayerStartingHand, createEnemyStartingHand, processBitIncome } from './setupNewRules';
-import enemyOne from '../../systemDecks/enemyOne';
 import { reportDeckRunes } from './deckValidation';
 
 export function shuffle(array) {
@@ -72,6 +71,23 @@ export function keywordAmount(card, field, abilityName) {
     return 0;
 }
 
+// A number of combat keywords (Sting, Ambush, Regen, Bribe, Aggro, Aggressive,
+// Defensive, Charge) are authored as free-text entries in a card's `keywords`
+// string (e.g. "Sting 4, Ambush 2, Aggressive, Locality") rather than as
+// structured `abilities` array entries. This parses either representation:
+// an `{ name: keywordName, amount }` ability entry takes precedence, falling
+// back to a regex scan of the keywords string for "KeywordName" or
+// "KeywordName N". Returns 0 if the keyword is not present at all, or
+// `defaultAmount` (1) if present with no explicit number.
+export function keywordStacks(card, keywordName, defaultAmount = 1) {
+    const ability = (card.abilities || []).find(a => a && a.name === keywordName);
+    if (ability) return ability.amount || defaultAmount;
+    if (!card.keywords || typeof card.keywords !== 'string') return 0;
+    const match = card.keywords.match(new RegExp(`\\b${keywordName}\\b\\s*(\\d+)?`, 'i'));
+    if (!match) return 0;
+    return match[1] ? parseInt(match[1], 10) : defaultAmount;
+}
+
 // Builds a runtime card instance with all per-card counters initialized to
 // the right numeric defaults.
 //
@@ -105,7 +121,7 @@ export function buildCardInstance(id, card, owner) {
         counters: 0,
         development: card.development || 0,
         // Keyword stats (numeric: a value of N means N stacks)
-        charge: card.charge || 0,
+        charge: card.charge || keywordStacks(card, 'Charge'),
         cosmic: card.cosmic || 1,
         deathless: card.deathless || 0,
         pounce: card.pounce || 0,
@@ -114,6 +130,15 @@ export function buildCardInstance(id, card, owner) {
         armored: card.armored || 0,
         solo: keywordAmount(card, 'solo', 'Solo'),
         plot: card.plot || 0,
+        // Combat keywords parsed from either an abilities-array entry or the
+        // free-text `keywords` string (see keywordStacks above).
+        sting: keywordStacks(card, 'Sting'),
+        ambush: keywordStacks(card, 'Ambush'),
+        regen: keywordStacks(card, 'Regen'),
+        bribe: keywordStacks(card, 'Bribe'),
+        aggro: keywordStacks(card, 'Aggro'),
+        aggressive: keywordStacks(card, 'Aggressive'),
+        defensive: keywordStacks(card, 'Defensive') > 0,
         // Misc
         tokens: [],
         abilities: card.abilities || [],
@@ -124,16 +149,3 @@ export function buildCardInstance(id, card, owner) {
     };
 }
 
-export const createEnemyLibrary = () => {
-    console.log('Creating enemy library...');
-    console.log('Enemy deck source:', enemyOne);
-    const libraryInstanceArray = [];
-    for (let i = 0; i < enemyOne.length; i++) {
-        const card = enemyOne[i];
-        const cardEntityInstance = buildCardInstance(`b${i}`, card, 'ENEMY');
-        libraryInstanceArray.push(cardEntityInstance);
-    }
-    console.log('Created enemy library:', libraryInstanceArray);
-    shuffle(libraryInstanceArray);
-    return libraryInstanceArray;
-};

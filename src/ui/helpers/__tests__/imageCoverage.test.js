@@ -6,8 +6,9 @@
 // cannot quietly lose an image again.
 
 import { imgObj } from '../../Tools';
-import { cardList1 } from '../../../playerDecks/deckTwo';
-import enemyOne from '../../../systemDecks/enemyOne';
+import { playerMainDeck } from '../../../playerDecks/playerDeck';
+import { getEnemyDeck } from '../../../systemDecks/enemyDeck';
+import { resolveDeckReferences } from '../../../rules/deckResolver';
 
 const namesOf = (deck) => [...new Set(deck.map((card) => card.name))].filter(Boolean);
 
@@ -15,11 +16,11 @@ const missingArt = (deck) => namesOf(deck).filter((name) => !imgObj[name]);
 
 describe('card art coverage', () => {
     test('every card in the live player deck has art', () => {
-        expect(missingArt(cardList1)).toEqual([]);
+        expect(missingArt(resolveDeckReferences(playerMainDeck))).toEqual([]);
     });
 
     test('every card in the live enemy deck has art', () => {
-        expect(missingArt(enemyOne)).toEqual([]);
+        expect(missingArt(resolveDeckReferences(getEnemyDeck()))).toEqual([]);
     });
 
     test('no imgObj entry maps to an undefined import', () => {

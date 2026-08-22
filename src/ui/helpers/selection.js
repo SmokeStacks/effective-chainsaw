@@ -256,7 +256,7 @@ export const handleEmptySlotSelect = (slotIndex) => {
             }
 
             // Existing defensive/offensive checks
-            if (state.selectedCard.card.defensive) {
+            if (state.selectedCard.defensive) {
                 if (
                     state.attackMode === 'PLAYER_QUEST' ||
                     state.attackMode === 'PLAYER_RAID' ||

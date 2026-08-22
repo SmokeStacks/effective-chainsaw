@@ -3,7 +3,7 @@ import { startTurn, endTurn, playerGainBits, playerLoseBits, enemyLoseBits, enem
 import { eventManager } from './helpers/eventManager';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { state, stateSetters, initializeSetters, currentPlayer, enemyActions } from './helpers/state';
-import { createLibrary, createEnemyLibrary } from './helpers/setup';
+import { createLibrary } from './helpers/setup';
 import { activateAbilities, abilitiesDefinitions } from './abilities/glossary';
 import { handleFocusSelect, handleCardSelect, handleRealmCardSelect as handleRealmCardSelectFromHelper, handleAbilityClick as handleAbilityClickFromHelper, handleCancel } from './helpers/selection';
 import { draw as enemyDraw } from './helpers/enemy';
@@ -138,6 +138,12 @@ export default function BoardContainer() {
         enemyInterfacedHeadSpace: false,
         enemyInterfacedPandora: false,
         enemySuccessfulHack: false,
+        playerPandoraAccess: 1,
+        playerHeadSpaceAccess: 1,
+        enemyPandoraAccess: 1,
+        enemyHeadSpaceAccess: 1,
+        playerAccessBonus: 0,
+        enemyAccessBonus: 0,
         // Dominance tracking
         playerWonDominance: false,
         playerLostDominance: false,
@@ -464,6 +470,36 @@ export default function BoardContainer() {
             setEnemySuccessfulHack: (value) => {
                 state.enemySuccessfulHack = value;
                 setGameState(prev => ({ ...prev, enemySuccessfulHack: value }));
+            },
+            setPlayerPandoraAccess: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerPandoraAccess) : updater;
+                state.playerPandoraAccess = newValue;
+                setGameState(prev => ({ ...prev, playerPandoraAccess: newValue }));
+            },
+            setPlayerHeadSpaceAccess: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerHeadSpaceAccess) : updater;
+                state.playerHeadSpaceAccess = newValue;
+                setGameState(prev => ({ ...prev, playerHeadSpaceAccess: newValue }));
+            },
+            setEnemyPandoraAccess: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.enemyPandoraAccess) : updater;
+                state.enemyPandoraAccess = newValue;
+                setGameState(prev => ({ ...prev, enemyPandoraAccess: newValue }));
+            },
+            setEnemyHeadSpaceAccess: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.enemyHeadSpaceAccess) : updater;
+                state.enemyHeadSpaceAccess = newValue;
+                setGameState(prev => ({ ...prev, enemyHeadSpaceAccess: newValue }));
+            },
+            setPlayerAccessBonus: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerAccessBonus) : updater;
+                state.playerAccessBonus = newValue;
+                setGameState(prev => ({ ...prev, playerAccessBonus: newValue }));
+            },
+            setEnemyAccessBonus: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.enemyAccessBonus) : updater;
+                state.enemyAccessBonus = newValue;
+                setGameState(prev => ({ ...prev, enemyAccessBonus: newValue }));
             },
             // First-attack-of-the-round flags (drive the 'firstAttack' event)
             setPlayerFirstAttack: (value) => {

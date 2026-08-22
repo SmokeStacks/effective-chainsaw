@@ -1,18 +1,6 @@
 import { getRealmAndSetter } from './utils';
 import { state, stateSetters } from './state';
 
-const {
-    playerLibrary,
-    enemyLibrary
-} = state;
-
-const {
-    setPlayerLibrary,
-    setEnemyLibrary,
-    setPlayerHand,
-    setEnemyHand
-} = stateSetters;
-
 export function updateEntityInRealm(entity, updatedProperties, side) {
     const realmName = entity.realm;
     const [realm, setRealm] = getRealmAndSetter(realmName, side);
@@ -43,11 +31,9 @@ export function updateEntityInRealm(entity, updatedProperties, side) {
 }
 
 export function drawSpecificCard(card, side) {
-    const library = side === 'PLAYER' ? playerLibrary : enemyLibrary;
-    const setLibrary = side === 'PLAYER' ? setPlayerLibrary : setEnemyLibrary;
-    const setHand = side === 'PLAYER' ? setPlayerHand : setEnemyHand;
-    const updatedLibrary = library.filter(entity => entity.id !== card.id);
-    setLibrary(updatedLibrary);
+    const setLibrary = side === 'PLAYER' ? stateSetters.setPlayerLibrary : stateSetters.setEnemyLibrary;
+    const setHand = side === 'PLAYER' ? stateSetters.setPlayerHand : stateSetters.setEnemyHand;
+    setLibrary(prevLibrary => prevLibrary.filter(entity => entity.id !== card.id));
     setHand(prevHand => [...prevHand, card]);
 
     console.log(`${card.card.name} has been drawn.`);

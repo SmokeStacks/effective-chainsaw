@@ -11,7 +11,7 @@ const purpleBinder = [
     power: 5,
     HP: 6,
     timer: 4,
-    keywords: "Ambush 3, Cosmic 2, Deathless. Defensive",
+    keywords: "Ambush 3, Inspire, Covenant. Defensive",
     description: "",
     magi: false,
     phys: true,
@@ -28,7 +28,7 @@ const purpleBinder = [
     power: 2,
     HP: 2,
     timer: 3,
-    keywords: "Inspire, Dividend, Barricade. Locality.",
+    keywords: "Inspire, Dividend. Locality.",
     abilities: [
       { name: "ManualGrantOverride", requiresTarget: true }
     ],
@@ -48,7 +48,7 @@ const purpleBinder = [
     power: 0,
     HP: 3,
     timer: 4,
-    keywords: "Devour, Deathless, Wrath 5. Horrific.",
+    keywords: "Deathless, Wrath 5, Barricade. Horrific.",
     description: "",
     magi: false,
     phys: true,
@@ -138,14 +138,11 @@ const purpleBinder = [
     rezCost: 2,
     soul: 0,
     ash: 2,
-    power: 3,
+    power: 0,
     HP: 2,
-    timer: 3,
-    keywords: "Inspire, Covenant. Horrific.",
-    abilities: [
-      { name: "BitPaymentGrantArmored", bitCost: 2, requiresTarget: true }
-    ],
-    description: "2 Bits ➔ Target friendly entity gains Armored.",
+    timer: 2,
+    keywords: "Cosmic 2, Wrath 4. Horrific.",
+    description: "",
     magi: true,
     phys: false,
     tech: false,
@@ -257,7 +254,7 @@ const purpleBinder = [
     power: 1,
     HP: 5,
     timer: 2,
-    keywords: "Tarot. Horrific, Bribe.",
+    keywords: "Horrific, Bribe.",
     abilities: [
       { name: "ExhaustActivateOfflineEntity", boostAmount: 2, requiresTarget: true }
     ],
@@ -276,10 +273,10 @@ const purpleBinder = [
     rezCost: 1,
     soul: 3,
     ash: 0,
-    power: 2,
+    power: 0,
     HP: 3,
     timer: 3,
-    keywords: "Inspire, Crusade, Dividend 5.",
+    keywords: "Inspire, Tarot, Wrath 3, Dividend 3.",
     abilities: [
       { name: "AuraFriendlyEntitiesBribe" }
     ],
@@ -371,15 +368,15 @@ const purpleBinder = [
     id: 219,
     category: "LOCATION",
     name: "Tyranny",
-    rezCost: 3,
+    rezCost: 2,
     soul: 0,
     ash: 0,
     HP: 2,
-    keywords: "Dividend 2. Locality.",
+    keywords: "Dividend 2. Horrific.",
     abilities: [
-      { name: "DestinyGainFateAndWounds", destinyAmount: 2, fateAmount: 2, woundAmount: 2 }
+      { name: "SurrenderGainWounds", amount: 2 }
     ],
-    description: "Destiny 2: Gain 2 Fate and 2 Wounds.",
+    description: "Surrender: Gain 2 Wounds.",
     magi: false,
     phys: true,
     tech: false,
@@ -389,7 +386,7 @@ const purpleBinder = [
     id: 220,
     category: "LOCATION",
     name: "Lighthouse",
-    rezCost: 4,
+    rezCost: 5,
     soul: 0,
     ash: 0,
     HP: 4,
@@ -415,7 +412,7 @@ const purpleBinder = [
     abilities: [
       { name: "OncePerTurnActionGrantStatsAndFreeze", actionCost: 1, powerGain: 2, hpGain: 2, freezeAmount: 1, requiresTarget: true }
     ],
-    description: "Once Per Turn: Action ➔ Target Online entity gains +2/+2 and 1 Freeze.",
+    description: "Once Per Turn: Action ➔ Target Online entity gains +2/+2, Devour, and 1 Freeze.",
     magi: true,
     phys: false,
     tech: true,
@@ -451,11 +448,11 @@ const purpleBinder = [
     scrap: 1,
     scheming: true,
     schemeThreshold: 2,
-    keywords: "Duplicate, Karmic.",
+    keywords: "Duplicate, Karmic. Horrific.",
     abilities: [
-      { name: "SchemeSacrificeDrawAndGrantVengeance", schemeThreshold: 2, drawAmount: 2, vengeanceAmount: 4 }
+      { name: "SchemeSacrificeGrantVengeanceAndLifeless", schemeThreshold: 2, vengeanceAmount: 4 }
     ],
-    description: "Scheme 2: Sacrifice ➔ Draw 2 and give friendly Online entity 4 Vengeance.",
+    description: "Scheme 2: Sacrifice ➔ Target Online entity gains 4 Vengeance and Lifeless.",
     magi: true,
     phys: false,
     tech: true,
@@ -504,14 +501,14 @@ const purpleBinder = [
     id: 226,
     category: "RITUAL",
     name: "Tithing",
-    rezCost: 2,
+    rezCost: 3,
     soul: 0,
     ash: 0,
     keywords: "",
     abilities: [
-      { name: "OnPlayGainBitsOnAttack", bitAmount: 4 }
+      { name: "OnPlayGainBitsOnAttack", bitAmount: 5 }
     ],
-    description: "Gain 4 Bits whenever a player attacks this turn.",
+    description: "Gain 5 Bits whenever a player attacks this turn.",
     magi: false,
     phys: true,
     tech: true,
@@ -616,7 +613,7 @@ const purpleBinder = [
     soul: 0,
     ash: 0,
     HP: 2,
-    runes: 4,
+    runes: 3,
     plot: 4,
     keywords: "Locality",
     abilities: [
@@ -657,7 +654,7 @@ const purpleBinder = [
     ash: 0,
     HP: 3,
     runes: 1,
-    plot: 5,
+    plot: 3,
     keywords: "Harmony. Locality.",
     abilities: [
       { name: "DevelopDealDamage", damageAmount: 1, requiresTarget: true }

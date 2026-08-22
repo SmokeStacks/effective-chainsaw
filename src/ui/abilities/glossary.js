@@ -10,17 +10,18 @@ import {
     playerGainActions, enemyGainActions,
     playerGainAshes, enemyGainAshes,
     playerGainSurge, enemyGainSurge,
-    getFriendlyEntities
+    getFriendlyEntities, detoxEntities
 } from '../helpers/core';
 
 import { applyBoost } from '../helpers/advancement';
 import { handleDamage, handleDeadCard, handlePlaceDamage, handleDestroyedThing, handleDestroyedPlace } from '../helpers/damage';
 import { getOppositeSide, getRealmAndSetter, getArrayNameForCategory, getAllPlayerRealms, getAllEnemyRealms } from '../helpers/utils';
-import { draw as playerDraw } from '../helpers/player';
-import { draw as enemyDraw } from '../helpers/enemy';
+import { draw as playerDraw, gainLag as playerGainLag } from '../helpers/player';
+import { draw as enemyDraw, gainLag as enemyGainLag } from '../helpers/enemy';
 import { applyEffect, applyFreezeToAllEntities, applyOverload } from '../helpers/effects';
 import { updateEntityInRealm, drawSpecificCard } from '../helpers/entity';
 import { keywordAmount } from '../helpers/setup';
+import { applyAmbushOnEntry, tryBribe } from '../helpers/combatKeywords';
 
 
 // Define ability helpers for internal use
@@ -123,6 +124,22 @@ const abilityHelpers = {
     }
 };
 
+// Green faction helpers (Decay/Toxic/Destiny/Questing mechanics)
+function countDecayingEntities(side) {
+    const realms = side === 'PLAYER' ? getAllPlayerRealms() : getAllEnemyRealms();
+    return realms.reduce((sum, realm) => sum + (realm.people || []).filter(e => e.decay > 0).length, 0);
+}
+
+function getAllOnlineEntities(side) {
+    const realms = side === 'PLAYER' ? getAllPlayerRealms() : getAllEnemyRealms();
+    return realms.flatMap(realm => (realm.people || []).filter(e => e.online));
+}
+
+function findLibraryCardByPredicate(side, predicate) {
+    const library = side === 'PLAYER' ? state.playerLibrary : state.enemyLibrary;
+    return (library || []).find(predicate);
+}
+
 // Initialize abilities definitions
 const abilitiesDefinitions = {
     'Extortion': {
@@ -142,7 +159,7 @@ const abilitiesDefinitions = {
             };
 
             const totalEntities = countEntities();
-            const bitsToGain = totalEntities * 2;
+            const bitsToGain = totalEntities * 1;
             if (side === 'PLAYER') {
                 playerGainBits(bitsToGain);
             } else {
@@ -194,38 +211,38 @@ const abilitiesDefinitions = {
         },
     },
     'Wasteland': {
+        // Wasteland: Interface, Departed ➔ Inflict 2 Wounds.
+        // NOTE: no "landmark departed" lifecycle event currently exists anywhere
+        // in the codebase (Landmarks have no implemented plot-completion/exit
+        // mechanic), so the "Departed" half of this trigger is a no-op until
+        // that lifecycle is implemented. "Interface" is fully wired.
         name: "Wasteland",
         type: "triggered",
-        triggers: ["cardStolen", "placeDestroyed"],
+        triggers: ["interface", "landmarkDeparted"],
         eventHandler: function (entity, eventData, gameState, side) {
-            if (
-                (eventData.card && eventData.card.id === entity.id) ||
-                (eventData.entityId && eventData.entityId === entity.id)
-            ) {
-                const opponentSide = side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
-                if (opponentSide === 'PLAYER') {
-                    playerGainWounds(1);
-                } else {
-                    enemyGainWounds(1);
-                }
-                console.log(`${entity.card.name} inflicted 1 Wound to ${opponentSide}.`);
+            const isInterfaceTrigger = eventData.targetType !== undefined && eventData.side === side;
+            const isDepartedTrigger = eventData.entityId === entity.id && eventData.side === side;
+            if (isInterfaceTrigger || isDepartedTrigger) {
+                const ability = entity.card.abilities?.find(a => a.name === 'Wasteland');
+                const amount = ability?.amount || 2;
+                const opponentSide = getOppositeSide(side);
+                if (opponentSide === 'PLAYER') { playerGainWounds(amount); } else { enemyGainWounds(amount); }
+                console.log(`${entity.card.name} inflicted ${amount} Wounds to ${opponentSide}.`);
             }
         },
     },
     'CatCafeAscended': {
+        // Cat Cafe: Maintenance ➔ Inflict 1 Lag.
         name: "CatCafeAscended",
-        type: "ascended",
-        typeCategory: "triggered", // Indicates it's a triggered ability
-        triggers: ["turnStart"], // List of events it listens to
+        type: "triggered",
+        triggers: ["maintain"],
         eventHandler: function (entity, eventData, gameState, side) {
-            console.log('_____________________-cat cafe')
-            if (eventData.side === side && entity.realm === 'Elysium') {
-                if (side === 'PLAYER') {
-                    enemyGainOverload(3);
-                } else {
-                    playerGainOverload(3);
-                }
-                console.log(`${entity.card.name} has inflicted 3 Overload to ${side}.`);
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'CatCafeAscended');
+                const amount = ability?.amount || 1;
+                const enemySide = getOppositeSide(side);
+                if (enemySide === 'PLAYER') { playerGainLag(amount); } else { enemyGainLag(amount); }
+                console.log(`${entity.card.name} Maintenance: inflicted ${amount} Lag.`);
             }
         },
     },
@@ -234,28 +251,28 @@ const abilitiesDefinitions = {
         type: 'onAscend',
         onAscend: function (entity, gameState, side) {
             if (side === 'PLAYER') {
-                playerGainActions(2);
-                playerGainAshes(3);
-                playerGainOverload(4);
+                playerGainAshes(4);
+                playerGainActions(3);
+                playerGainWounds(2);
             } else {
-                enemyGainActions(2);
-                enemyGainAshes(3);
-                enemyGainOverload(4);
+                enemyGainAshes(4);
+                enemyGainActions(3);
+                enemyGainWounds(2);
             }
-            console.log(`${entity.card.name} has granted 2 Actions, 3 Ash, and 4 Overload to ${side}.`);
+            console.log(`${entity.card.name} has granted 4 Ash, 3 Actions, and 2 Wounds to ${side}.`);
         },
     },
     'ImplantsEffect': {
         name: 'ImplantsEffect',
         type: 'onPlay',
         onPlay: function (entity, state, side) {
-            // Grant +2 Surge and +2 Ash
+            // Grant +4 Surge and +4 Ash
             if (side === 'PLAYER') {
-                playerGainSurge(2);
-                playerGainAshes(2);
+                playerGainSurge(4);
+                playerGainAshes(4);
             } else {
-                enemyGainSurge(2);
-                enemyGainAshes(2);
+                enemyGainSurge(4);
+                enemyGainAshes(4);
             }
 
             // Search Pandora for JAWbreaker entities
@@ -311,18 +328,26 @@ const abilitiesDefinitions = {
                 applyEffect(target.id, target.realm, side, {
                     type: 'stat',
                     field: 'power',
-                    value: 2,
+                    value: 1,
                 });
                 applyEffect(target.id, target.realm, side, {
                     type: 'stat',
                     field: 'HP',
-                    value: 2,
+                    value: 1,
                 });
                 applyEffect(target.id, target.realm, side, {
-                    type: 'status',
-                    status: 'Stealth',
-                    amount: 1,
+                    type: 'stat',
+                    field: 'stealth',
+                    value: 1,
                 });
+                applyEffect(target.id, target.realm, side, {
+                    type: 'stat',
+                    field: 'charge',
+                    value: 1,
+                });
+                console.log(`${entity.card.name}: gave ${target.card.name} +1/+1, Stealth, and Charge.`);
+            } else {
+                console.log(`${entity.card.name}: requires a successful Hack and a target JAWbreaker to resolve.`);
             }
         },
     },
@@ -360,57 +385,40 @@ const abilitiesDefinitions = {
             }
         },
     },
-    // 'MultiThreadingEffect': {
-    //     name: 'MultiThreadingEffect',
-    //     type: 'onPlay',
-    //     requiresTarget: true,
-    //     onPlay: function (entity, gameState, side, target) {
-    //         console.log('MultiThreadingEffect', target)
-    //         if (side === 'PLAYER') {
-    //             playerDraw(2);
-    //         } else {
-    //             enemyDraw(2);
-    //         }
+    'MultiThreadingEffect': {
+        name: 'MultiThreadingEffect',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            // Set up a one-time listener for successfulHack/failedHack on HeadSpace
+            const handler = (eventData) => {
+                if (eventData.side === side && eventData.targetType === 'HEADSPACE') {
+                    if (eventData.success) {
+                        if (side === 'PLAYER') {
+                            stateSetters.setPlayerAccessBonus(prev => (prev || 0) + 2);
+                            playerGainActions(2);
+                        } else {
+                            stateSetters.setEnemyAccessBonus(prev => (prev || 0) + 2);
+                            enemyGainActions(2);
+                        }
+                        console.log(`${entity.card.name}: Hack succeeded, Interface +2 cards and gain 2 Actions.`);
+                    }
+                    eventManager.unsubscribe('successfulHack', handler);
+                    eventManager.unsubscribe('failedHack', handler);
+                }
+            };
 
-    //         if (target && target.owner === side) {
-    //             applyBoost(target, 1, side);
-    //         }
+            eventManager.subscribe('successfulHack', handler);
+            eventManager.subscribe('failedHack', handler);
 
-    //         setAttackMode(side === 'PLAYER' ? 'PLAYER_HACK' : 'ENEMY_tech');
-    //     },
-    // },
-    // Temporarily disabled until hack mechanics are implemented
-    // MultiThreadingEffect: {
-    //     type: 'onPlay',
-    //     requiresTarget: true,
-    //     onPlay: function (entity, gameState, side, target) {
-    //         console.log('MultiThreadingEffect', target);
-    //         if (side === 'PLAYER') {
-    //             playerDraw(2);
-    //             if (target) {
-    //                 applyBoost(target, 1, side);
-    //                 setTargetSelection({
-    //                     enabled: true,
-    //                     side: side,
-    //                     filter: (t) => t.owner === getOppositeSide(side),
-    //                     onSelect: (hackTarget) => {
-    //                         // TODO: Implement hack mechanics
-    //                         setTargetSelection({ enabled: false });
-    //                     },
-    //                     onCancel: () => {
-    //                         setTargetSelection({ enabled: false });
-    //                     },
-    //                 });
-    //             }
-    //         } else {
-    //             enemyDraw(2);
-    //             if (target) {
-    //                 applyBoost(target, 1, side);
-    //                 // AI logic for hack target
-    //             }
-    //         }
-    //     }
-    // },
+            // Initiate a Hack attack on HeadSpace (Underpass). Rituals are
+            // only played by the human player today (see BrainFreezeHackPandora),
+            // so this mirrors that pattern rather than the still-unwired
+            // enemy-side hack targeting.
+            stateSetters.setAttackMode('PLAYER_HACK');
+            stateSetters.setTargetType('HEADSPACE');
+            stateSetters.setSelectedRealm('Underpass');
+        },
+    },
     'ForgeryEffect': {
         name: 'ForgeryEffect',
         type: 'onPlay',
@@ -549,13 +557,85 @@ const abilitiesDefinitions = {
             console.log(`${entity.card.name} inflicts ${overloadAmount} Overload to ${opposingSide}.`);
         },
     },
+    'PrecognitionSchemeFirstHeadSpaceGainActions': {
+        // Precognition: Scheme 2: The first time you Interface HeadSpace each
+        // turn, gain 3 Actions.
+        name: 'PrecognitionSchemeFirstHeadSpaceGainActions',
+        type: 'triggered',
+        triggers: ['interface'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (entity.scheming && !entity.schemeUnlocked) return;
+            if (eventData.side !== side || eventData.targetType !== 'HEADSPACE') return;
+            if (entity.abilityUsedThisTurn) return;
+
+            const ability = entity.card.abilities?.find(a => a.name === 'PrecognitionSchemeFirstHeadSpaceGainActions');
+            const amount = ability?.actionAmount || 3;
+            if (side === 'PLAYER') { playerGainActions(amount); } else { enemyGainActions(amount); }
+            entity.abilityUsedThisTurn = true;
+            console.log(`${entity.card.name}: first HeadSpace Interface this turn, gained ${amount} Actions.`);
+        },
+    },
+    'OnPlayGainBitsAndAsh': {
+        // Stolen Briefcase: Gain 5 Bits and 5 Ash.
+        name: 'OnPlayGainBitsAndAsh',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'OnPlayGainBitsAndAsh');
+            const bitAmount = ability?.bitAmount || 5;
+            const ashAmount = ability?.ashAmount || 5;
+            if (side === 'PLAYER') { playerGainBits(bitAmount); playerGainAshes(ashAmount); } else { enemyGainBits(bitAmount); enemyGainAshes(ashAmount); }
+            console.log(`${entity.card.name}: gained ${bitAmount} Bits and ${ashAmount} Ash.`);
+        },
+    },
+    'OnPlayHackHeadSpaceThenFreezeAndOverload': {
+        // Brain Freeze: Perform a Hack on HeadSpace. If successful, give all
+        // entities Freeze 3 and inflict 2 Overload.
+        // (Simplified: the Hack is treated as automatically successful rather
+        // than resolving through the normal player-driven Hack flow.)
+        name: 'OnPlayHackHeadSpaceThenFreezeAndOverload',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'OnPlayHackHeadSpaceThenFreezeAndOverload');
+            const freezeAmount = ability?.freezeAmount || 3;
+            const overloadAmount = ability?.overloadAmount || 2;
+            const enemySide = getOppositeSide(side);
+
+            [...getAllPlayerRealms().flatMap(r => (r.people || []).map(e => ({ e, entitySide: 'PLAYER' }))),
+             ...getAllEnemyRealms().flatMap(r => (r.people || []).map(e => ({ e, entitySide: 'ENEMY' })))]
+                .forEach(({ e, entitySide }) => {
+                    applyEffect(e.id, e.realm, entitySide, { type: 'status', status: 'freeze', amount: freezeAmount });
+                });
+            applyOverload(enemySide, overloadAmount);
+
+            console.log(`${entity.card.name}: Hacked HeadSpace, all entities gain Freeze ${freezeAmount}, inflicted ${overloadAmount} Overload.`);
+        },
+    },
+    'OnPlayGainBitsIfInterfacedPandora': {
+        // Dead Drop: If you Interfaced Pandora this turn, +7 Bits.
+        // (The "place an enemy Adrenochrome IRL" clause is not implemented --
+        // there is no existing mechanic for placing a copy of an opposing
+        // faction's card into a board, so it is omitted here.)
+        name: 'OnPlayGainBitsIfInterfacedPandora',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            const interfacedPandora = side === 'PLAYER' ? state.playerInterfacedPandora : state.enemyInterfacedPandora;
+            if (!interfacedPandora) {
+                console.log(`${entity.card.name}: Pandora was not Interfaced this turn, no effect.`);
+                return;
+            }
+            const ability = entity.card.abilities?.find(a => a.name === 'OnPlayGainBitsIfInterfacedPandora');
+            const bitAmount = ability?.bitAmount || 7;
+            if (side === 'PLAYER') { playerGainBits(bitAmount); } else { enemyGainBits(bitAmount); }
+            console.log(`${entity.card.name}: Interfaced Pandora this turn, gained ${bitAmount} Bits.`);
+        },
+    },
     'DataBombWhenInterfaced': {
         name: 'DataBombWhenInterfaced',
         type: 'triggered',
         triggers: ['snipAccessed'],
         eventHandler: function (entity, eventData, gameState, side) {
             // Check if the accessed card is this entity
-            if (eventData.cardId !== entity.id) {
+            if (eventData.card?.id !== entity.id) {
                 return; // Not the correct card
             }
 
@@ -579,13 +659,14 @@ const abilitiesDefinitions = {
                 return;
             }
             if (target) {
+                const freezeAmount = effect.freezeAmount || 5;
                 handleDestroyedThing(entity.realm, entity.id, side);
-                applyEffect(target.id, target.realm, getOppositeSide(side), {
+                applyEffect(target.id, target.realm, target.owner, {
                     type: 'status',
-                    status: 'Freeze',
-                    amount: effect.freezeAmount,
+                    status: 'freeze',
+                    amount: freezeAmount,
                 });
-                console.log(`${target.card.name} gains Freeze ${effect.freezeAmount} from ${entity.card.name}.`);
+                console.log(`${target.card.name} gains Freeze ${freezeAmount} from ${entity.card.name}.`);
             } else {
                 console.log('No target selected for Data Bomb\'s ability.');
             }
@@ -595,20 +676,24 @@ const abilitiesDefinitions = {
         name: 'PandoraAccess',
         type: 'static',
         applyAbilityEffect: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'PandoraAccess');
+            const amount = ability?.amount || 1;
             if (side === 'PLAYER') {
-                stateSetters.setPlayerPandoraAccess(prev => prev + 1);
+                stateSetters.setPlayerPandoraAccess(prev => prev + amount);
             } else {
-                stateSetters.setEnemyPandoraAccess(prev => prev + 1);
+                stateSetters.setEnemyPandoraAccess(prev => prev + amount);
             }
-            console.log(`${entity.card.name} increases Pandora Access by 1.`);
+            console.log(`${entity.card.name} increases Pandora Access by ${amount}.`);
         },
         removeEffect: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'PandoraAccess');
+            const amount = ability?.amount || 1;
             if (side === 'PLAYER') {
-                stateSetters.setPlayerPandoraAccess(prev => prev - 1);
+                stateSetters.setPlayerPandoraAccess(prev => prev - amount);
             } else {
-                stateSetters.setEnemyPandoraAccess(prev => prev - 1);
+                stateSetters.setEnemyPandoraAccess(prev => prev - amount);
             }
-            console.log(`${entity.card.name} decreases Pandora Access by 1.`);
+            console.log(`${entity.card.name} decreases Pandora Access by ${amount}.`);
         },
     },
     'Drift': {
@@ -1403,6 +1488,44 @@ const abilitiesDefinitions = {
             console.log(`${entity.card.name} paid ${bitCost} Bit: Gained +${powerGain}/+${hpGain} and Freeze ${freezeAmount}.`);
         }
     },
+    'BitPaymentGainVengeanceAndFreeze': {
+        name: 'BitPaymentGainVengeanceAndFreeze',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            // Blood Sugar: 1 Bit ➔ Gain 1 Vengeance and 1 Freeze
+            const bitCost = effect.bitCost || 1;
+            const vengeanceAmount = effect.vengeanceAmount || 1;
+            const freezeAmount = effect.freezeAmount || 1;
+
+            // Check if player has enough bits
+            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
+            if (bits < bitCost) {
+                console.log(`Not enough bits to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+
+            // Deduct bits
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerBits(prev => prev - bitCost);
+            } else {
+                stateSetters.setEnemyBits(prev => prev - bitCost);
+            }
+
+            applyEffect(entity.id, entity.realm, side, {
+                type: 'status',
+                status: 'Vengeance',
+                amount: vengeanceAmount
+            });
+
+            applyEffect(entity.id, entity.realm, side, {
+                type: 'status',
+                status: 'freeze',
+                amount: freezeAmount
+            });
+
+            console.log(`${entity.card.name} paid ${bitCost} Bit: Gained ${vengeanceAmount} Vengeance and Freeze ${freezeAmount}.`);
+        }
+    },
     'AuraGrantBufferToOthers': {
         name: 'AuraGrantBufferToOthers',
         type: 'static',
@@ -1441,6 +1564,18 @@ const abilitiesDefinitions = {
 
             console.log(`${entity.card.name} Aura removed: Buffer ${bufferAmount} removed from other entities.`);
         }
+    },
+    'ClashDetox': {
+        name: 'ClashDetox',
+        type: 'triggered',
+        triggers: ['clash'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Operator: Clash ➔ Detox
+            if (eventData.side === side && eventData.entityId === entity.id) {
+                detoxEntities(side);
+                console.log(`${entity.card.name} Clash: performed a Detox for ${side}.`);
+            }
+        },
     },
     'ActionDevelopPlacesAndThings': {
         name: 'ActionDevelopPlacesAndThings',
@@ -2311,10 +2446,17 @@ const abilitiesDefinitions = {
                 amount: freezeAmount
             });
 
+            // Apply Devour
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'devour',
+                amount: 1
+            });
+
             // Mark as used this turn
             entity.abilityUsedThisTurn = true;
 
-            console.log(`${entity.card.name}: ${target.card.name} gains +${powerGain}/+${hpGain} and Freeze ${freezeAmount}.`);
+            console.log(`${entity.card.name}: ${target.card.name} gains +${powerGain}/+${hpGain}, Devour, and Freeze ${freezeAmount}.`);
         }
     },
     // Purple Cards - Landmark/Sym Triggered Effects
@@ -2516,6 +2658,55 @@ const abilitiesDefinitions = {
             console.log(`${entity.card.name} Scheme: Sacrificed, drew ${drawAmount}, gave ${target.card.name} ${vengeanceAmount} Vengeance.`);
         }
     },
+    'SchemeSacrificeGrantVengeanceAndLifeless': {
+        name: 'SchemeSacrificeGrantVengeanceAndLifeless',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target, entity) => target.owner === entity.owner && target.online,
+        execute: function (entity, effect, side, target) {
+            // Apocrypha: Scheme 2: Sacrifice ➔ Target Online entity gains 4 Vengeance and Lifeless
+            if (entity.scheming && !entity.schemeUnlocked) {
+                console.log(`${entity.card.name}'s Scheme ability is not yet unlocked.`);
+                return;
+            }
+            if (!target) {
+                console.log('No target selected for SchemeSacrificeGrantVengeanceAndLifeless');
+                return;
+            }
+
+            const ability = entity.card.abilities?.find(a => a.name === 'SchemeSacrificeGrantVengeanceAndLifeless');
+            const vengeanceAmount = ability?.vengeanceAmount || 4;
+
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'Vengeance',
+                amount: vengeanceAmount
+            });
+            applyEffect(target.id, target.realm, side, {
+                type: 'status',
+                status: 'lifeless',
+                amount: 1
+            });
+
+            handleDestroyedThing(entity.realm, entity.id, side);
+
+            console.log(`${entity.card.name} Scheme: Sacrificed, gave ${target.card.name} ${vengeanceAmount} Vengeance and Lifeless.`);
+        }
+    },
+    'SurrenderGainWounds': {
+        name: 'SurrenderGainWounds',
+        type: 'triggered',
+        triggers: ['dominanceLost'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            // Tyranny: Surrender ➔ Gain 2 Wounds
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'SurrenderGainWounds');
+                const amount = ability?.amount || 2;
+                if (side === 'PLAYER') { playerGainWounds(amount); } else { enemyGainWounds(amount); }
+                console.log(`${entity.card.name} Surrender: gained ${amount} Wounds.`);
+            }
+        },
+    },
     'SchemeActionInflictWoundsResetDevelopments': {
         name: 'SchemeActionInflictWoundsResetDevelopments',
         type: 'manual',
@@ -2660,6 +2851,20 @@ const abilitiesDefinitions = {
                 enemyGainWounds(amount);
             }
             console.log(`${entity.card.name} Vicious: dealt ${amount} Wounds to its owner (${side})`);
+        },
+        // Rituals resolve instantly rather than entering a realm, so their
+        // "activation" is being played. This lets a Ritual's abilities array
+        // reference Vicious directly with type: 'onPlay'.
+        onPlay: function (entity, gameState, side) {
+            const amount = keywordAmount(entity.card, 'vicious', 'Vicious');
+            if (amount <= 0) return;
+
+            if (side === 'PLAYER') {
+                playerGainWounds(amount);
+            } else {
+                enemyGainWounds(amount);
+            }
+            console.log(`${entity.card.name} Vicious: dealt ${amount} Wounds to its owner (${side}) on activation.`);
         },
     },
     'Gravity': {
@@ -2914,6 +3119,942 @@ const abilitiesDefinitions = {
             console.log(`${entity.card.name}: Exhausted to gain ${ashAmount} Ash and inflict ${overloadAmount} Overload`);
         },
     },
+
+    // ─── Green faction (Decay/Toxic/Destiny/Questing) ──────────────────────
+
+    'Plague': {
+        name: 'Plague',
+        type: 'onActivate',
+        onActivate: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'Plague');
+            const amount = ability?.amount || 1;
+            applyEffect(entity.id, entity.realm, side, { type: 'stat', field: 'decay', value: amount });
+            console.log(`${entity.card.name} Plague: gained ${amount} Decay.`);
+        },
+    },
+    'ClashInflictFreezeOnOpponent': {
+        // PingWin: Clash ➔ Inflict 3 Freeze on target entity (approximated as the entity it clashes with)
+        name: 'ClashInflictFreezeOnOpponent',
+        type: 'triggered',
+        triggers: ['clash'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side && eventData.entityId === entity.id && eventData.opponentEntityId) {
+                const ability = entity.card.abilities?.find(a => a.name === 'ClashInflictFreezeOnOpponent');
+                const amount = ability?.amount || 3;
+                applyEffect(eventData.opponentEntityId, entity.realm, eventData.opponentSide, {
+                    type: 'stat',
+                    field: 'freeze',
+                    value: amount,
+                });
+                console.log(`${entity.card.name} Clash: inflicted ${amount} Freeze on its opponent.`);
+            }
+        },
+    },
+    'ToxicClashInflictWounds': {
+        // Hexapod: Toxic 1: Clash ➔ Inflict 2 Wounds
+        name: 'ToxicClashInflictWounds',
+        type: 'triggered',
+        triggers: ['clash'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side && eventData.entityId === entity.id) {
+                const ability = entity.card.abilities?.find(a => a.name === 'ToxicClashInflictWounds');
+                const toxicRequirement = ability?.toxicRequirement || 1;
+                const amount = ability?.amount || 2;
+                if (countDecayingEntities(side) < toxicRequirement) return;
+                if (side === 'PLAYER') { enemyGainWounds(amount); } else { playerGainWounds(amount); }
+                console.log(`${entity.card.name} Toxic Clash: inflicted ${amount} Wounds.`);
+            }
+        },
+    },
+    'ClashDevelopFriendlyNonEntity': {
+        // Ram: Exhaust/Clash ➔ Target friendly Sym or Snip gains Develop 2 (auto-targets the least-developed one)
+        name: 'ClashDevelopFriendlyNonEntity',
+        type: 'triggered',
+        triggers: ['clash'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side && eventData.entityId === entity.id) {
+                const ability = entity.card.abilities?.find(a => a.name === 'ClashDevelopFriendlyNonEntity');
+                const amount = ability?.amount || 2;
+                const realms = side === 'PLAYER' ? getAllPlayerRealms() : getAllEnemyRealms();
+                const candidates = realms.flatMap(realm => (realm.things || []).filter(t => t.card.category === 'SYM' || t.card.category === 'SNIP'));
+                if (candidates.length === 0) return;
+                const target = candidates.sort((a, b) => (a.development || 0) - (b.development || 0))[0];
+                updateEntityInRealm(target, { development: (target.development || 0) + amount }, side);
+                console.log(`${entity.card.name} Clash: gave ${target.card.name} ${amount} Develop.`);
+            }
+        },
+    },
+    'DominanceSearchAndDrawCard': {
+        // GrimRar: Dominance ➔ Place and activate a [Ram] (simplified to searching and drawing it)
+        name: 'DominanceSearchAndDrawCard',
+        type: 'triggered',
+        triggers: ['dominanceWon'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'DominanceSearchAndDrawCard');
+                const cardName = ability?.cardName;
+                if (!cardName) return;
+                const found = findLibraryCardByPredicate(side, c => c.card.name === cardName);
+                if (found) {
+                    drawSpecificCard(found, side);
+                    console.log(`${entity.card.name} Dominance: searched Pandora and drew ${cardName}. (Note: auto-placing and activating it is not implemented; play it manually.)`);
+                }
+            }
+        },
+    },
+    'ToxicClashFriendliesGainDecayAndHealth': {
+        // Priestess: Toxic 3: Clash ➔ Friendly online entities gain 1 Decay and +4 Health
+        name: 'ToxicClashFriendliesGainDecayAndHealth',
+        type: 'triggered',
+        triggers: ['clash'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side && eventData.entityId === entity.id) {
+                const ability = entity.card.abilities?.find(a => a.name === 'ToxicClashFriendliesGainDecayAndHealth');
+                const toxicRequirement = ability?.toxicRequirement || 3;
+                const decayAmount = ability?.decayAmount || 1;
+                const hpAmount = ability?.hpAmount || 4;
+                if (countDecayingEntities(side) < toxicRequirement) return;
+                getAllOnlineEntities(side).forEach(friendly => {
+                    applyEffect(friendly.id, friendly.realm, side, { type: 'stat', field: 'decay', value: decayAmount });
+                    applyEffect(friendly.id, friendly.realm, side, { type: 'stat', field: 'HP', value: hpAmount });
+                });
+                console.log(`${entity.card.name} Toxic Clash: friendly online entities gained ${decayAmount} Decay and +${hpAmount} Health.`);
+            }
+        },
+    },
+    'DestinyInflictDecayOnEnemies': {
+        // Lamia: Destiny 2 ➔ Inflict 2 Decay on Online enemy entities
+        name: 'DestinyInflictDecayOnEnemies',
+        type: 'triggered',
+        triggers: ['destinyTrigger'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'DestinyInflictDecayOnEnemies');
+                const maxUses = ability?.maxUses || 2;
+                const amount = ability?.amount || 2;
+                entity.destinyUses = entity.destinyUses || 0;
+                if (entity.destinyUses >= maxUses) return;
+                entity.destinyUses += 1;
+                getAllOnlineEntities(getOppositeSide(side)).forEach(enemy => {
+                    applyEffect(enemy.id, enemy.realm, getOppositeSide(side), { type: 'stat', field: 'decay', value: amount });
+                });
+                console.log(`${entity.card.name} Destiny (${entity.destinyUses}/${maxUses}): inflicted ${amount} Decay on online enemy entities.`);
+            }
+        },
+    },
+    'DestinyGainFate': {
+        // Flesh Hive: Destiny ➔ Gain 1 Fate and place a [Flesh Hive] (self-placement simplified away)
+        name: 'DestinyGainFate',
+        type: 'triggered',
+        triggers: ['destinyTrigger'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'DestinyGainFate');
+                const amount = ability?.amount || 1;
+                if (side === 'PLAYER') { playerGainFate(amount); } else { enemyGainFate(amount); }
+                console.log(`${entity.card.name} Destiny: gained ${amount} Fate. (Note: placing an additional copy is not implemented.)`);
+            }
+        },
+    },
+    'DominanceDestinyTransferDecayToTarget': {
+        // Hostess: Dominance/Destiny ➔ Transfer all friendly Decay to target entity.
+        // (Simplified: target is the first online enemy entity found, since triggered
+        // abilities in this codebase cannot prompt for an interactive target.)
+        name: 'DominanceDestinyTransferDecayToTarget',
+        type: 'triggered',
+        triggers: ['dominanceWon', 'destinyTrigger'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side !== side) return;
+            const friendlies = getAllOnlineEntities(side);
+            const totalDecay = friendlies.reduce((sum, e) => sum + (e.decay || 0), 0);
+            if (totalDecay <= 0) return;
+            friendlies.forEach(e => {
+                if (e.decay > 0) applyEffect(e.id, e.realm, side, { type: 'stat', field: 'decay', value: -e.decay });
+            });
+            const target = getAllOnlineEntities(getOppositeSide(side))[0];
+            if (target) {
+                applyEffect(target.id, target.realm, getOppositeSide(side), { type: 'stat', field: 'decay', value: totalDecay });
+                console.log(`${entity.card.name}: transferred ${totalDecay} Decay to ${target.card.name}.`);
+            }
+        },
+    },
+    'QuestingGainActionsPerVenom': {
+        // Soothsayer: Questing ➔ Gain 1 Action for each Venom, then +1 Venom
+        name: 'QuestingGainActionsPerVenom',
+        type: 'triggered',
+        triggers: ['questSuccess'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side) {
+                const venom = entity.venom || 0;
+                if (venom > 0) {
+                    if (side === 'PLAYER') { playerGainActions(venom); } else { enemyGainActions(venom); }
+                }
+                applyEffect(entity.id, entity.realm, side, { type: 'stat', field: 'venom', value: 1 });
+                console.log(`${entity.card.name} Questing: gained ${venom} Actions, then +1 Venom.`);
+            }
+        },
+    },
+    'OnActivateGainStats': {
+        // Incubus: Ascension (Activation) ➔ Gain +2/+2
+        name: 'OnActivateGainStats',
+        type: 'onActivate',
+        onActivate: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'OnActivateGainStats');
+            const powerGain = ability?.powerGain ?? ability?.amount ?? 2;
+            const hpGain = ability?.hpGain ?? ability?.amount ?? 2;
+            applyEffect(entity.id, entity.realm, side, { type: 'stat', field: 'power', value: powerGain });
+            applyEffect(entity.id, entity.realm, side, { type: 'stat', field: 'HP', value: hpGain });
+            console.log(`${entity.card.name} Activated: gained +${powerGain}/+${hpGain}.`);
+        },
+    },
+    'OnActivateGainBits': {
+        // Terminal: Ascension (Activation) ➔ +3 Bits
+        name: 'OnActivateGainBits',
+        type: 'onActivate',
+        onActivate: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'OnActivateGainBits');
+            const amount = ability?.amount || 3;
+            if (side === 'PLAYER') { playerGainBits(amount); } else { enemyGainBits(amount); }
+            console.log(`${entity.card.name} Activated: gained ${amount} Bits.`);
+        },
+    },
+    'ClashSearchAndDrawSnip': {
+        // Husk: Clash ➔ Search Pandora, place a Snip, and give it 2 Develop (simplified to searching and drawing it)
+        name: 'ClashSearchAndDrawSnip',
+        type: 'triggered',
+        triggers: ['clash'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side && eventData.entityId === entity.id) {
+                const found = findLibraryCardByPredicate(side, c => c.card.category === 'SNIP');
+                if (found) {
+                    drawSpecificCard(found, side);
+                    console.log(`${entity.card.name} Clash: searched Pandora and drew a Snip (${found.card.name}). (Note: auto-placing it with 2 Develop is not implemented; play and Develop it manually.)`);
+                }
+            }
+        },
+    },
+    'QuestMutationRitual': {
+        // Hunger: Perform a Quest. If successful, target Decaying online entity undergoes Mutation
+        // (simplified: the full "transform into an enemy entity" swap is not implemented; approximated
+        // as the friendly +1/+1 clause of Mutation applied to the first friendly Decaying online entity).
+        name: 'QuestMutationRitual',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            const handler = (eventData) => {
+                if (eventData.side === side) {
+                    const decaying = getAllOnlineEntities(side).filter(e => e.decay > 0);
+                    if (decaying.length > 0) {
+                        const target = decaying[0];
+                        applyEffect(target.id, target.realm, side, { type: 'stat', field: 'power', value: 1 });
+                        applyEffect(target.id, target.realm, side, { type: 'stat', field: 'HP', value: 1 });
+                        console.log(`${entity.card.name}: Quest succeeded, ${target.card.name} gains +1/+1 (simplified Mutation).`);
+                    }
+                    eventManager.unsubscribe('questSuccess', handler);
+                }
+            };
+            eventManager.subscribe('questSuccess', handler);
+            stateSetters.setAttackMode('PLAYER_QUEST');
+            stateSetters.setSelectedRealm('Solarium');
+        },
+    },
+    'AllEntitiesGainDecay': {
+        // Code Injection / Containment Breach: All entities gain X Decay
+        name: 'AllEntitiesGainDecay',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'AllEntitiesGainDecay');
+            const amount = ability?.amount || 1;
+            getAllPlayerRealms().forEach(realm => (realm.people || []).forEach(e => {
+                applyEffect(e.id, e.realm, 'PLAYER', { type: 'stat', field: 'decay', value: amount });
+            }));
+            getAllEnemyRealms().forEach(realm => (realm.people || []).forEach(e => {
+                applyEffect(e.id, e.realm, 'ENEMY', { type: 'stat', field: 'decay', value: amount });
+            }));
+            console.log(`${entity.card.name}: All entities gain ${amount} Decay.`);
+        },
+    },
+    'GainLagAndFateOnNextAscendOrQuest': {
+        // Altered State: Gain 2 Lag. When you Ascend or Quest successfully this turn, +2 Fate
+        // (simplified: triggers once on the next Ascend/Quest rather than resetting at end of turn).
+        name: 'GainLagAndFateOnNextAscendOrQuest',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'GainLagAndFateOnNextAscendOrQuest');
+            const lagAmount = ability?.lagAmount || 2;
+            const fateAmount = ability?.fateAmount || 2;
+            if (side === 'PLAYER') { playerGainLag(lagAmount); } else { enemyGainLag(lagAmount); }
+
+            const handler = (eventData) => {
+                if (eventData.side === side) {
+                    if (side === 'PLAYER') { playerGainFate(fateAmount); } else { enemyGainFate(fateAmount); }
+                    console.log(`${entity.card.name}: gained ${fateAmount} Fate from a successful Ascend/Quest.`);
+                    eventManager.unsubscribe('destinyTrigger', handler);
+                    eventManager.unsubscribe('questSuccess', handler);
+                }
+            };
+            eventManager.subscribe('destinyTrigger', handler);
+            eventManager.subscribe('questSuccess', handler);
+            console.log(`${entity.card.name}: gained ${lagAmount} Lag.`);
+        },
+    },
+    'OblivionEffect': {
+        // Oblivion: Lose all Burden and Overload, Discard HeadSpace, Disconnect all entities
+        name: 'OblivionEffect',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            if (side === 'PLAYER') {
+                stateSetters.setPlayerBurden(0);
+                stateSetters.setPlayerOverload(0);
+                stateSetters.setPlayerHand([]);
+                getAllPlayerRealms().forEach(realm => {
+                    ['people', 'things', 'places'].forEach(key => {
+                        (realm[key] || []).forEach(e => applyEffect(e.id, e.realm, 'PLAYER', { type: 'setOnline', value: false }));
+                    });
+                });
+            } else {
+                stateSetters.setEnemyBurden(0);
+                stateSetters.setEnemyOverload(0);
+                stateSetters.setEnemyHand([]);
+                getAllEnemyRealms().forEach(realm => {
+                    ['people', 'things', 'places'].forEach(key => {
+                        (realm[key] || []).forEach(e => applyEffect(e.id, e.realm, 'ENEMY', { type: 'setOnline', value: false }));
+                    });
+                });
+            }
+            console.log(`${entity.card.name}: lost all Burden/Overload, discarded HeadSpace, and disconnected all entities for ${side}.`);
+        },
+    },
+    'MaintainGainVenom': {
+        // Isolation Chamber: Maintain ➔ Gain 2 Venom
+        name: 'MaintainGainVenom',
+        type: 'triggered',
+        triggers: ['maintain'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'MaintainGainVenom');
+                const amount = ability?.amount || 2;
+                applyEffect(entity.id, entity.realm, side, { type: 'stat', field: 'venom', value: amount });
+                console.log(`${entity.card.name} Maintain: gained ${amount} Venom.`);
+            }
+        },
+    },
+    'DominanceMutateFriendlyEntity': {
+        // Research Facility: Dominance ➔ Target friendly online entity undergoes Mutation
+        // (simplified: auto-targets the first friendly online entity and applies the friendly +1/+1 clause).
+        name: 'DominanceMutateFriendlyEntity',
+        type: 'triggered',
+        triggers: ['dominanceWon'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side) {
+                const online = getAllOnlineEntities(side);
+                if (online.length > 0) {
+                    const target = online[0];
+                    applyEffect(target.id, target.realm, side, { type: 'stat', field: 'power', value: 1 });
+                    applyEffect(target.id, target.realm, side, { type: 'stat', field: 'HP', value: 1 });
+                    console.log(`${entity.card.name} Dominance: ${target.card.name} gains +1/+1 (simplified Mutation).`);
+                }
+            }
+        },
+    },
+    'SacrificeDecayEnemiesAndGainBits': {
+        // Drug Trial: Scheme 2: Sacrifice ➔ Give 1 Decay to enemy entities and gain 10 Bits (Scheme gating simplified away)
+        name: 'SacrificeDecayEnemiesAndGainBits',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            const decayAmount = effect.decayAmount || 1;
+            const bitAmount = effect.bitAmount || 10;
+            getAllOnlineEntities(getOppositeSide(side)).forEach(enemy => {
+                applyEffect(enemy.id, enemy.realm, getOppositeSide(side), { type: 'stat', field: 'decay', value: decayAmount });
+            });
+            if (side === 'PLAYER') { playerGainBits(bitAmount); } else { enemyGainBits(bitAmount); }
+            handleDestroyedThing(entity.realm, entity.id, side);
+            console.log(`${entity.card.name}: Sacrificed, gave enemy entities ${decayAmount} Decay, and gained ${bitAmount} Bits.`);
+        },
+    },
+    'ActionGainVengeanceAndDecayToFriendlies': {
+        // Exposure Therapy: Scheme 3: Action ➔ Friendly online entities gain 2 Vengeance and 1 Decay (Scheme gating simplified away)
+        name: 'ActionGainVengeanceAndDecayToFriendlies',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            const actionCost = effect.actionCost || 1;
+            const vengeanceAmount = effect.vengeanceAmount || 2;
+            const decayAmount = effect.decayAmount || 1;
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+            if (side === 'PLAYER') { stateSetters.setPlayerActions(prev => prev - actionCost); } else { stateSetters.setEnemyActions(prev => prev - actionCost); }
+            getAllOnlineEntities(side).forEach(friendly => {
+                applyEffect(friendly.id, friendly.realm, side, { type: 'status', status: 'Vengeance', amount: vengeanceAmount });
+                applyEffect(friendly.id, friendly.realm, side, { type: 'stat', field: 'decay', value: decayAmount });
+            });
+            console.log(`${entity.card.name}: Friendly online entities gained ${vengeanceAmount} Vengeance and ${decayAmount} Decay.`);
+        },
+    },
+    'ActionSearchAndDrawSubtype': {
+        // HoloGen: Action ➔ Search Pandora for a JAW entity and draw it
+        name: 'ActionSearchAndDrawSubtype',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            const actionCost = effect.actionCost || 1;
+            const subType = effect.subType || 'JAW';
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+            const found = findLibraryCardByPredicate(side, c => c.card.subTypes?.includes(subType));
+            if (!found) {
+                console.log(`No ${subType} entity found in Pandora.`);
+                return;
+            }
+            if (side === 'PLAYER') { stateSetters.setPlayerActions(prev => prev - actionCost); } else { stateSetters.setEnemyActions(prev => prev - actionCost); }
+            drawSpecificCard(found, side);
+            console.log(`${entity.card.name}: searched Pandora and drew ${found.card.name}.`);
+        },
+    },
+    'DeathGainVenom': {
+        // Organ Market: When a decaying entity dies, +1 Venom
+        name: 'DeathGainVenom',
+        type: 'triggered',
+        triggers: ['entityDied'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.owner === getOppositeSide(side) && eventData.decay > 0) {
+                const amount = 1;
+                applyEffect(entity.id, entity.realm, side, { type: 'stat', field: 'venom', value: amount });
+                console.log(`${entity.card.name}: a Decaying entity died, gained ${amount} Venom.`);
+            }
+        },
+    },
+    'MaintainGainBitsPerVenom': {
+        // Organ Market: Maintenance ➔ +1 Bit for each Venom
+        name: 'MaintainGainBitsPerVenom',
+        type: 'triggered',
+        triggers: ['maintain'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side) {
+                const venom = entity.venom || 0;
+                if (venom > 0) {
+                    if (side === 'PLAYER') { playerGainBits(venom); } else { enemyGainBits(venom); }
+                    console.log(`${entity.card.name} Maintenance: gained ${venom} Bits from Venom.`);
+                }
+            }
+        },
+    },
+    'ManualDestroyDecayingEntity': {
+        // Fever Dream: 2 Actions ➔ Destroy target Decaying entity (auto-targets the first enemy Decaying online entity)
+        name: 'ManualDestroyDecayingEntity',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            const actionCost = effect.actionCost || 2;
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+            const target = getAllOnlineEntities(getOppositeSide(side)).find(e => e.decay > 0);
+            if (!target) {
+                console.log('No Decaying entity to destroy.');
+                return;
+            }
+            if (side === 'PLAYER') { stateSetters.setPlayerActions(prev => prev - actionCost); } else { stateSetters.setEnemyActions(prev => prev - actionCost); }
+            handleDeadCard(target.realm, target.id, getOppositeSide(side));
+            console.log(`${entity.card.name}: destroyed ${target.card.name}.`);
+        },
+    },
+    'ToxicActionGainWoundsAndBits': {
+        // Apotheosis: Toxic 2: Action ➔ Gain 2 Wounds and 5 Bits
+        name: 'ToxicActionGainWoundsAndBits',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            const actionCost = effect.actionCost || 1;
+            const toxicRequirement = effect.toxicRequirement || 2;
+            const woundAmount = effect.woundAmount || 2;
+            const bitAmount = effect.bitAmount || 5;
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+            if (countDecayingEntities(side) < toxicRequirement) {
+                console.log(`${entity.card.name}: not enough Decaying entities to meet Toxic ${toxicRequirement}.`);
+                return;
+            }
+            if (side === 'PLAYER') { stateSetters.setPlayerActions(prev => prev - actionCost); } else { stateSetters.setEnemyActions(prev => prev - actionCost); }
+            if (side === 'PLAYER') { playerGainWounds(woundAmount); playerGainBits(bitAmount); } else { enemyGainWounds(woundAmount); enemyGainBits(bitAmount); }
+            console.log(`${entity.card.name}: gained ${woundAmount} Wounds and ${bitAmount} Bits.`);
+        },
+    },
+    'DominanceGainVenomAndWounds': {
+        // Inoculation: Dominance ➔ Gain 1 Venom, then inflict 1 Wound for each Venom
+        name: 'DominanceGainVenomAndWounds',
+        type: 'triggered',
+        triggers: ['dominanceWon'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side) {
+                applyEffect(entity.id, entity.realm, side, { type: 'stat', field: 'venom', value: 1 });
+                const venom = (entity.venom || 0) + 1;
+                if (side === 'PLAYER') { enemyGainWounds(venom); } else { playerGainWounds(venom); }
+                console.log(`${entity.card.name} Dominance: gained 1 Venom (${venom} total), inflicted ${venom} Wounds.`);
+            }
+        },
+    },
+    'AscendGainActionsCannotAttack': {
+        // Eclipse: Ascend ➔ +3 Actions. You cannot attack this turn (attack restriction not enforced)
+        name: 'AscendGainActionsCannotAttack',
+        type: 'onAscend',
+        onAscend: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'AscendGainActionsCannotAttack');
+            const amount = ability?.amount || 3;
+            if (side === 'PLAYER') { playerGainActions(amount); } else { enemyGainActions(amount); }
+            console.log(`${entity.card.name} Ascend: gained ${amount} Actions. (Note: the "cannot attack this turn" restriction is not enforced.)`);
+        },
+    },
+    'BitPaymentGainBoostAndWound': {
+        // ScriptKitty: 1 Bit ➔ Gain 1 Boost and 1 Wound
+        name: 'BitPaymentGainBoostAndWound',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            const bitCost = effect.bitCost || 1;
+            const boostAmount = effect.boostAmount || 1;
+            const woundAmount = effect.woundAmount || 1;
+            const bits = side === 'PLAYER' ? state.playerBits : state.enemyBits;
+            if (bits < bitCost) {
+                console.log(`Not enough bits to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+            if (side === 'PLAYER') { stateSetters.setPlayerBits(prev => prev - bitCost); } else { stateSetters.setEnemyBits(prev => prev - bitCost); }
+            applyBoost(entity, boostAmount, side);
+            if (side === 'PLAYER') { playerGainWounds(woundAmount); } else { enemyGainWounds(woundAmount); }
+            console.log(`${entity.card.name} paid ${bitCost} Bit: gained ${boostAmount} Boost and ${woundAmount} Wound.`);
+        },
+    },
+    // ─── Gray faction ──────────────────────────────────────────────────────
+
+    'OnPlayDamageAllEntities': {
+        // Phoenix: Deal 2 Damage to all Entities
+        name: 'OnPlayDamageAllEntities',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'OnPlayDamageAllEntities');
+            const amount = ability?.amount || 2;
+            getAllPlayerRealms().forEach(realm => (realm.people || []).forEach(e => {
+                handleDamage(e.realm, e.id, amount, 'PLAYER');
+            }));
+            getAllEnemyRealms().forEach(realm => (realm.people || []).forEach(e => {
+                handleDamage(e.realm, e.id, amount, 'ENEMY');
+            }));
+            console.log(`${entity.card.name}: Dealt ${amount} damage to all entities.`);
+        },
+    },
+    'ExhaustGrantBarricade': {
+        // Conscripts: Exhaust ➔ Barricade 3
+        name: 'ExhaustGrantBarricade',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            const amount = effect.amount || 3;
+            applyEffect(entity.id, entity.realm, side, { type: 'status', status: 'barricade', amount });
+            exhaustEntity(entity, side);
+            console.log(`${entity.card.name}: Exhausted to gain Barricade ${amount}.`);
+        },
+    },
+    'OnPlayGrantHealthAndCharge': {
+        // Combat Medic: Target entity gains +6 Health and Charge
+        name: 'OnPlayGrantHealthAndCharge',
+        type: 'onPlay',
+        requiresTarget: true,
+        targetFilter: (target) => true,
+        onPlay: function (entity, gameState, side, target) {
+            if (!target) {
+                console.log('No target selected for OnPlayGrantHealthAndCharge');
+                return;
+            }
+            const ability = entity.card.abilities?.find(a => a.name === 'OnPlayGrantHealthAndCharge');
+            const hpGain = ability?.hpGain || 6;
+            applyEffect(target.id, target.realm, target.owner, { type: 'stat', field: 'HP', value: hpGain });
+            applyEffect(target.id, target.realm, target.owner, { type: 'status', status: 'charge', amount: 1 });
+            console.log(`${entity.card.name}: ${target.card.name} gains +${hpGain} Health and Charge.`);
+        },
+    },
+    'DominanceGainBits': {
+        // Troll: Dominance ➔ Gain 4 Bits
+        name: 'DominanceGainBits',
+        type: 'triggered',
+        triggers: ['dominanceWon'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'DominanceGainBits');
+                const amount = ability?.amount || 4;
+                if (side === 'PLAYER') { playerGainBits(amount); } else { enemyGainBits(amount); }
+                console.log(`${entity.card.name} Dominance: gained ${amount} Bits.`);
+            }
+        },
+    },
+    'ClashInflictLag': {
+        // Embedding: Clash ➔ Inflict 3 Lag
+        name: 'ClashInflictLag',
+        type: 'triggered',
+        triggers: ['clash'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side && eventData.entityId === entity.id) {
+                const ability = entity.card.abilities?.find(a => a.name === 'ClashInflictLag');
+                const amount = ability?.amount || 3;
+                if (getOppositeSide(side) === 'PLAYER') { playerGainLag(amount); } else { enemyGainLag(amount); }
+                console.log(`${entity.card.name} Clash: inflicted ${amount} Lag.`);
+            }
+        },
+    },
+    'ClashInflictFreezeOnJAWbreakers': {
+        // IceBorg: Clash ➔ Inflict Freeze 2 on JAWbreaker entities
+        name: 'ClashInflictFreezeOnJAWbreakers',
+        type: 'triggered',
+        triggers: ['clash'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side && eventData.entityId === entity.id) {
+                const ability = entity.card.abilities?.find(a => a.name === 'ClashInflictFreezeOnJAWbreakers');
+                const amount = ability?.amount || 2;
+                const enemySide = getOppositeSide(side);
+                getAllOnlineEntities(enemySide)
+                    .filter(e => e.card.subTypes?.includes('JAWbreaker'))
+                    .forEach(target => {
+                        applyEffect(target.id, target.realm, enemySide, { type: 'stat', field: 'freeze', value: amount });
+                    });
+                console.log(`${entity.card.name} Clash: inflicted ${amount} Freeze on enemy JAWbreaker entities.`);
+            }
+        },
+    },
+    'ClashInflictWounds': {
+        // Daemon: Clash ➔ Inflict 2 Wounds
+        name: 'ClashInflictWounds',
+        type: 'triggered',
+        triggers: ['clash'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side && eventData.entityId === entity.id) {
+                const ability = entity.card.abilities?.find(a => a.name === 'ClashInflictWounds');
+                const amount = ability?.amount || 2;
+                if (getOppositeSide(side) === 'PLAYER') { playerGainWounds(amount); } else { enemyGainWounds(amount); }
+                console.log(`${entity.card.name} Clash: inflicted ${amount} Wounds.`);
+            }
+        },
+    },
+    'ClashGrantFriendliesBoost': {
+        // Leech: Clash ➔ Friendly entities gain 1 Boost
+        name: 'ClashGrantFriendliesBoost',
+        type: 'triggered',
+        triggers: ['clash'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side && eventData.entityId === entity.id) {
+                const ability = entity.card.abilities?.find(a => a.name === 'ClashGrantFriendliesBoost');
+                const amount = ability?.amount || 1;
+                getAllOnlineEntities(side).forEach(friendly => applyBoost(friendly, amount, side));
+                console.log(`${entity.card.name} Clash: friendly entities gain ${amount} Boost.`);
+            }
+        },
+    },
+    'ActionGainCharge': {
+        // CarJack: Action ➔ Gain 2 Charge
+        name: 'ActionGainCharge',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            const actionCost = effect.actionCost || 1;
+            const amount = effect.amount || 2;
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+            if (side === 'PLAYER') { stateSetters.setPlayerActions(prev => prev - actionCost); } else { stateSetters.setEnemyActions(prev => prev - actionCost); }
+            applyEffect(entity.id, entity.realm, side, { type: 'stat', field: 'charge', value: amount });
+            console.log(`${entity.card.name}: gained ${amount} Charge.`);
+        },
+    },
+    'ClashLoseCharge': {
+        // CarJack: Clash ➔ Lose 1 Charge
+        name: 'ClashLoseCharge',
+        type: 'triggered',
+        triggers: ['clash'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side && eventData.entityId === entity.id) {
+                const ability = entity.card.abilities?.find(a => a.name === 'ClashLoseCharge');
+                const amount = Math.min(ability?.amount || 1, entity.charge || 0);
+                if (amount > 0) {
+                    applyEffect(entity.id, entity.realm, side, { type: 'stat', field: 'charge', value: -amount });
+                    console.log(`${entity.card.name} Clash: lost ${amount} Charge.`);
+                }
+            }
+        },
+    },
+    'ActionDisconnectSelf': {
+        // Lurker: Action ➔ Disconnect
+        name: 'ActionDisconnectSelf',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            const actionCost = effect.actionCost || 1;
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+            if (side === 'PLAYER') { stateSetters.setPlayerActions(prev => prev - actionCost); } else { stateSetters.setEnemyActions(prev => prev - actionCost); }
+            applyEffect(entity.id, entity.realm, side, { type: 'setOnline', value: false });
+            console.log(`${entity.card.name}: disconnected.`);
+        },
+    },
+    'OnPlayGrantBoostChargeLifeless': {
+        // Overclock: Give target friendly online entity Boost 2, Charge 2, and Lifeless
+        name: 'OnPlayGrantBoostChargeLifeless',
+        type: 'onPlay',
+        requiresTarget: true,
+        targetFilter: (target, entity) => target.owner === entity.owner && target.online,
+        onPlay: function (entity, gameState, side, target) {
+            if (!target) {
+                console.log('No target selected for OnPlayGrantBoostChargeLifeless');
+                return;
+            }
+            const ability = entity.card.abilities?.find(a => a.name === 'OnPlayGrantBoostChargeLifeless');
+            const boostAmount = ability?.boostAmount || 2;
+            const chargeAmount = ability?.chargeAmount || 2;
+            applyBoost(target, boostAmount, side);
+            applyEffect(target.id, target.realm, side, { type: 'stat', field: 'charge', value: chargeAmount });
+            applyEffect(target.id, target.realm, side, { type: 'status', status: 'lifeless', amount: 1 });
+            console.log(`${entity.card.name}: ${target.card.name} gains Boost ${boostAmount}, Charge ${chargeAmount}, and Lifeless.`);
+        },
+    },
+    'OnPlayGainActionsAndDraw': {
+        // Meditation: Gain 3 Actions and draw 3 cards. You cannot attack this turn (restriction not enforced)
+        name: 'OnPlayGainActionsAndDraw',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'OnPlayGainActionsAndDraw');
+            const actionAmount = ability?.actionAmount || 3;
+            const drawAmount = ability?.drawAmount || 3;
+            if (side === 'PLAYER') { playerGainActions(actionAmount); playerDraw(drawAmount); } else { enemyGainActions(actionAmount); enemyDraw(drawAmount); }
+            console.log(`${entity.card.name}: gained ${actionAmount} Actions and drew ${drawAmount} cards. (Note: the "cannot attack this turn" restriction is not enforced.)`);
+        },
+    },
+    'OnPlayGainBitsAshAndWound': {
+        // Bloodletting: +10 Bits and +2 Ash. Inflict 1 Wound.
+        name: 'OnPlayGainBitsAshAndWound',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'OnPlayGainBitsAshAndWound');
+            const bitAmount = ability?.bitAmount || 10;
+            const ashAmount = ability?.ashAmount || 2;
+            const woundAmount = ability?.woundAmount || 1;
+            if (side === 'PLAYER') { playerGainBits(bitAmount); playerGainAshes(ashAmount); playerGainWounds(woundAmount); } else { enemyGainBits(bitAmount); enemyGainAshes(ashAmount); enemyGainWounds(woundAmount); }
+            console.log(`${entity.card.name}: gained ${bitAmount} Bits, ${ashAmount} Ash, and ${woundAmount} Wound.`);
+        },
+    },
+    'OnPlayDamageTargetSubtype': {
+        // Disintegrate: Deal 4 damage to target Online enemy JAW or JAWbreaker
+        name: 'OnPlayDamageTargetSubtype',
+        type: 'onPlay',
+        requiresTarget: true,
+        targetFilter: (target, entity) =>
+            target.owner !== entity.owner &&
+            target.online &&
+            (target.card.subTypes?.includes('JAW') || target.card.subTypes?.includes('JAWbreaker')),
+        onPlay: function (entity, gameState, side, target) {
+            if (!target) {
+                console.log('No target selected for OnPlayDamageTargetSubtype');
+                return;
+            }
+            const ability = entity.card.abilities?.find(a => a.name === 'OnPlayDamageTargetSubtype');
+            const amount = ability?.amount || 4;
+            handleDamage(target.realm, target.id, amount, target.owner);
+            console.log(`${entity.card.name}: Dealt ${amount} damage to ${target.card.name}.`);
+        },
+    },
+    'OnPlayInflictBurdenAndFreezeByAffinity': {
+        // Amnesia: Inflict 2 Burden. Magical or Physical entities gain Freeze 2.
+        name: 'OnPlayInflictBurdenAndFreezeByAffinity',
+        type: 'onPlay',
+        onPlay: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'OnPlayInflictBurdenAndFreezeByAffinity');
+            const burdenAmount = ability?.burdenAmount || 2;
+            const freezeAmount = ability?.freezeAmount || 2;
+            const enemySide = getOppositeSide(side);
+            if (enemySide === 'PLAYER') { playerGainBurden(burdenAmount); } else { enemyGainBurden(burdenAmount); }
+
+            [...getAllPlayerRealms().flatMap(r => (r.people || []).map(e => ({ e, side: 'PLAYER' }))),
+             ...getAllEnemyRealms().flatMap(r => (r.people || []).map(e => ({ e, side: 'ENEMY' })))]
+                .filter(({ e }) => e.card.magi || e.card.phys)
+                .forEach(({ e, side: entitySide }) => {
+                    applyEffect(e.id, e.realm, entitySide, { type: 'stat', field: 'freeze', value: freezeAmount });
+                });
+
+            console.log(`${entity.card.name}: Inflicted ${burdenAmount} Burden. Magical/Physical entities gain ${freezeAmount} Freeze.`);
+        },
+    },
+    'InterfaceInflictOverload': {
+        // Sigil: Interface ➔ inflict 4 Overload
+        name: 'InterfaceInflictOverload',
+        type: 'triggered',
+        triggers: ['interface'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side) {
+                const ability = entity.card.abilities?.find(a => a.name === 'InterfaceInflictOverload');
+                const amount = ability?.amount || 4;
+                applyOverload(getOppositeSide(side), amount);
+                console.log(`${entity.card.name} Interface: inflicted ${amount} Overload.`);
+            }
+        },
+    },
+    'ActionGrantStatsAndCharge': {
+        // Satellite Array: Action ➔ Target friendly Online entity gains +1/+1 and Charge
+        name: 'ActionGrantStatsAndCharge',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target, entity) => target.owner === entity.owner && target.online,
+        execute: function (entity, effect, side, target) {
+            if (!target) {
+                console.log('No target selected for ActionGrantStatsAndCharge');
+                return;
+            }
+            const actionCost = effect.actionCost || 1;
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+            if (side === 'PLAYER') { stateSetters.setPlayerActions(prev => prev - actionCost); } else { stateSetters.setEnemyActions(prev => prev - actionCost); }
+            applyEffect(target.id, target.realm, side, { type: 'stat', field: 'power', value: 1 });
+            applyEffect(target.id, target.realm, side, { type: 'stat', field: 'HP', value: 1 });
+            applyEffect(target.id, target.realm, side, { type: 'status', status: 'charge', amount: 1 });
+            console.log(`${entity.card.name}: ${target.card.name} gains +1/+1 and Charge.`);
+        },
+    },
+    'ActionGainDividendBonus': {
+        // Obelisk: 2 Actions ➔ Gain Dividend 3 (simplified: immediately gain 3 Bits rather than a
+        // permanent Dividend stack increase, since Dividend is a per-turn passive keyword).
+        name: 'ActionGainDividendBonus',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            const actionCost = effect.actionCost || 2;
+            const amount = effect.amount || 3;
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+            if (side === 'PLAYER') { stateSetters.setPlayerActions(prev => prev - actionCost); } else { stateSetters.setEnemyActions(prev => prev - actionCost); }
+            if (side === 'PLAYER') { playerGainBits(amount); } else { enemyGainBits(amount); }
+            console.log(`${entity.card.name}: gained ${amount} Bits. (Simplified from a permanent Dividend 3 increase.)`);
+        },
+    },
+    'OncePerTurnActionGrantBoostAndStealth': {
+        // Warp Gate: Once Per Turn: Action ➔ Target entity gains Boost 2 and Stealth
+        name: 'OncePerTurnActionGrantBoostAndStealth',
+        type: 'manual',
+        requiresTarget: true,
+        targetFilter: (target) => true,
+        execute: function (entity, effect, side, target) {
+            if (!target) {
+                console.log('No target selected for OncePerTurnActionGrantBoostAndStealth');
+                return;
+            }
+            if (entity.abilityUsedThisTurn) {
+                console.log(`${entity.card.name}'s ability already used this turn.`);
+                return;
+            }
+            const actionCost = effect.actionCost || 1;
+            const boostAmount = effect.boostAmount || 2;
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+            if (side === 'PLAYER') { stateSetters.setPlayerActions(prev => prev - actionCost); } else { stateSetters.setEnemyActions(prev => prev - actionCost); }
+            applyBoost(target, boostAmount, target.owner);
+            applyEffect(target.id, target.realm, target.owner, { type: 'stat', field: 'stealth', value: 1 });
+            entity.abilityUsedThisTurn = true;
+            console.log(`${entity.card.name}: ${target.card.name} gains Boost ${boostAmount} and Stealth.`);
+        },
+    },
+    'ManualSacrificeGainBits': {
+        // Museum: 3 Actions, Sacrifice ➔ Gain 12 Bits
+        name: 'ManualSacrificeGainBits',
+        type: 'manual',
+        execute: function (entity, effect, side) {
+            const actionCost = effect.actionCost || 3;
+            const amount = effect.amount || 12;
+            const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+            if (actions < actionCost) {
+                console.log(`Not enough actions to activate ${entity.card.name}'s ability.`);
+                return;
+            }
+            if (side === 'PLAYER') { stateSetters.setPlayerActions(prev => prev - actionCost); } else { stateSetters.setEnemyActions(prev => prev - actionCost); }
+            if (side === 'PLAYER') { playerGainBits(amount); } else { enemyGainBits(amount); }
+            handleDestroyedPlace(entity.realm, entity.id, side);
+            console.log(`${entity.card.name}: Sacrificed to gain ${amount} Bits.`);
+        },
+    },
+    'AscendedGainFateOnTurnStart': {
+        // Past Life: Ascended: Beginning of Turn ➔ +1 Fate
+        name: 'AscendedGainFateOnTurnStart',
+        type: 'triggered',
+        triggers: ['turnStart'],
+        eventHandler: function (entity, eventData, gameState, side) {
+            if (eventData.side === side && entity.ascended) {
+                const ability = entity.card.abilities?.find(a => a.name === 'AscendedGainFateOnTurnStart');
+                const amount = ability?.amount || 1;
+                if (side === 'PLAYER') { playerGainFate(amount); } else { enemyGainFate(amount); }
+                console.log(`${entity.card.name} (Ascended): gained ${amount} Fate.`);
+            }
+        },
+    },
+    'AscendDamageAllEntitiesAndLocations': {
+        // Launch Codes: Ascend ➔ Deal 4 damage to all entities and locations
+        name: 'AscendDamageAllEntitiesAndLocations',
+        type: 'onAscend',
+        onAscend: function (entity, gameState, side) {
+            const ability = entity.card.abilities?.find(a => a.name === 'AscendDamageAllEntitiesAndLocations');
+            const amount = ability?.amount || 4;
+            getAllPlayerRealms().forEach(realm => {
+                (realm.people || []).forEach(e => handleDamage(e.realm, e.id, amount, 'PLAYER'));
+                (realm.places || []).forEach(p => handlePlaceDamage(p.realm, p.id, amount, 'PLAYER'));
+            });
+            getAllEnemyRealms().forEach(realm => {
+                (realm.people || []).forEach(e => handleDamage(e.realm, e.id, amount, 'ENEMY'));
+                (realm.places || []).forEach(p => handlePlaceDamage(p.realm, p.id, amount, 'ENEMY'));
+            });
+            console.log(`${entity.card.name} Ascend: dealt ${amount} damage to all entities and locations.`);
+        },
+    },
+    'AscendedGrantKeywords': {
+        // Causality: Ascended ➔ Drift, Dividend, Tarot
+        // (simplified: grants the three keyword abilities to self permanently on ascend rather than
+        // continuously for as long as it remains Ascended).
+        name: 'AscendedGrantKeywords',
+        type: 'onAscend',
+        onAscend: function (entity, gameState, side) {
+            entity.card.abilities = [
+                ...(entity.card.abilities || []),
+                { name: 'Drift' },
+                { name: 'Dividend' },
+                { name: 'Tarot' },
+            ];
+            console.log(`${entity.card.name} Ascended: gained Drift, Dividend, and Tarot.`);
+        },
+    },
+    'AscendBuffDecayingEnemyEntity': {
+        // Coronation: Ascend ➔ Gain control of target Decaying entity and give it +5/+5
+        // (simplified: full control transfer is not implemented; the first enemy Decaying online
+        // entity found instead just gains +5/+5 and 2 Decay as an approximation).
+        name: 'AscendBuffDecayingEnemyEntity',
+        type: 'onAscend',
+        onAscend: function (entity, gameState, side) {
+            const target = getAllOnlineEntities(getOppositeSide(side)).find(e => e.decay > 0);
+            if (!target) {
+                console.log(`${entity.card.name} Ascend: no Decaying enemy entity to target.`);
+                return;
+            }
+            applyEffect(target.id, target.realm, getOppositeSide(side), { type: 'stat', field: 'power', value: 5 });
+            applyEffect(target.id, target.realm, getOppositeSide(side), { type: 'stat', field: 'HP', value: 5 });
+            console.log(`${entity.card.name} Ascend: ${target.card.name} gains +5/+5. (Note: gaining control of it is not implemented.)`);
+        },
+    },
 };
 
 // Export helper functions and abilities
@@ -2927,6 +4068,9 @@ async function activateAbilities(entity, side) {
         type: 'setOnline',
         value: true,
     });
+
+    // Ambush: deal damage to a random enemy entity in the same realm on entry.
+    applyAmbushOnEntry(entity, side);
 
     if (!entity.activeAbilities) {
         entity.activeAbilities = [];
@@ -3129,6 +4273,17 @@ export function deactivateAbilities(entity, side) {
     const currentEntity = location === 'REALM'
         ? realm.people[entityIndex]
         : (playerBattleCard || enemyBattleCard);
+
+    // Undo any static/aura abilities that granted a persistent effect (e.g.
+    // PandoraAccess, Drift, Dividend, various auras). Without this, a static
+    // ability's bonus survives forever after the granting entity dies, since
+    // nothing else ever reverses applyAbilityEffect.
+    (currentEntity.activeAbilities || []).forEach(({ abilityName, abilityDef }) => {
+        const def = abilityDef || abilitiesDefinitions[abilityName];
+        if (def && typeof def.removeEffect === 'function') {
+            def.removeEffect(currentEntity, state, side);
+        }
+    });
 
     // Remove all abilities
     const updatedEntity = { ...currentEntity };

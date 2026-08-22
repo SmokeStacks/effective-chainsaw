@@ -82,7 +82,7 @@ export function enemyPlanAttack() {
             console.log(`Checking aspect: ${aspect} in realm ${name}`);
             
             const matchingCreatures = liveRealm.people.filter(
-                creature => creature && creature.card && creature.card[aspect] && creature.online && creature.readied && !creature.card.defensive
+                creature => creature && creature.card && creature.card[aspect] && creature.online && creature.readied && !creature.defensive
             );
             
             console.log(`Found ${matchingCreatures.length} matching creatures for aspect ${aspect} in realm ${name}`);
@@ -131,8 +131,8 @@ export function enemyPlanAttack() {
             // Sort targets by priority
             potentialTargets.sort((a, b) => {
                 // Prioritize non-defensive targets
-                if (a.card.defensive && !b.card.defensive) return 1;
-                if (!a.card.defensive && b.card.defensive) return -1;
+                if (a.defensive && !b.defensive) return 1;
+                if (!a.defensive && b.defensive) return -1;
 
                 // Then prioritize by threat level (e.g., attack power)
                 const aThreat = a.card.attack || 0;

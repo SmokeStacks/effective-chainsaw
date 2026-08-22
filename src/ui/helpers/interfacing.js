@@ -6,16 +6,6 @@ import { eventManager } from './eventManager';
 import { playerLoseBits, enemyLoseBits } from './game';
 import { playerGainOverload, enemyGainOverload } from './effects';
 
-// Destructure state values only - use stateSetters.xxx for setters
-const {
-    enemyLibrary, enemyHand, playerLibrary, playerHand,
-    playerTargetSelection, enemyTargetSelection,
-    targetType, enemyTargetType,
-    playerPandoraAccess, playerHeadSpaceAccess,
-    enemyPandoraAccess, enemyHeadSpaceAccess,
-    battleRealm
-} = state;
-
 const getRealmAndSetter = (location, side) => {
     if (side === 'ENEMY') {
         switch (location) {
@@ -53,25 +43,32 @@ export function handleAccessPhase(side) {
     let library;
     let hand;
 
+    // Realms/hands/libraries and the access-count auras are read live from
+    // state here (not destructured at module load) so this reflects auras
+    // and one-shot access bonuses granted after the module first loaded.
     if (side === 'PLAYER') {
-        library = enemyLibrary;
-        hand = enemyHand;
-        accessTarget = playerTargetSelection;
-        acessTargetType = targetType;
-        if (targetType === 'PANDORA') {
-            numAccesses = playerPandoraAccess;
-        } else if (targetType === 'HEADSPACE') {
-            numAccesses = playerHeadSpaceAccess;
+        library = state.enemyLibrary;
+        hand = state.enemyHand;
+        accessTarget = state.playerTargetSelection;
+        acessTargetType = state.targetType;
+        if (state.targetType === 'PANDORA') {
+            numAccesses = (state.playerPandoraAccess ?? 1) + (state.playerAccessBonus || 0);
+            stateSetters.setPlayerAccessBonus && stateSetters.setPlayerAccessBonus(0);
+        } else if (state.targetType === 'HEADSPACE') {
+            numAccesses = (state.playerHeadSpaceAccess ?? 1) + (state.playerAccessBonus || 0);
+            stateSetters.setPlayerAccessBonus && stateSetters.setPlayerAccessBonus(0);
         }
     } else {
-        library = playerLibrary;
-        hand = playerHand;
-        accessTarget = enemyTargetSelection;
-        acessTargetType = enemyTargetType;
-        if (enemyTargetType === 'PANDORA') {
-            numAccesses = enemyPandoraAccess;
-        } else if (enemyTargetType === 'HEADSPACE') {
-            numAccesses = enemyHeadSpaceAccess;
+        library = state.playerLibrary;
+        hand = state.playerHand;
+        accessTarget = state.enemyTargetSelection;
+        acessTargetType = state.enemyTargetType;
+        if (state.enemyTargetType === 'PANDORA') {
+            numAccesses = (state.enemyPandoraAccess ?? 1) + (state.enemyAccessBonus || 0);
+            stateSetters.setEnemyAccessBonus && stateSetters.setEnemyAccessBonus(0);
+        } else if (state.enemyTargetType === 'HEADSPACE') {
+            numAccesses = (state.enemyHeadSpaceAccess ?? 1) + (state.enemyAccessBonus || 0);
+            stateSetters.setEnemyAccessBonus && stateSetters.setEnemyAccessBonus(0);
         }
     }
 
@@ -106,11 +103,11 @@ export function handleAccessPhase(side) {
     eventManager.publish('interface', {
         side,
         targetType: acessTargetType,
-        battleRealm,
+        battleRealm: state.battleRealm,
         count: accessCards.length
     });
 
-    processAccessQueue(accessCards, battleRealm, side);
+    processAccessQueue(accessCards, state.battleRealm, side);
 }
 
 export function processAccessQueue(accessCards, battleRealm, side) {
@@ -139,9 +136,9 @@ export async function presentAccessedCard(card, battleRealm, side, callback) {
     let location;
     let currentTargetType;
     if (side === 'PLAYER') {
-        currentTargetType = targetType;
+        currentTargetType = state.targetType;
     } else {
-        currentTargetType = enemyTargetType;
+        currentTargetType = state.enemyTargetType;
     }
 
     if (currentTargetType === 'PANDORA' || currentTargetType === 'HEADSPACE') {

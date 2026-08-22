@@ -75,6 +75,18 @@ export const state = {
     enemyInterfacedPandora: false,
     enemySuccessfulHack: false,
 
+    // Base Interface/Access counts (how many cards are seen on a successful
+    // Interface of Pandora/HeadSpace). Auras like the PandoraAccess ability
+    // raise these permanently. Default is 1 card per successful hack.
+    playerPandoraAccess: 1,
+    playerHeadSpaceAccess: 1,
+    enemyPandoraAccess: 1,
+    enemyHeadSpaceAccess: 1,
+    // One-shot bonuses added to the access count for the next Interface only,
+    // then cleared automatically by handleAccessPhase (e.g. Multi Threading).
+    playerAccessBonus: 0,
+    enemyAccessBonus: 0,
+
     // Dominance tracking
     playerWonDominance: false,
     playerLostDominance: false,  // "Surrender"
@@ -173,6 +185,12 @@ export const stateSetters = {
     setEnemyInterfacedHeadSpace: null,
     setEnemyInterfacedPandora: null,
     setEnemySuccessfulHack: null,
+    setPlayerPandoraAccess: null,
+    setPlayerHeadSpaceAccess: null,
+    setEnemyPandoraAccess: null,
+    setEnemyHeadSpaceAccess: null,
+    setPlayerAccessBonus: null,
+    setEnemyAccessBonus: null,
 
     // Dominance setters
     setPlayerWonDominance: null,

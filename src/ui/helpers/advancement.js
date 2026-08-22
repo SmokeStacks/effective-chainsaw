@@ -149,6 +149,12 @@ export function handleAscension(cardEntity, side) {
             // Activate ongoing Ascended abilities
             activateAscendedAbilities(cardEntity, side);
 
+            // Destiny X: "Effect activates whenever a friendly Sym or Landmark
+            // is Ascended..." (the Steal/Destroy half of Destiny is not wired
+            // up yet since Sym/Landmark theft/destruction doesn't currently
+            // publish an equivalent event).
+            eventManager.publish('destinyTrigger', { side });
+
             console.log(`${cardEntity.card.name} has ascended.`);
         } else {
             console.error(`Card ${cardEntity.card.name} not found in realm ${realmName}.`);

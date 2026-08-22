@@ -4,6 +4,7 @@ import { eventManager } from './eventManager';
 import { deactivateAbilities } from '../abilities/glossary';
 import { gainFate as playerGainFate, gainAshes as playerGainAshes } from './player';
 import { gainFate as enemyGainFate, gainAshes as enemyGainAshes } from './enemy';
+import { tryBribe } from './combatKeywords';
 
 // NOTE: this file used to destructure `state` and `stateSetters` at the top of
 // the module. That captured references at module-load time, BEFORE
@@ -46,12 +47,19 @@ export function handleDamage(location, entityId, damageAmount, owner) {
             damageDealt = actualDamage;
             excessDamage = adjustedDamageAmount - actualDamage;
 
-            const newWounds = currentWounds + actualDamage;
+            let newWounds = currentWounds + actualDamage;
             console.log(
                 `${cardToWound.card.name} receives ${actualDamage} damage after Armor. Total wounds: ${newWounds}`
             );
 
-            if (newWounds >= maxHealth) {
+            if (newWounds >= maxHealth && tryBribe(cardToWound, owner, stateSetters)) {
+                newWounds = maxHealth - 1;
+                setRealmOrBattleSlots((prev) =>
+                    prev.map((card) =>
+                        card && card.id === entityId ? { ...card, wounds: newWounds, bribeUsed: true } : card
+                    )
+                );
+            } else if (newWounds >= maxHealth) {
                 handleDeadCard(location, entityId, owner);
             } else {
                 setRealmOrBattleSlots((prev) =>
@@ -83,12 +91,21 @@ export function handleDamage(location, entityId, damageAmount, owner) {
         damageDealt = actualDamage;
         excessDamage = adjustedDamageAmount - actualDamage;
 
-        const newEntity = { ...oldEntity, wounds: currentWounds + actualDamage };
+        let newEntity = { ...oldEntity, wounds: currentWounds + actualDamage };
         console.log(
             `${newEntity.card.name} receives ${actualDamage} damage after Armor. Total wounds: ${newEntity.wounds}`
         );
 
-        if (newEntity.wounds >= maxHealth) {
+        if (newEntity.wounds >= maxHealth && tryBribe(newEntity, owner, stateSetters)) {
+            newEntity = { ...newEntity, wounds: maxHealth - 1, bribeUsed: true };
+            const newPeople = [...realm.people];
+            newPeople[entityIndex] = newEntity;
+
+            setRealm({
+                ...realm,
+                people: newPeople,
+            });
+        } else if (newEntity.wounds >= maxHealth) {
             handleDeadCard(location, entityId, owner);
         } else {
             const newPeople = [...realm.people];
@@ -178,7 +195,7 @@ export function handleDeadCard(location, entityId, side) {
 
         // Publish death event
         state.entityDiedThisTurn = true;
-        eventManager.publish('entityDied', { entityId: numericEntityId, realmName: location, owner: side });
+        eventManager.publish('entityDied', { entityId: numericEntityId, realmName: location, owner: side, decay: cardToRemove.decay || 0 });
 
         // Gain ashes based on side
         if (side === 'PLAYER') {
@@ -272,7 +289,7 @@ export function handleDeadCards(deadList, side) {
     for (const { location, entity } of allEntities) {
         deactivateAbilities(entity, side);
         state.entityDiedThisTurn = true;
-        eventManager.publish('entityDied', { entityId: entity.id, realmName: location, owner: side });
+        eventManager.publish('entityDied', { entityId: entity.id, realmName: location, owner: side, decay: entity.decay || 0 });
 
         if (side === 'PLAYER') {
             playerGainAshes(1);

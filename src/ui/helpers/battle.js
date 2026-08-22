@@ -4,6 +4,7 @@ import { state, stateSetters } from './state';
 import { applySoloEffect } from './effects';
 import { handleAccessPhase } from './interfacing';
 import { handlePlaceDamage, handleDamage } from './damage';
+import { applyStingOnClash } from './combatKeywords';
 import { 
     enemyGainWounds,
     playerGainWounds,
@@ -79,8 +80,8 @@ const commitAttack = (attacker, defender = null, side, target = null, targetType
     }
 
     let unblockedHacking = false;
-    let attackerPower = adjustEntityPowerExternal(attacker, side);
-    let defenderPower = defender ? adjustEntityPowerExternal(defender, getOppositeSide(side)) : 0;
+    let attackerPower = adjustEntityPowerExternal(attacker, side, true);
+    let defenderPower = defender ? adjustEntityPowerExternal(defender, getOppositeSide(side), false) : 0;
 
     // Handle stealth
     if (defender?.stealth > 0) {
@@ -257,8 +258,16 @@ const handleEnemyBattle = () => {
                 applySoloEffect(slot, state.battleRealm);
             }
 
-            // Commit the attack
+            // Clash: fires for the attacker and its blocker now that blockers are locked in
             const defender = updatedPlayerBattleSlots[i];
+            eventManager.publish('clash', { side: 'ENEMY', entityId: slot.id, opponentEntityId: defender ? defender.id : null, opponentSide: 'PLAYER' });
+            applyStingOnClash(slot.id, 'ENEMY', defender ? defender.id : null);
+            if (defender) {
+                eventManager.publish('clash', { side: 'PLAYER', entityId: defender.id, opponentEntityId: slot.id, opponentSide: 'ENEMY' });
+                applyStingOnClash(defender.id, 'PLAYER', slot.id);
+            }
+
+            // Commit the attack
             const attackResult = commitAttack(slot, defender, 'ENEMY', state.enemyTargetSelection, state.enemyTargetType, i);
             if (attackResult.unblockedHacking) {
                 unblockedHacking = true;
@@ -316,7 +325,7 @@ function handleUnblockedAttack(attacker, side, slotIndex) {
         return { unblockedHacking: false };
     }
 
-    const attackerPower = adjustEntityPowerExternal(attacker, side);
+    const attackerPower = adjustEntityPowerExternal(attacker, side, true);
     const opponentSide = getOppositeSide(side);
     let unblockedHacking = false;
 
@@ -409,6 +418,7 @@ function handleUnblockedDamage(mode, power, side, realm) {
         case 'ENEMY_magi':
         case 'PLAYER_QUEST':
             side === 'PLAYER' ? playerGainFate(power) : enemyGainFate(power);
+            eventManager.publish('questSuccess', { side });
             return false;
 
         case 'ENEMY_tech':
@@ -527,6 +537,14 @@ const handlePlayerBattle = () => {
             // Implement solo event dispatch here
             if (isSoloAttack && attacker.solo > 0) {
                 applySoloEffect(attacker, state.battleRealm);
+            }
+
+            // Clash: fires for the attacker and its blocker now that blockers are locked in
+            eventManager.publish('clash', { side: 'PLAYER', entityId: attacker.id, opponentEntityId: defender ? defender.id : null, opponentSide: 'ENEMY' });
+            applyStingOnClash(attacker.id, 'PLAYER', defender ? defender.id : null);
+            if (defender) {
+                eventManager.publish('clash', { side: 'ENEMY', entityId: defender.id, opponentEntityId: attacker.id, opponentSide: 'PLAYER' });
+                applyStingOnClash(defender.id, 'ENEMY', attacker.id);
             }
 
             const attackResult = commitAttack(attacker, defender, 'PLAYER', state.playerTargetSelection, state.targetType);
