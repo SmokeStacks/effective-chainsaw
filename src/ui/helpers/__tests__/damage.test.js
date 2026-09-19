@@ -126,6 +126,62 @@ describe('handleDestroyedThing', () => {
     });
 });
 
+// notes.txt: "If a Landmark is destroyed, its controller loses it and the
+// attacker gains Fate equal to that Landmark's Runes."
+//
+// `runes` was a parameter defaulting to 0 and every real caller omitted it, so
+// raiding a Landmark down paid nothing. The test below it passes `runes`
+// explicitly and so kept passing throughout. These drive the real path.
+describe('destroying a Landmark through damage awards its Runes', () => {
+    test('lethal damage to a Landmark grants the attacker Fate equal to its Runes', () => {
+        const landmark = { id: 'lm1', wounds: 0, card: { name: 'Beacon', category: 'LANDMARK', HP: 3, runes: 4 } };
+        state.enemyTheater.places = [landmark];
+
+        handlePlaceDamage('Theater', 'lm1', 3, 'ENEMY');
+
+        expect(state.enemyTheater.places).toHaveLength(0);
+        expect(state.playerFate).toBe(4);
+    });
+
+    test('a Landmark with no Runes awards nothing', () => {
+        const landmark = { id: 'lm2', wounds: 0, card: { name: 'Plinth', category: 'LANDMARK', HP: 2 } };
+        state.enemyTheater.places = [landmark];
+
+        handlePlaceDamage('Theater', 'lm2', 2, 'ENEMY');
+
+        expect(state.playerFate).toBe(0);
+    });
+
+    test('a destroyed Location awards nothing, only Landmarks do', () => {
+        const location = { id: 'lc1', wounds: 0, card: { name: 'Safehouse', category: 'LOCATION', HP: 2, runes: 5 } };
+        state.enemyTheater.places = [location];
+
+        handlePlaceDamage('Theater', 'lc1', 2, 'ENEMY');
+
+        expect(state.enemyTheater.places).toHaveLength(0);
+        expect(state.playerFate).toBe(0);
+    });
+
+    test("the player's own destroyed Landmark pays the enemy", () => {
+        const landmark = { id: 'lm3', wounds: 0, card: { name: 'Beacon', category: 'LANDMARK', HP: 1, runes: 2 } };
+        state.playerTheater.places = [landmark];
+
+        handlePlaceDamage('Theater', 'lm3', 1, 'PLAYER');
+
+        expect(state.enemyFate).toBe(2);
+    });
+
+    test('non-lethal damage awards nothing and leaves the Landmark standing', () => {
+        const landmark = { id: 'lm4', wounds: 0, card: { name: 'Beacon', category: 'LANDMARK', HP: 5, runes: 3 } };
+        state.enemyTheater.places = [landmark];
+
+        handlePlaceDamage('Theater', 'lm4', 2, 'ENEMY');
+
+        expect(state.enemyTheater.places).toHaveLength(1);
+        expect(state.playerFate).toBe(0);
+    });
+});
+
 describe('handleDestroyedPlace', () => {
     test('destroyed Landmark grants opposing-side fate equal to runes parameter', () => {
         const landmark = { id: 'l0', card: { name: 'Beacon', category: 'LANDMARK' } };

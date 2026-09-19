@@ -1,16 +1,22 @@
 // Game State
+// Resource totals start empty. Turn 1 is a normal turn: startTurn grants the
+// per-turn income (plus the player's first-turn Bit bonus), so seeding non-zero
+// values here would stack on top of that grant rather than replace it.
 export const state = {
-    playerBits: 5,
+    playerBits: 0,
     playerAshes: 0,
     playerBurden: 0,
     playerFate: 0,
     playerWounds: 0,
     playerOverload: 0,
     playerLag: 0,
-    playerActions: 3,
+    playerActions: 0,
     playerSurge: 0,
     playerDriftCount: 0,
     playerGlitchyAmount: 0,
+    // Accumulator for the Dividend keyword only. Base per-turn Bit income lives
+    // in startTurn, not here.
+    playerDividendAmount: 0,
 
     enemyBits: 0,
     enemyAshes: 0,
@@ -19,11 +25,11 @@ export const state = {
     enemyWounds: 0,
     enemyOverload: 0,
     enemyLag: 0,
-    enemyActions: 3,
+    enemyActions: 0,
     enemySurge: 0,
     enemyDriftCount: 0,
     enemyGlitchyAmount: 0,
-    enemyDividendAmount: 2,
+    enemyDividendAmount: 0,
 
     // Cards
     playerHand: [],
@@ -65,6 +71,17 @@ export const state = {
     priorityLeft: true,
     mode: 'BEGIN',
 
+    // Game result. Set alongside mode === 'GAME_OVER' so the end-of-game UI can
+    // report who won and why; null while the game is still in progress.
+    winner: null,
+    winReason: null,
+
+    // Devotion: chosen secretly at setup, lowers one of the player's own win
+    // thresholds by 1, and stays hidden until the game ends. null means the
+    // player declined one (it is optional). Enemy has no Devotion.
+    playerDevotion: null,
+    devotionRevealed: false,
+
     // Interface/Hacking tracking (resets each turn)
     playerInterfaced: false,
     playerInterfacedHeadSpace: false,
@@ -93,15 +110,40 @@ export const state = {
     enemyWonDominance: false,
     enemyLostDominance: false,
 
+    // Incremented at the top of every startTurn, so the first turn is 1.
+    turnNumber: 0,
+
+    // Set once when a side is required to draw a card and its Pandora cannot
+    // supply one. Latched rather than derived from library.length, because an
+    // empty library is only a loss at the moment a draw is actually demanded --
+    // sitting on an empty deck is legal until you must draw. Never reset during
+    // a game; evaluateWinConditions turns it into a loss.
+    playerDeckedOut: false,
+    enemyDeckedOut: false,
+
     // Other state
     playerFirstAttack: true,
     enemyFirstAttack: true,
+
+    // Looting: the first uncontested attack each turn awards 2 Bits, so this
+    // tracks whether a side has already claimed it. Reset in startTurn.
+    playerLooted: false,
+    enemyLooted: false,
     awaitingImpostor: false,
+    // Realm the pending Impostor swap will happen in.
+    impostorRealm: null,
     awaitingSacrifices: false,
     rezCard: null,
     draftSelected: false,
+    // notes.txt: "Draft a Dreamer (once per turn, costs 1 Bit)". Reset in startTurn.
+    playerDrafted: false,
     selectedRealm: null,
     soulSelections: [],
+
+    // Modal. The Dominance bid prompt blocks on this: handleDominationPhase
+    // awaits a callback that only the rendered modal can fire.
+    modalVisible: false,
+    modalProps: {},
     focus: null,
     awaitingFocus: false,
     // Set when any entity dies, cleared at the start of each turn. Rapture reads
@@ -142,6 +184,7 @@ export const stateSetters = {
     setEnemyDriftCount: null,
     setEnemyGlitchyAmount: null,
     setEnemyDividendAmount: null,
+    setPlayerDividendAmount: null,
 
     // Realm setters
     setPlayerSolarium: null,
@@ -175,6 +218,9 @@ export const stateSetters = {
     setCurrentPlayer: null,
     setPriorityLeft: null,
     setMode: null,
+    setGameResult: null,
+    setPlayerDevotion: null,
+    setDevotionRevealed: null,
 
     // Interface/Hacking setters
     setPlayerInterfaced: null,
@@ -199,15 +245,23 @@ export const stateSetters = {
     setEnemyLostDominance: null,
 
     // Other setters
+    setTurnNumber: null,
+    setPlayerDeckedOut: null,
+    setEnemyDeckedOut: null,
     setPlayerFirstAttack: null,
     setEnemyFirstAttack: null,
+    setPlayerLooted: null,
+    setEnemyLooted: null,
     setAwaitingImpostor: null,
     setImpostorRealm: null,
     setAwaitingSacrifices: null,
     setRezCard: null,
     setDraftSelected: null,
+    setPlayerDrafted: null,
     setSelectedRealm: null,
     setSoulSelections: null,
+    setModalVisible: null,
+    setModalProps: null,
 };
 
 // Initialize setters with React setState functions
@@ -331,80 +385,20 @@ export const awaitingImpostor = () => state.awaitingImpostor;
 export const awaitingSacrifices = () => state.awaitingSacrifices;
 export const rezCard = () => state.rezCard;
 export const draftSelected = () => state.draftSelected;
+export const playerDrafted = () => state.playerDrafted;
 export const selectedRealm = () => state.selectedRealm;
 export const soulSelections = () => state.soulSelections;
 export const focus = () => state.focus;
 export const awaitingFocus = () => state.awaitingFocus;
 
-// Export setters
-export const {
-    setSelectedCard,
-    setPlayerHand,
-    setPlayerLibrary,
-    setPlayerGraveyard,
-    setEnemyHand,
-    setEnemyLibrary,
-    setEnemyGraveyard,
-    setPlayerBits,
-    setPlayerAshes,
-    setPlayerBurden,
-    setPlayerFate,
-    setPlayerWounds,
-    setPlayerOverload,
-    setPlayerLag,
-    setPlayerActions,
-    setPlayerSurge,
-    setPlayerDriftCount,
-    setPlayerGlitchyAmount,
-    setEnemyBits,
-    setEnemyAshes,
-    setEnemyBurden,
-    setEnemyFate,
-    setEnemyWounds,
-    setEnemyOverload,
-    setEnemyLag,
-    setEnemyActions,
-    setEnemySurge,
-    setEnemyDriftCount,
-    setEnemyGlitchyAmount,
-    setEnemyDividendAmount,
-    setPlayerSolarium,
-    setPlayerTheater,
-    setPlayerUnderpass,
-    setPlayerGrid,
-    setPlayerElysium,
-    setEnemySolarium,
-    setEnemyTheater,
-    setEnemyUnderpass,
-    setEnemyGrid,
-    setEnemyElysium,
-    setBattleRealm,
-    setPlayerBattleSlots,
-    setEnemyBattleSlots,
-    setBattleSelectedCard,
-    setSelectedInHand,
-    setTargetType,
-    setPlayerTargetSelection,
-    setEnemyTargetSelection,
-    setPendingRitual,
-    setPendingManualAbility,
-    setTargetSelection,
-    setCurrentPlayer,
-    setPriorityLeft,
-    setMode,
-    setPlayerFirstAttack,
-    setEnemyFirstAttack,
-    setAwaitingImpostor,
-    setImpostorRealm,
-    setAwaitingSacrifices,
-    setRezCard,
-    setDraftSelected,
-    setSelectedRealm,
-    setModalVisible,
-    setSoulSelections,
-    setUiState,
-    setTurnNumber,
-    endTurn
-} = stateSetters;
-
+// The setters were once re-exported individually here, via
+// `export const { setPlayerBits, ... } = stateSetters;`. That destructure ran at
+// module load, when every entry in `stateSetters` is still null, so each export
+// was permanently bound to null -- importing one and calling it threw
+// "is not a function", and importing one and null-checking it silently skipped
+// the update forever. No call site used them (they all go through
+// `stateSetters.setX(...)`, which resolves at call time and therefore sees the
+// real functions BoardContainer installs via initializeSetters), so the block
+// was pure trap and has been removed. Always reach setters through the
+// `stateSetters` object.
 // stateSetters is already exported above

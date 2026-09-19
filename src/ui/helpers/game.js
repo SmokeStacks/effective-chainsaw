@@ -3,12 +3,20 @@ import {
     gainBits as _pGainBits, loseBits as _pLoseBits,
     gainAshes as _pGainAshes, loseAshes as _pLoseAshes,
     gainSurge as _pGainSurge, loseSurge as _pLoseSurge,
+    gainFate as _pGainFate, loseFate as _pLoseFate,
+    gainActions as _pGainActions, loseActions as _pLoseActions,
+    gainWounds as _pGainWounds, loseWounds as _pLoseWounds,
+    gainBurden as _pGainBurden, loseBurden as _pLoseBurden,
     calculateSoulsAvailable as calcSoulsPlayer,
 } from './player';
 import {
     gainBits as _eGainBits, loseBits as _eLoseBits,
     gainAshes as _eGainAshes, loseAshes as _eLoseAshes,
     gainSurge as _eGainSurge, loseSurge as _eLoseSurge,
+    gainFate as _eGainFate, loseFate as _eLoseFate,
+    gainActions as _eGainActions, loseActions as _eLoseActions,
+    gainWounds as _eGainWounds, loseWounds as _eLoseWounds,
+    gainBurden as _eGainBurden, loseBurden as _eLoseBurden,
     calculateSoulsAvailable as calcSoulsEnemy,
 } from './enemy';
 import { handleAscension } from './advancement';
@@ -36,6 +44,31 @@ export const playerGainSurge = _pGainSurge;
 export const playerLoseSurge = _pLoseSurge;
 export const enemyGainSurge = _eGainSurge;
 export const enemyLoseSurge = _eLoseSurge;
+
+// Fate. The canonical implementations absorb gains against Burden
+// (notes.txt: "Cannot gain Fate if Burdened ... Each point you would gain
+// decreases the status by the same amount"), which the old core.js copies did not.
+export const playerGainFate = _pGainFate;
+export const playerLoseFate = _pLoseFate;
+export const enemyGainFate = _eGainFate;
+export const enemyLoseFate = _eLoseFate;
+
+// Actions. Gains are absorbed against Lag, same rule as above.
+export const playerGainActions = _pGainActions;
+export const playerLoseActions = _pLoseActions;
+export const enemyGainActions = _eGainActions;
+export const enemyLoseActions = _eLoseActions;
+
+// Wounds / Burden. Inflicted statuses, so no absorption applies; routed through
+// here purely to keep a single definition per resource.
+export const playerGainWounds = _pGainWounds;
+export const playerLoseWounds = _pLoseWounds;
+export const enemyGainWounds = _eGainWounds;
+export const enemyLoseWounds = _eLoseWounds;
+export const playerGainBurden = _pGainBurden;
+export const playerLoseBurden = _pLoseBurden;
+export const enemyGainBurden = _eGainBurden;
+export const enemyLoseBurden = _eLoseBurden;
 
 // Re-export functions
 export { handleAscension };

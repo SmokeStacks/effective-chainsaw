@@ -1,5 +1,6 @@
 import { state, stateSetters } from './state';
 import { rezCostFor } from './activation';
+import { eventManager } from './eventManager';
 
 // Resource Management
 //
@@ -114,6 +115,20 @@ export function draw(num) {
         remainingCards = Math.max(0, -newWounds);
         stateSetters.setPlayerWounds(Math.max(0, newWounds));
         console.log('Player has wounds, adjusted remainingCards:', remainingCards);
+    }
+
+    // Deck-out: a draw was genuinely demanded and Pandora cannot cover it.
+    // Checked against `remainingCards`, not `num`, so a draw fully absorbed by
+    // Wounds does not deck you out -- the wound ate the draw, you never reached
+    // for a card. Drawing 2 off a 1-card library still decks you out, since the
+    // second draw cannot be made.
+    if (remainingCards > 0 && state.playerLibrary.length < remainingCards) {
+        // Announce only on the transition. draw() can be called again before the
+        // game-over effect runs, and repeating the event would spam the log.
+        if (!state.playerDeckedOut) {
+            stateSetters.setPlayerDeckedOut(true);
+            eventManager.publish('deckedOut', { side: 'PLAYER' });
+        }
     }
 
     if (remainingCards > 0 && state.playerLibrary.length > 0) {

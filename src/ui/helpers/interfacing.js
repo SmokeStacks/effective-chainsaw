@@ -1,10 +1,13 @@
 import { state, stateSetters } from './state';
 import { sleep } from './utils';
-import { showModal } from '../components/Modal';
+// components/Modal's showModal writes to module-local variables that nothing
+// subscribes to, so none of the Interface prompts below ever rendered and the
+// callbacks they gate never fired. helpers/modal is the one wired through
+// gameState to the rendered <Modal>.
+import { showModal } from './modal';
 import { CardDisplay } from '../components/CardDisplay';
 import { eventManager } from './eventManager';
 import { playerLoseBits, enemyLoseBits } from './game';
-import { playerGainOverload, enemyGainOverload } from './effects';
 
 const getRealmAndSetter = (location, side) => {
     if (side === 'ENEMY') {
@@ -311,14 +314,13 @@ export async function handleExposedCard(card, location, side, callback) {
             </div>
         ),
         onConfirm: () => {
-            // Proceed with original exposed logic after confirm
+            // No Overload is applied here. notes.txt: "Every successful Hack
+            // inflicts 2 Overload (regardless of damage dealt)" -- once, in
+            // resolveSuccessfulHack, which is what invokes this whole Interface
+            // flow. Granting it again here would make Exposing a card cost the
+            // victim 4 while stealing a Sym cost them 2.
             if (!card.exposed) {
                 card.exposed = true;
-                if (side === 'ENEMY') {
-                    playerGainOverload(2);
-                } else {
-                    enemyGainOverload(2);
-                }
 
                 if (location === 'HEADSPACE') {
                     if (side === 'PLAYER') {
@@ -334,12 +336,7 @@ export async function handleExposedCard(card, location, side, callback) {
                     }
                 }
             } else {
-                if (side === 'ENEMY') {
-                    playerGainOverload(2);
-                } else {
-                    enemyGainOverload(2);
-                }
-
+                // Already Exposed: it is discarded (notes.txt line 230).
                 if (location === 'HEADSPACE') {
                     if (side === 'PLAYER') {
                         stateSetters.setEnemyHand(prevHand => prevHand.filter(c => c.id !== card.id));

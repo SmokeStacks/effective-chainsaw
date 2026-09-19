@@ -20,6 +20,7 @@ import { state } from '../state';
 import * as player from '../player';
 import * as enemy from '../enemy';
 import * as game from '../game';
+import * as core from '../core';
 
 beforeEach(() => {
     setupTestEnv();
@@ -139,6 +140,80 @@ describe('game.js wrappers honor the same semantics as player/enemy', () => {
         game.enemyGainBits(2);
         expect(state.enemyBits).toBe(0);
         expect(state.enemyOverload).toBe(1);
+    });
+
+    test('game.playerGainFate respects burden', () => {
+        state.playerBurden = 1;
+        game.playerGainFate(3);
+        expect(state.playerFate).toBe(2);
+        expect(state.playerBurden).toBe(0);
+    });
+
+    test('game.playerGainActions respects lag', () => {
+        const before = state.playerActions;
+        state.playerLag = 1;
+        game.playerGainActions(3);
+        expect(state.playerActions).toBe(before + 2);
+        expect(state.playerLag).toBe(0);
+    });
+});
+
+describe('core.js wrappers honor the same semantics as player/enemy', () => {
+    // core.js is the module glossary.js imports its resource helpers from, so
+    // this is the path every ability actually takes. It used to define its own
+    // bare-increment copies of these functions, which meant Burden never
+    // blocked Fate and Lag never absorbed Action gains for any ability in the
+    // game, even though player.js implemented both rules correctly.
+
+    test('core.playerGainFate absorbs against burden', () => {
+        state.playerBurden = 4;
+        core.playerGainFate(3);
+        expect(state.playerFate).toBe(0);
+        expect(state.playerBurden).toBe(4 - 3);
+    });
+
+    test('core.playerGainFate partially absorbs and zeroes burden', () => {
+        state.playerBurden = 1;
+        core.playerGainFate(3);
+        expect(state.playerFate).toBe(2);
+        expect(state.playerBurden).toBe(0);
+    });
+
+    test('core.enemyGainFate absorbs against enemy burden', () => {
+        state.enemyBurden = 5;
+        core.enemyGainFate(2);
+        expect(state.enemyFate).toBe(0);
+        expect(state.enemyBurden).toBe(5 - 2);
+    });
+
+    test('core.playerGainActions absorbs against lag', () => {
+        const before = state.playerActions;
+        state.playerLag = 4;
+        core.playerGainActions(3);
+        expect(state.playerActions).toBe(before);
+        expect(state.playerLag).toBe(4 - 3);
+    });
+
+    test('core.enemyGainActions absorbs against enemy lag', () => {
+        const before = state.enemyActions;
+        state.enemyLag = 2;
+        core.enemyGainActions(3);
+        expect(state.enemyActions).toBe(before + 1);
+        expect(state.enemyLag).toBe(0);
+    });
+
+    test('core.playerLoseActions clamps at 0', () => {
+        state.playerActions = 1;
+        core.playerLoseActions(5);
+        expect(state.playerActions).toBe(0);
+    });
+
+    test('core wrappers are the same function objects as player/enemy', () => {
+        // Guards against a future copy being reintroduced alongside the canonical one.
+        expect(core.playerGainFate).toBe(player.gainFate);
+        expect(core.enemyGainFate).toBe(enemy.gainFate);
+        expect(core.playerGainActions).toBe(player.gainActions);
+        expect(core.enemyGainActions).toBe(enemy.gainActions);
     });
 });
 

@@ -13,7 +13,11 @@ import {
     adjustEntityPowerExternal,
     returnToOriginalRealm,
     playerGainFate,
-    enemyGainFate
+    enemyGainFate,
+    playerGainBits,
+    enemyGainBits,
+    playerGainOverload,
+    enemyGainOverload
 } from './core';
 import { clearVengeance } from '../abilities/glossary';
 
@@ -208,10 +212,11 @@ const handleEndOfBattle = () => {
     stateSetters.setPlayerInterfaced && stateSetters.setPlayerInterfaced(false);
     stateSetters.setEnemyInterfaced && stateSetters.setEnemyInterfaced(false);
 
-    // Reset surge (battle-round scoped — accumulated per-attack, not permanent).
+    // Surge is deliberately NOT reset here. notes.txt: "Surge are special Bits
+    // that can only be spent during the Dominance Phase to increase your bid."
+    // The Dominance Phase runs in endTurn, after every battle, so clearing Surge
+    // here meant calculateDominationScore always saw 0. startTurn clears it.
     // NOTE: wounds/burden/fate are permanent resources and must NOT be reset here.
-    stateSetters.setPlayerSurge(0);
-    stateSetters.setEnemySurge(0);
 
     // Reset defense states
     stateSetters.setPlayerDefenseConfirmed && stateSetters.setPlayerDefenseConfirmed(false);
@@ -275,7 +280,7 @@ const handleEnemyBattle = () => {
         });
 
         if (unblockedHacking && state.attackMode === 'ENEMY_HACK') {
-            handleSuccessfulHack();
+            resolveSuccessfulHack('ENEMY');
         } else {
             eventManager.publish('failedHack', {
                 side: 'ENEMY',
@@ -292,24 +297,48 @@ const handleEnemyBattle = () => {
     }
 };
 
-// Helper function for successful hack
-const handleSuccessfulHack = () => {
-    stateSetters.setEnemyInterfaced(true);
+// notes.txt: "Every successful Hack inflicts 2 Overload (regardless of damage
+// dealt)." Flat and independent of the Surge gained from the damage itself.
+const HACK_OVERLOAD = 2;
 
-    if (state.enemyTargetType === 'HEADSPACE') {
-        stateSetters.setEnemyInterfacedHeadSpace(true);
-    } else if (state.enemyTargetType === 'PANDORA') {
-        stateSetters.setEnemyInterfacedPandora(true);
+/**
+ * Resolves a successful Hack for either side.
+ *
+ * The player and enemy each used to carry their own copy of this. Neither
+ * inflicted the 2 Overload the rules require, and the player's copy tested
+ * `state.enemyTargetType` -- the enemy's target -- when deciding which
+ * Interface flag to set, so the player's flags tracked the wrong attack.
+ *
+ * Does not call handleEndOfBattle: every caller already does, and the enemy
+ * copy calling it here as well meant an enemy hack ended the battle twice.
+ *
+ * @param {string} side - 'PLAYER' or 'ENEMY'
+ */
+const resolveSuccessfulHack = (side) => {
+    const isPlayer = side === 'PLAYER';
+    const targetType = isPlayer ? state.targetType : state.enemyTargetType;
+
+    if (isPlayer) {
+        stateSetters.setPlayerInterfaced(true);
+        if (targetType === 'HEADSPACE') {
+            stateSetters.setPlayerInterfacedHeadSpace(true);
+        } else if (targetType === 'PANDORA') {
+            stateSetters.setPlayerInterfacedPandora(true);
+        }
+        enemyGainOverload(HACK_OVERLOAD);
+    } else {
+        stateSetters.setEnemyInterfaced(true);
+        if (targetType === 'HEADSPACE') {
+            stateSetters.setEnemyInterfacedHeadSpace(true);
+        } else if (targetType === 'PANDORA') {
+            stateSetters.setEnemyInterfacedPandora(true);
+        }
+        playerGainOverload(HACK_OVERLOAD);
     }
 
-    eventManager.publish('successfulHack', {
-        side: 'ENEMY',
-        targetType: state.enemyTargetType,
-        success: true
-    });
+    eventManager.publish('successfulHack', { side, targetType, success: true });
 
-    handleAccessPhase('ENEMY');
-    handleEndOfBattle();
+    handleAccessPhase(side);
 };
 
 /**
@@ -328,6 +357,12 @@ function handleUnblockedAttack(attacker, side, slotIndex) {
     const attackerPower = adjustEntityPowerExternal(attacker, side, true);
     const opponentSide = getOppositeSide(side);
     let unblockedHacking = false;
+
+    // Looting (notes.txt: "The first uncontested attack (0 blockers) each turn
+    // also awards the attacker 2 Bits."). Reaching this function already means
+    // the attack drew no blocker, so award it here -- before the target-type
+    // branching below, since looting applies regardless of what was attacked.
+    awardLooting(side);
 
     try {
         // Get target information
@@ -361,6 +396,25 @@ function handleUnblockedAttack(attacker, side, slotIndex) {
         console.error('Error in handleUnblockedAttack:', error);
         return { unblockedHacking: false };
     }
+}
+
+/**
+ * Awards Looting to `side` if it has not already claimed it this turn.
+ * The per-turn flags are reset in startTurn.
+ * @param {string} side - 'PLAYER' or 'ENEMY'
+ */
+function awardLooting(side) {
+    const alreadyLooted = side === 'PLAYER' ? state.playerLooted : state.enemyLooted;
+    if (alreadyLooted) return;
+
+    if (side === 'PLAYER') {
+        stateSetters.setPlayerLooted(true);
+        playerGainBits(2);
+    } else {
+        stateSetters.setEnemyLooted(true);
+        enemyGainBits(2);
+    }
+    console.log(`${side} loots 2 Bits from the first uncontested attack this turn.`);
 }
 
 /**
@@ -408,6 +462,15 @@ function handleUnblockedDamage(mode, power, side, realm) {
     switch (mode) {
         case 'ENEMY_phys':
         case 'PLAYER_RAID':
+            // notes.txt: "Players cannot be targeted directly by Raid if they
+            // control a Location or Landmark in that Realm", and a Raid inflicts
+            // Burden/Wounds only "if the Realm contains no enemy Landmarks or
+            // Locations". The Place must be raided down first; an attack that
+            // ignores it deals nothing to its controller.
+            if (controlsPlaceInRealm(getOppositeSide(side), realm)) {
+                console.log(`Raid in ${realm} is shielded: defender controls a Location or Landmark there.`);
+                return false;
+            }
             if (['Underpass', 'Grid'].includes(realm)) {
                 side === 'PLAYER' ? enemyGainWounds(power) : playerGainWounds(power);
             } else if (['Theater', 'Solarium'].includes(realm)) {
@@ -434,6 +497,24 @@ function handleUnblockedDamage(mode, power, side, realm) {
             console.error('Invalid attack mode:', mode);
             return false;
     }
+}
+
+/**
+ * True when `side` controls at least one Location or Landmark in `realm`.
+ *
+ * notes.txt restricts Landmarks and Locations to Trenches (Theater) and IRL
+ * (Underpass), but this reads the realm generically so a card that bends that
+ * restriction still shields correctly.
+ *
+ * @param {string} side - 'PLAYER' or 'ENEMY'
+ * @param {string} realm - Realm name, e.g. 'Theater'
+ * @returns {boolean}
+ */
+function controlsPlaceInRealm(side, realm) {
+    if (!realm) return false;
+    const key = `${side === 'PLAYER' ? 'player' : 'enemy'}${realm}`;
+    const places = state[key]?.places;
+    return Array.isArray(places) && places.length > 0;
 }
 
 /**
@@ -555,19 +636,7 @@ const handlePlayerBattle = () => {
     }
 
     if (unblockedHacking && state.attackMode === 'PLAYER_HACK') {
-        stateSetters.setPlayerInterfaced(true);
-        if (state.enemyTargetType === 'HEADSPACE') {
-            stateSetters.setPlayerInterfacedHeadSpace(true);
-        }
-        if (state.enemyTargetType === 'PANDORA') {
-            stateSetters.setPlayerInterfacedPandora(true);
-        }
-        eventManager.publish('successfulHack', {
-            side: 'PLAYER',
-            targetType: state.targetType,
-            success: true,
-        });
-        handleAccessPhase('PLAYER');
+        resolveSuccessfulHack('PLAYER');
     } else {
         eventManager.publish('failedHack', {
             side: 'PLAYER',
@@ -590,12 +659,13 @@ export {
     isRaidMode,
     logDamage,
     handleUnblockedDamage,
+    controlsPlaceInRealm,
     handleConfirmDefenseSelection,
     handleEndOfBattle,
     applyOverrideDamage,
     commitAttack,
     handleEnemyBattle,
     handlePlayerBattle,
-    handleSuccessfulHack,
+    resolveSuccessfulHack,
     decreaseStealth,
 };

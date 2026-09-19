@@ -9,7 +9,7 @@
 
 import { setupTestEnv } from '../testHarness';
 import { state } from '../state';
-import { commitAttack, handleEnemyBattle, handleUnblockedDamage } from '../battle';
+import { commitAttack, handleEnemyBattle, handleUnblockedDamage, resolveSuccessfulHack } from '../battle';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -239,6 +239,138 @@ describe('handleUnblockedDamage', () => {
     test('zero power → no effect, returns false', () => {
         handleUnblockedDamage('PLAYER_RAID', 0, 'PLAYER', 'Underpass');
         expect(state.enemyWounds).toBe(0);
+    });
+});
+
+// ─── Raid shield rule ─────────────────────────────────────────────────────────
+//
+// notes.txt: "Players cannot be targeted directly by Raid if they control a
+// Location or Landmark in that Realm", and a Raid inflicts Burden/Wounds only
+// "If the Realm contains no enemy Landmarks or Locations." Raids previously
+// ignored defending Places entirely and always hit the player.
+
+describe('Raid cannot hit a player shielded by a Place', () => {
+    beforeEach(() => setupTestEnv());
+
+    const place = (category) => ({
+        id: 'L1',
+        card: { name: 'Bunker', category },
+        HP: 3,
+    });
+
+    test('a defending Location blocks Raid wounds in Underpass', () => {
+        state.enemyUnderpass.places = [place('LOCATION')];
+        handleUnblockedDamage('PLAYER_RAID', 3, 'PLAYER', 'Underpass');
+        expect(state.enemyWounds).toBe(0);
+    });
+
+    test('a defending Landmark blocks Raid burden in Theater', () => {
+        state.enemyTheater.places = [place('LANDMARK')];
+        handleUnblockedDamage('PLAYER_RAID', 2, 'PLAYER', 'Theater');
+        expect(state.enemyBurden).toBe(0);
+    });
+
+    test('the rule applies to the enemy raiding the player', () => {
+        state.playerUnderpass.places = [place('LOCATION')];
+        handleUnblockedDamage('ENEMY_phys', 4, 'ENEMY', 'Underpass');
+        expect(state.playerWounds).toBe(0);
+    });
+
+    test('a Place in a different Realm does not shield', () => {
+        state.enemyTheater.places = [place('LOCATION')];
+        handleUnblockedDamage('PLAYER_RAID', 3, 'PLAYER', 'Underpass');
+        expect(state.enemyWounds).toBe(3);
+    });
+
+    test("the attacker's own Place does not shield the defender", () => {
+        state.playerUnderpass.places = [place('LOCATION')];
+        handleUnblockedDamage('PLAYER_RAID', 3, 'PLAYER', 'Underpass');
+        expect(state.enemyWounds).toBe(3);
+    });
+
+    test('Quest is unaffected by a defending Place', () => {
+        state.enemySolarium.places = [place('LANDMARK')];
+        handleUnblockedDamage('PLAYER_QUEST', 3, 'PLAYER', 'Solarium');
+        expect(state.playerFate).toBe(3);
+    });
+
+    test('Hack is unaffected by a defending Place', () => {
+        state.enemyGrid.places = [place('LOCATION')];
+        expect(handleUnblockedDamage('PLAYER_HACK', 2, 'PLAYER', 'Grid')).toBe(true);
+        expect(state.playerSurge).toBe(2);
+    });
+});
+
+// ─── successful Hack ──────────────────────────────────────────────────────────
+//
+// notes.txt: "Every successful Hack inflicts 2 Overload (regardless of damage
+// dealt)." Neither side used to inflict any. Overload 8 is a win condition, so
+// Hack could not close out a game the way the rules intend.
+//
+// The player and enemy also had separate copies of this resolution, and the
+// player's copy read state.enemyTargetType when setting its own Interface
+// flags, so a player hack tracked whatever the enemy last targeted.
+
+describe('resolveSuccessfulHack', () => {
+    beforeEach(() => setupTestEnv());
+
+    test('a player Hack inflicts 2 Overload on the enemy', () => {
+        state.targetType = 'HEADSPACE';
+        resolveSuccessfulHack('PLAYER');
+        expect(state.enemyOverload).toBe(2);
+        expect(state.playerOverload).toBe(0);
+    });
+
+    test('an enemy Hack inflicts 2 Overload on the player', () => {
+        state.enemyTargetType = 'PANDORA';
+        resolveSuccessfulHack('ENEMY');
+        expect(state.playerOverload).toBe(2);
+        expect(state.enemyOverload).toBe(0);
+    });
+
+    test('the 2 Overload is flat, not derived from damage or Surge', () => {
+        state.targetType = 'HEADSPACE';
+        state.playerSurge = 7;
+        resolveSuccessfulHack('PLAYER');
+        expect(state.enemyOverload).toBe(2);
+    });
+
+    test("a player Hack reads the player's own target type, not the enemy's", () => {
+        state.targetType = 'HEADSPACE';
+        // The enemy's stale target from an earlier attack must not leak in.
+        state.enemyTargetType = 'PANDORA';
+
+        resolveSuccessfulHack('PLAYER');
+
+        expect(state.playerInterfacedHeadSpace).toBe(true);
+        // Unset flags are undefined rather than false; either way it must not be true.
+        expect(state.playerInterfacedPandora).toBeFalsy();
+    });
+
+    test('a player Hack on Pandora sets the Pandora flag', () => {
+        state.targetType = 'PANDORA';
+        state.enemyTargetType = 'HEADSPACE';
+
+        resolveSuccessfulHack('PLAYER');
+
+        expect(state.playerInterfacedPandora).toBe(true);
+        expect(state.playerInterfacedHeadSpace).toBeFalsy();
+    });
+
+    test('an enemy Hack sets the enemy flags from the enemy target type', () => {
+        state.enemyTargetType = 'HEADSPACE';
+        resolveSuccessfulHack('ENEMY');
+        expect(state.enemyInterfacedHeadSpace).toBe(true);
+        expect(state.enemyInterfaced).toBe(true);
+    });
+
+    test('Overload is absorbed by the target\'s existing status rules', () => {
+        // gainOverload is a plain add; this documents that Hack goes through the
+        // shared resource helper rather than writing the field directly.
+        state.enemyOverload = 3;
+        state.targetType = 'HEADSPACE';
+        resolveSuccessfulHack('PLAYER');
+        expect(state.enemyOverload).toBe(5);
     });
 });
 

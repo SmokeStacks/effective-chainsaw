@@ -1,8 +1,17 @@
 import { state, stateSetters } from './state';
 import { eventManager } from './eventManager';
-import { showModal } from '../components/Modal';
-import { BidInputModal } from '../components/BidInputModal';
+// Two traps here, both of which silently prevented the bid prompt from ever
+// appearing and so hung handleDominationPhase forever:
+//   1. `components/Modal`'s showModal writes to module-local variables that no
+//      component subscribes to, so it never renders. `helpers/modal` is the one
+//      wired through gameState to the rendered <Modal>.
+//   2. `components/BidInputModal` takes { isVisible, onClose, onSubmit }, which
+//      is not what displayBidPrompt passes. The root BidInputModal takes
+//      { maxBid, decisionCallback, closeModal } and matches.
+import { showModal } from './modal';
+import BidInputModal from '../BidInputModal';
 import { enemySacrificeEntity, playerSacrificeEntity } from './sacrifice';
+import { adjustEntityPowerExternal } from './core';
 
 export async function handleDominationPhase() {
     const turnCount = eventManager.getTurnCount();
@@ -79,9 +88,15 @@ export function calculateDominationScore(side) {
 
     const entities = realms.flatMap(realm => realm.people).filter(entity => entity.online && entity.readied);
     const totalPower = entities.reduce((sum, entity) => {
-        const vengeance = entity.statusEffects?.Vengeance || 0;
-        const totalEntityPower = (entity.card.power || 0) + vengeance;
-        return sum + totalEntityPower;
+        // Current Skill, not the printed value. This read entity.card.power, so
+        // Boosts and any other power modifier were ignored by Dominance.
+        const power = adjustEntityPowerExternal(entity, side);
+        // Vengeance counts toward the Dominance score (confirmed rule). It
+        // lives on the entity itself everywhere else in the codebase; this read
+        // entity.statusEffects.Vengeance, which nothing populates, so the term
+        // always contributed 0.
+        const vengeance = entity.vengeance || 0;
+        return sum + power + vengeance;
     }, 0);
 
     const surge = side === 'PLAYER' ? state.playerSurge : state.enemySurge;

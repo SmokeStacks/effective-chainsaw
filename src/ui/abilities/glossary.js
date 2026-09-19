@@ -1,4 +1,5 @@
 import { state, stateSetters } from '../helpers/state';
+import { showModal, hideModal } from '../helpers/modal';
 import { eventManager } from '../helpers/eventManager';
 import { cardList1 as cardList } from '../data/cardList';
 import { 
@@ -283,7 +284,12 @@ const abilitiesDefinitions = {
             );
             console.log(jawbreakerEntities)
             if (jawbreakerEntities.length > 0) {
-                stateSetters.showModal({
+                // `stateSetters.showModal` does not exist -- this threw a
+                // TypeError every time the ability triggered. The confirm and
+                // cancel handlers were also *called* here rather than passed,
+                // so they closed the modal at construction time and left
+                // undefined as the handler.
+                showModal({
                     title: 'Search Pandora',
                     message: 'Select a JAWbreaker to draw:',
                     renderContent: () => (
@@ -294,7 +300,7 @@ const abilitiesDefinitions = {
                                         key={jb.id}
                                         onClick={() => {
                                             drawSpecificCard(jb, side);
-                                            stateSetters.setModalVisible(false);
+                                            hideModal();
                                         }}
                                         style={{ cursor: 'pointer', marginBottom: '5px' }}
                                     >
@@ -304,8 +310,6 @@ const abilitiesDefinitions = {
                             </ul>
                         </div>
                     ),
-                    onConfirm: stateSetters.setModalVisible(false),
-                    onCancel: stateSetters.setModalVisible(false),
                 });
             } else {
                 // No valid JAWbreaker found, proceed without drawing
@@ -4114,12 +4118,92 @@ async function activateAbilities(entity, side) {
                 console.log('on activate');
                 abilityDef.onActivate(entity, state, side); 
                 entity.activeAbilities.push({ abilityName, abilityDef });
+            } else if (abilityDef.type === 'onPlay') {
+                // onPlay used to fall off the end of this chain and be silently
+                // dropped, so any non-Ritual card carrying one did nothing at
+                // all. Rituals are unaffected: they resolve through
+                // triggerRitualAbilities, which never reaches this function.
+                resolveOnPlayAbility(entity, abilityDef, side);
+                entity.activeAbilities.push({ abilityName, abilityDef });
+            } else {
+                console.warn(
+                    `Ability "${abilityName}" on "${entity.card.name}" has unhandled type "${abilityDef.type}" and will not run.`
+                );
             }
         }
     }
 }
 
 export { activateAbilities };
+
+/**
+ * Every entity currently on the board, both sides, for auto-targeting.
+ * @returns {Object[]}
+ */
+function allBoardEntities() {
+    return [...getAllPlayerRealms(), ...getAllEnemyRealms()]
+        .filter(Boolean)
+        .flatMap((realm) => [
+            ...(realm.people || []),
+            ...(realm.places || []),
+            ...(realm.things || []),
+        ]);
+}
+
+/**
+ * Runs an `onPlay` ability for a card entering play.
+ *
+ * Untargeted abilities resolve immediately. Targeted ones open a normal target
+ * request for the player; the enemy AI has no way to click, so it resolves
+ * against the first legal target instead of stalling the turn.
+ *
+ * @param {Object} entity - The entity whose ability is firing
+ * @param {Object} abilityDef - The resolved ability definition
+ * @param {string} side - 'PLAYER' or 'ENEMY'
+ * @returns {void}
+ */
+function resolveOnPlayAbility(entity, abilityDef, side) {
+    if (!abilityDef.requiresTarget) {
+        abilityDef.onPlay(entity, state, side);
+        return;
+    }
+
+    const filter = (target) => {
+        if (!target?.card) return false;
+        return typeof abilityDef.targetFilter === 'function'
+            ? abilityDef.targetFilter(target, entity, side)
+            : true;
+    };
+
+    if (side === 'ENEMY') {
+        const target = allBoardEntities().find(filter) || null;
+        abilityDef.onPlay(entity, state, side, target);
+        return;
+    }
+
+    // No legal target exists, so resolve with none rather than opening a
+    // request the player can never satisfy. The abilities themselves already
+    // guard on a missing target.
+    if (!allBoardEntities().some(filter)) {
+        console.log(`${entity.card.name}: no legal target for ${abilityDef.name}.`);
+        abilityDef.onPlay(entity, state, side, null);
+        return;
+    }
+
+    stateSetters.setTargetSelection({
+        enabled: true,
+        side: abilityDef.targetSide || 'PLAYER',
+        filter,
+        onSelect: (target) => {
+            stateSetters.setTargetSelection({ enabled: false });
+            abilityDef.onPlay(entity, state, side, target);
+        },
+        onCancel: () => {
+            stateSetters.setTargetSelection({ enabled: false });
+        },
+    });
+    console.log(`Select a target for ${entity.card.name}'s ${abilityDef.name}.`);
+}
 
 function grantAbility(entity, abilityName, amount = 1, side) {
     const realmName = entity.realm;

@@ -7,6 +7,7 @@ import FocusDisplay from './FocusDisplay';
 import BattlefieldCreatures from './BattlefieldCreatures';
 import RealmCreatures from './RealmCreatures';
 import Modal from './Modal';
+import ActionLog from './components/ActionLog';
 
 const REALM_NAMES = ['solarium', 'theater', 'underpass', 'grid', 'elysium'];
 const REALM_LABELS = ['SOLARIUM', 'TRENCHES', 'IRL', 'NEXUS', 'ELYSIUM'];
@@ -104,6 +105,7 @@ class Gameboard extends Component {
             selectedCard,
             selectedInHand,
             onCancelSelection,
+            actionLog,
         } = this.props;
 
         const { currentRealmIndex, showHand } = this.state;
@@ -278,6 +280,7 @@ class Gameboard extends Component {
                         onRezPlayerCard={onRezPlayerCard}
                     />
                 </div>
+                <ActionLog entries={actionLog} />
                 {modalVisible && <Modal {...modalProps} />}
             </div>
         );

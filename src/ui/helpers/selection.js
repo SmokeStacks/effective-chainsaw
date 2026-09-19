@@ -2,13 +2,11 @@ import { state, stateSetters } from './state';
 
 import { abilitiesDefinitions } from '../abilities/glossary';
 import { removeFromRealm } from './core';
-import { showModal } from './modal';
-import { setModalVisible } from '../components/Modal';
 import { handleDevelopCard } from './advancement';
 import { handleBoostCard } from './boost';
 import { setCardSacrificed } from './sacrifice';
-import { handleImpostorPlacement } from './impostor';
-import { confirmManualAbility, isValidAbilityTarget, confirmAbilityTarget } from './abilities';
+import { handleImpostorPlacement, isLegalImpostorTarget } from './impostor';
+import { confirmManualAbility } from './abilities';
 
 export const handleCardSelect = (cardEntity, inHand) => {
     console.log('=== handleCardSelect ===');
@@ -59,16 +57,24 @@ export const handleRealmCardSelect = (cardEntity) => {
         console.log('handle realm card select', cardEntity)
         console.log('attackMode', state.attackMode)
         if (state.awaitingImpostor) {
-            console.log('_______________________________swap impostor')
-            if (cardEntity.owner === 'ENEMY' && cardEntity.card.category === 'ENTITY') {
-                let dreamer = state.selectedCard.card.name === 'Dreamer' ? true : false;
-                handleImpostorPlacement(state.selectedCard, cardEntity, state.impostorRealm, 'PLAYER', dreamer);
-                stateSetters.setAwaitingImpostor(false);
-                stateSetters.setImpostorRealm(null);
-                stateSetters.setSelectedCard(null);
-                stateSetters.setSelectedInHand(null);
+            // The victim must be an enemy Offline Entity in the same Realm the
+            // Impostor is entering. A misclick leaves the request open rather
+            // than silently consuming the Impostor.
+            if (isLegalImpostorTarget(cardEntity, state.impostorRealm, 'PLAYER')) {
+                const swapped = handleImpostorPlacement(
+                    state.selectedCard,
+                    cardEntity,
+                    state.impostorRealm,
+                    'PLAYER'
+                );
+                if (swapped) {
+                    stateSetters.setAwaitingImpostor(false);
+                    stateSetters.setImpostorRealm(null);
+                    stateSetters.setSelectedCard(null);
+                    stateSetters.setSelectedInHand(null);
+                }
             } else {
-                console.log('Please select a valid enemy entity to swap with.');
+                console.log('Select an enemy Offline entity in the same Realm to swap with.');
             }
             return;
         }
@@ -90,31 +96,10 @@ export const handleRealmCardSelect = (cardEntity) => {
                     return [...prevSelections, cardEntity];
                 }
             });
-        } else if (state.selectionMode === 'WAITING_FOR_ABILITY_TARGET') {
-            if (isValidAbilityTarget(cardEntity)) {
-                // Confirm target selection
-                showModal({
-                    title: `Confirm Target`,
-                    message: `Do you want to target ${cardEntity.card.name}?`,
-                    onConfirm: () => {
-                        confirmAbilityTarget(cardEntity);
-                        setModalVisible(false);
-                    },
-                    onCancel: () => {
-                        setModalVisible(false);
-                    },
-                });
-            } else {
-                console.log('Invalid target selected.');
-            }
-        }
-        else if (state.attackMode === 'BOOST') {
+        } else if (state.attackMode === 'BOOST') {
             handleBoostCard(cardEntity);
         } else if (state.attackMode === 'DEVELOP') {
             handleDevelopCard(cardEntity);
-        } else if (state.selectionMode === 'WAITING') { //todo
-            stateSetters.setPlayerTargetSelection(cardEntity);
-            stateSetters.setTargetType(cardEntity.card.category);
         } else if (state.attackMode !== 'NONE') {
             console.log('attack mode: ', state.attackMode)
             if (state.attackMode === 'PLAYER_RAID') {

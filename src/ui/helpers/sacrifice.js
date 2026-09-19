@@ -1,5 +1,8 @@
 import { handleDeadCard, handleDeadCards } from './damage';
-import { showModal, setModalVisible } from '../components/Modal';
+// components/Modal's showModal writes to module-local variables that nothing
+// subscribes to, so this prompt never rendered and the Promise below never
+// resolved. helpers/modal is the one wired through gameState.
+import { showModal, hideModal } from './modal';
 import { state, stateSetters } from './state';
 import { rezCostFor } from './activation';
 
@@ -43,7 +46,7 @@ export function promptPlayerToSacrifice(entities) {
                             <div
                                 onClick={() => {
                                     resolve(entity);
-                                    setModalVisible(false);
+                                    hideModal();
                                 }}
                             >
                                 {entity.card.name}

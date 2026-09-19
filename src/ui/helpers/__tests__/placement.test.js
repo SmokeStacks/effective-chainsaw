@@ -1,9 +1,9 @@
 // Tests for the pure placement-decision function in placement.js.
 //
 // These tests document the rules from notes.txt as executable specifications.
-// The current BoardContainer.handleRealmSelect has at least one regression
-// against these rules (it allows Tech-only entities in Theater); the BoardContainer
-// integration should be updated to call canPlaceInRealm in a follow-up.
+// The play path (src/ui/helpers/playCard.js) now routes every placement through
+// canPlaceInRealm, so these rules are enforced in game rather than only here;
+// playCard.test.js covers that integration.
 
 import { canPlaceInRealm } from '../placement';
 
@@ -31,8 +31,6 @@ describe('canPlaceInRealm — Entities by affinity', () => {
     });
 
     test('Theater rejects Tech-only entities (regression vs notes.txt)', () => {
-        // BoardContainer.handleRealmSelect currently allows Tech entities in
-        // Theater; canPlaceInRealm encodes the rule from notes correctly.
         expect(canPlaceInRealm(entity({ tech: true }), 'Theater').reason).toBe('affinity-mismatch');
     });
 

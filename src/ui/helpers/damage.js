@@ -415,7 +415,24 @@ export function handleDestroyedThing(location, entityId, side, runes = 0) {
 }
 
 
-export function handleDestroyedPlace(location, entityId, side, runes = 0) {
+/**
+ * Removes a destroyed Place and, for Landmarks, awards its Runes as Fate to the
+ * opposing side.
+ *
+ * notes.txt: "If a Landmark is destroyed, its controller loses it and the
+ * attacker gains Fate equal to that Landmark's Runes."
+ *
+ * `runes` used to be a plain parameter defaulting to 0, and every real caller
+ * (handlePlaceDamage and the two glossary sacrifice abilities) omitted it, so a
+ * destroyed Landmark always paid out 0 Fate. It now falls back to the card's own
+ * Runes and the parameter acts only as an explicit override.
+ *
+ * @param {string} location - Realm name
+ * @param {string} entityId - Id of the Place
+ * @param {string} side - Owner of the Place ('PLAYER' or 'ENEMY')
+ * @param {number} [runes] - Optional override for the Fate awarded
+ */
+export function handleDestroyedPlace(location, entityId, side, runes = null) {
 
     const [realm, setRealm] = getRealmAndSetter(location, side);
 
@@ -435,10 +452,13 @@ export function handleDestroyedPlace(location, entityId, side, runes = 0) {
 
         // Check if the place is a 'LANDMARK'
         if (placeToRemove.card.category === 'LANDMARK') {
+            const fateAmount = runes !== null && runes !== undefined
+                ? runes
+                : (placeToRemove.card.runes || 0);
             if (side === 'PLAYER') {
-                enemyGainFate(runes);
+                enemyGainFate(fateAmount);
             } else {
-                playerGainFate(runes);
+                playerGainFate(fateAmount);
             }
         }
 

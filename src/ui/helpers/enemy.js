@@ -111,6 +111,17 @@ export function draw(num) {
         console.log('Enemy has wounds, adjusted remainingCards:', remainingCards);
     }
 
+    // Deck-out: see the matching comment in player.js draw(). Checked against
+    // `remainingCards` so a draw absorbed by Wounds does not count as a failed
+    // draw.
+    if (remainingCards > 0 && state.enemyLibrary.length < remainingCards) {
+        // Transition only; see player.js draw().
+        if (!state.enemyDeckedOut) {
+            stateSetters.setEnemyDeckedOut(true);
+            eventManager.publish('deckedOut', { side: 'ENEMY' });
+        }
+    }
+
     if (remainingCards > 0 && state.enemyLibrary.length > 0) {
         // Get current state values
         const currentLibrary = state.enemyLibrary;

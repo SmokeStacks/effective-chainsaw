@@ -1132,3 +1132,59 @@ p {
   background: #ff4444;
   color: #000;
 }
+
+/* Action log. Positioned fixed rather than placed in the flex flow so it cannot
+   change the size of any existing panel. */
+.action-log {
+  position: fixed;
+  right: 8px;
+  bottom: 8px;
+  width: 260px;
+  max-height: 30vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid #00ff9c;
+  font-family: "Press Start 2P", sans-serif;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.action-log-title {
+  font-size: 8px;
+  color: #00ff9c;
+  padding: 5px 6px;
+  border-bottom: 1px solid #00ff9c;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+
+.action-log-entries {
+  overflow-y: auto;
+  padding: 5px 6px;
+  pointer-events: auto;
+}
+
+.action-log-empty {
+  font-size: 7px;
+  color: #555;
+}
+
+.action-log-entry {
+  font-size: 7px;
+  line-height: 1.6;
+  margin-bottom: 3px;
+  word-break: break-word;
+}
+
+.action-log-player {
+  color: #00ff9c;
+}
+
+.action-log-enemy {
+  color: #ff4444;
+}
+
+.action-log-system {
+  color: #888;
+}

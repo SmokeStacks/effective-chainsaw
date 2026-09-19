@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startTurn, endTurn, playerGainBits, playerLoseBits, enemyLoseBits, enemyPerformAction, consumePlayerAction, resolveRitual, playerDraft, removeCardFromHand, handleBoostButton, handleDevelopButton, handlePlayerMine } from './helpers/core';
+import { beginFirstTurn, endTurn, playerGainBits, playerLoseBits, enemyLoseBits, enemyPerformAction, consumePlayerAction, resolveRitual, playerDraft, removeCardFromHand, handleBoostButton, handleDevelopButton, handlePlayerMine, performDetox } from './helpers/core';
 import { eventManager } from './helpers/eventManager';
+import { subscribeActionLog } from './helpers/actionLog';
 import { handleSacrificeConfirmation } from './helpers/sacrifice';
 import { state, stateSetters, initializeSetters, currentPlayer, enemyActions } from './helpers/state';
 import { createLibrary } from './helpers/setup';
@@ -8,13 +9,20 @@ import { activateAbilities, abilitiesDefinitions } from './abilities/glossary';
 import { handleFocusSelect, handleCardSelect, handleRealmCardSelect as handleRealmCardSelectFromHelper, handleAbilityClick as handleAbilityClickFromHelper, handleCancel } from './helpers/selection';
 import { draw as enemyDraw } from './helpers/enemy';
 import { Solarium, Theater, Underpass, Grid, Elysium } from './renders/Board';
+import GameOverOverlay from './renders/GameOverOverlay';
+import { evaluateWinConditions } from './helpers/winConditions';
 import { calculateSoulsAvailable, rezCostFor } from './helpers/activation';
 import Gameboard from './Gameboard';
 import { draw, payRezCost } from './helpers/player';
 import { canPlaceInRealm } from './helpers/placement';
+import { playCardToRealm } from './helpers/playCard';
 import DeckVerification from './components/DeckVerification';
 import ProperBootstrapPhase from './components/ProperBootstrapPhase';
 import MulliganPhase from './components/MulliganPhase';
+import DevotionPhase from './components/DevotionPhase';
+
+// Most recent entries kept in the UI action log.
+const ACTION_LOG_LIMIT = 200;
 
 // Factory for the 10 realm setters (player & enemy x 5 realms each). Each
 // returned setter:
@@ -81,6 +89,8 @@ export default function BoardContainer() {
     // Game state
     const [gameState, setGameState] = useState({
         mode: 'NONE',
+        winner: null,
+        winReason: null,
         attackMode: false,
         priorityLeft: true,
         awaitingTrash: false,
@@ -111,6 +121,24 @@ export default function BoardContainer() {
     
     // Mulligan phase state
     const [showMulligan, setShowMulligan] = useState(false);
+
+    // Devotion phase state: the secret win-threshold choice, taken once between
+    // the mulligan and the first turn.
+    const [showDevotion, setShowDevotion] = useState(false);
+
+    // Running log of both sides' actions, fed by the game's existing events.
+    // Capped so a long game cannot grow it without bound.
+    const [actionLog, setActionLog] = useState([]);
+
+    useEffect(() => {
+        let nextId = 0;
+        const unsubscribe = subscribeActionLog((entry) => {
+            nextId += 1;
+            const withId = { ...entry, id: `${Date.now()}-${nextId}` };
+            setActionLog(prev => [...prev, withId].slice(-ACTION_LOG_LIMIT));
+        });
+        return unsubscribe;
+    }, []);
 
     // UI state
     const [uiState, setUiState] = useState({
@@ -228,6 +256,50 @@ export default function BoardContainer() {
                     enemyOverload: newValue
                 }));
             },
+            setTurnNumber: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.turnNumber) : updater;
+                state.turnNumber = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    turnNumber: newValue
+                }));
+            },
+            // Latched by draw() when a side must draw from an empty Pandora.
+            // Feeds the win-condition effect below, which turns it into a loss.
+            setPlayerDeckedOut: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerDeckedOut) : updater;
+                state.playerDeckedOut = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    playerDeckedOut: newValue
+                }));
+            },
+            setEnemyDeckedOut: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.enemyDeckedOut) : updater;
+                state.enemyDeckedOut = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    enemyDeckedOut: newValue
+                }));
+            },
+            // The Dividend keyword calls these when it enters/leaves play. They
+            // were missing entirely, so any card with Dividend threw a TypeError.
+            setPlayerDividendAmount: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.playerDividendAmount) : updater;
+                state.playerDividendAmount = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    playerDividendAmount: newValue
+                }));
+            },
+            setEnemyDividendAmount: (updater) => {
+                const newValue = typeof updater === 'function' ? updater(state.enemyDividendAmount) : updater;
+                state.enemyDividendAmount = newValue;
+                setGameState(prev => ({
+                    ...prev,
+                    enemyDividendAmount: newValue
+                }));
+            },
             setPlayerWounds: (updater) => {
                 const newValue = typeof updater === 'function' ? updater(state.playerWounds) : updater;
                 state.playerWounds = newValue;
@@ -332,6 +404,19 @@ export default function BoardContainer() {
                 setGameState(prev => ({ ...prev, mode: value }));
                 state.mode = value;
             },
+            setGameResult: ({ winner, reason }) => {
+                setGameState(prev => ({ ...prev, winner, winReason: reason }));
+                state.winner = winner;
+                state.winReason = reason;
+            },
+            setPlayerDevotion: (value) => {
+                setGameState(prev => ({ ...prev, playerDevotion: value }));
+                state.playerDevotion = value;
+            },
+            setDevotionRevealed: (value) => {
+                setGameState(prev => ({ ...prev, devotionRevealed: value }));
+                state.devotionRevealed = value;
+            },
             setSelectedCard: (value) => {
                 setGameState(prev => ({ ...prev, selectedCard: value }));
                 state.selectedCard = value;
@@ -383,6 +468,33 @@ export default function BoardContainer() {
             setRezCard: (value) => {
                 setGameState(prev => ({ ...prev, rezCard: value }));
                 state.rezCard = value;
+            },
+            // Impostor: these were never registered, so the swap request could
+            // not be raised even once the placement path started asking for it.
+            setAwaitingImpostor: (value) => {
+                setGameState(prev => ({ ...prev, awaitingImpostor: value }));
+                state.awaitingImpostor = value;
+            },
+            setImpostorRealm: (value) => {
+                setGameState(prev => ({ ...prev, impostorRealm: value }));
+                state.impostorRealm = value;
+            },
+            setPlayerDrafted: (value) => {
+                setGameState(prev => ({ ...prev, playerDrafted: value }));
+                state.playerDrafted = value;
+            },
+            // Modal. These were never registered, so helpers/modal.js had
+            // nothing to write to and the Dominance bid prompt could not appear
+            // -- which hung handleDominationPhase and stalled the game at the
+            // end of turn 2. They live in uiState because that is what
+            // Gameboard renders from.
+            setModalVisible: (value) => {
+                setUiState(prev => ({ ...prev, modalVisible: value }));
+                state.modalVisible = value;
+            },
+            setModalProps: (value) => {
+                setUiState(prev => ({ ...prev, modalProps: value }));
+                state.modalProps = value;
             },
             // Realm setters. Each one:
             //   1. Supports both direct-value and updater-function form
@@ -581,73 +693,56 @@ export default function BoardContainer() {
         return () => eventManager.unsubscribe('resetUIState', resetUIStateHandler);
     }, [setUiState]);
 
-    // Start first turn once both hands reach 5 cards (after mulligan draw).
-    // Wired to gameState.playerHand/enemyHand so it fires when the draw completes,
-    // not just at mount where the hands are still empty.
+    // The first turn used to be started by an effect here that waited for both
+    // hands to reach 5 cards while still in MULLIGAN. setupNewRules deals 4 and
+    // the mulligan refills to 4, so that condition could never hold and turn 1
+    // never began -- the game stalled on mode 'PLAY' with 0 actions. Turn 1 is
+    // now started explicitly when the Devotion phase completes, which is the
+    // actual end of setup.
+
+    // Win / loss conditions. The rules themselves (thresholds and precedence)
+    // live in helpers/winConditions so they can be unit-tested; this effect only
+    // decides when to check and records the result.
     useEffect(() => {
+        // DEVOTION is a setup phase: the game has not begun, and the player's
+        // Devotion is not chosen yet, so no win may be evaluated during it.
         if (
-            gameState.playerHand?.length === 5 &&
-            gameState.enemyHand?.length === 5 &&
-            gameState.mode === 'MULLIGAN'
-        ) {
-            startTurn(true);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gameState.playerHand?.length, gameState.enemyHand?.length, gameState.mode]);
+            gameState.mode === 'GAME_OVER' ||
+            gameState.mode === 'NONE' ||
+            gameState.mode === 'MULLIGAN' ||
+            gameState.mode === 'DEVOTION'
+        ) return;
 
-    // Win conditions (notes.txt: threshold = 8, not 10).
-    // Fires whenever the tracked resource changes.
-    useEffect(() => {
-        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
-        // Player wins: Fate >= 8 (Ascend to Divinity)
-        if (gameState.playerFate >= 8) {
-            console.log('Player wins by Fate (Ascend to Divinity)!');
-            stateSetters.setMode('GAME_OVER');
-        }
-    }, [gameState.playerFate, gameState.mode]);
+        const outcome = evaluateWinConditions({
+            playerFate: gameState.playerFate || 0,
+            enemyFate: gameState.enemyFate || 0,
+            playerBurden: gameState.playerBurden || 0,
+            playerWounds: gameState.playerWounds || 0,
+            enemyBurden: gameState.enemyBurden || 0,
+            enemyWounds: gameState.enemyWounds || 0,
+            playerOverload: gameState.playerOverload || 0,
+            enemyOverload: gameState.enemyOverload || 0,
+            playerDevotion: gameState.playerDevotion || null,
+            playerDeckedOut: !!gameState.playerDeckedOut,
+            enemyDeckedOut: !!gameState.enemyDeckedOut,
+        });
 
-    useEffect(() => {
-        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
-        // Enemy loses: enemy Fate >= 8
-        if (gameState.enemyFate >= 8) {
-            console.log('Enemy loses by Fate — player wins!');
-            stateSetters.setMode('GAME_OVER');
-        }
-    }, [gameState.enemyFate, gameState.mode]);
+        if (!outcome) return;
 
-    // Loss conditions: Burden + Wounds >= 8 (Destroy their Corporeal Form)
-    useEffect(() => {
-        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
-        if ((gameState.playerBurden || 0) + (gameState.playerWounds || 0) >= 8) {
-            console.log('Player loses by Burden + Wounds!');
-            stateSetters.setMode('GAME_OVER');
-        }
-    }, [gameState.playerBurden, gameState.playerWounds, gameState.mode]);
-
-    useEffect(() => {
-        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
-        if ((gameState.enemyBurden || 0) + (gameState.enemyWounds || 0) >= 8) {
-            console.log('Enemy loses by Burden + Wounds — player wins!');
-            stateSetters.setMode('GAME_OVER');
-        }
-    }, [gameState.enemyBurden, gameState.enemyWounds, gameState.mode]);
-
-    // Loss conditions: Overload >= 8 (System Meltdown)
-    useEffect(() => {
-        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
-        if (gameState.playerOverload >= 8) {
-            console.log('Player loses by Overload (System Meltdown)!');
-            stateSetters.setMode('GAME_OVER');
-        }
-    }, [gameState.playerOverload, gameState.mode]);
-
-    useEffect(() => {
-        if (gameState.mode === 'GAME_OVER' || gameState.mode === 'NONE' || gameState.mode === 'MULLIGAN') return;
-        if (gameState.enemyOverload >= 8) {
-            console.log('Enemy loses by Overload — player wins!');
-            stateSetters.setMode('GAME_OVER');
-        }
-    }, [gameState.enemyOverload, gameState.mode]);
+        console.log(`Game over — ${outcome.winner} wins: ${outcome.reason}`);
+        stateSetters.setGameResult(outcome);
+        // Devotion is secret until the game ends; this is that moment.
+        stateSetters.setDevotionRevealed(true);
+        stateSetters.setMode('GAME_OVER');
+    }, [
+        gameState.playerFate, gameState.enemyFate,
+        gameState.playerBurden, gameState.playerWounds,
+        gameState.enemyBurden, gameState.enemyWounds,
+        gameState.playerOverload, gameState.enemyOverload,
+        gameState.playerDevotion,
+        gameState.playerDeckedOut, gameState.enemyDeckedOut,
+        gameState.mode,
+    ]);
 
     // End-of-actions → domination phase.
     // Fires when either side's action count changes.
@@ -1123,111 +1218,11 @@ export default function BoardContainer() {
             return;
         }
 
-        // Continue with normal realm selection logic
-        if (!selectedCard) {
-            console.log('No card selected');
-            return;
-        }
-
-        const { focus } = state;
-        const card = selectedCard.card;
-        const cardFocusAttrs = {
-            magi: card.magi || false,
-            tech: card.tech || false,
-            phys: card.phys || false,
-        };
-
-        // Focus filter: only ENTITY cards need an affinity match.
-        // Landmarks, Locations, SYMs, SNIPs, and Rituals are focus-free.
-        const requiresFocus = card.category === 'ENTITY';
-        if (requiresFocus && !cardFocusAttrs[focus]) {
-            console.log('Focus does not match (focus=', focus, ', card attrs=', cardFocusAttrs, ')');
-            return;
-        }
-
-        // Rituals don't go to a realm -- they trigger their ability and
-        // (optionally) request a target via setTargetSelection.
-        if (card.category === 'RITUAL') {
-            const ritualAbilities = (card.abilities || []).filter(
-                (ability) => typeof ability === 'object' && ability.requiresTarget
-            );
-            if (ritualAbilities.length > 0) {
-                const ability = ritualAbilities[0];
-                const abilityDef = abilitiesDefinitions[ability.name];
-                if (abilityDef && abilityDef.targetFilter) {
-                    setPendingRitual({ entity: selectedCard, ability: abilityDef });
-                    setTargetSelection({
-                        enabled: true,
-                        side: 'PLAYER',
-                        filter: abilityDef.targetFilter,
-                        // Must be named onSelect: that is the key handleCardSelect
-                        // looks for. A 'callback' key was never invoked.
-                        onSelect: (target) => {
-                            // resolveRitual already removes the card from hand;
-                            // removing it again here spent two actions.
-                            confirmRitualActivation(target);
-                        },
-                    });
-                    return;
-                }
-            }
-
-            // A Ritual with nothing to target resolves immediately. Six of the
-            // eight rituals in the live deck are non-targeting and used to fall
-            // out here, leaving the card stuck in hand and unplayable.
-            resolveRitual(selectedCard, null);
-            return;
-        }
-
-        // Single source of truth for placement rules: src/ui/helpers/placement.js
-        // (covered by src/ui/helpers/__tests__/placement.test.js).
-        const normalizedRealm = realmName.charAt(0).toUpperCase() + realmName.slice(1).toLowerCase();
-        const decision = canPlaceInRealm(card, normalizedRealm);
-        if (!decision.canPlace) {
-            console.log(`Cannot place ${card.name || 'card'} in ${normalizedRealm}: ${decision.reason}`);
-            return;
-        }
-
-        const playerRealmSetters = {
-            Solarium: setPlayerSolarium,
-            Theater: setPlayerTheater,
-            Underpass: setPlayerUnderpass,
-            Grid: setPlayerGrid,
-            // Elysium intentionally omitted: ascension-only, not directly playable.
-        };
-        const targetRealmSetter = playerRealmSetters[normalizedRealm];
-        if (!targetRealmSetter) {
-            console.log('No setter for realm:', normalizedRealm);
-            return;
-        }
-
-        // Places (Landmarks / Locations) come online immediately; everything
-        // else starts offline and must be activated.
-        const placedOnline = decision.array === 'places';
-        const updatedCard = {
-            ...selectedCard,
-            realm: normalizedRealm,
-            owner: 'PLAYER',
-            readied: false,
-            online: placedOnline,
-            activated: false,
-        };
-
-        targetRealmSetter(prevRealm => ({
-            ...prevRealm,
-            [decision.array]: [...(prevRealm[decision.array] || []), updatedCard],
-        }));
-
-        // LOCATIONs come online immediately and pay their rezCost now.
-        // LANDMARKs and SYMs are free. ENTITYs and SNIPs pay at activation time.
-        if (card.category === 'LOCATION' && card.rezCost > 0) {
-            playerLoseBits(card.rezCost);
-        }
-        removeCardFromHand(selectedCard);
-        setSelectedCard(null);
-        setDraftSelected(false);
-        setTargetType('none');
-        consumePlayerAction();
+        // All placement rules live in src/ui/helpers/playCard.js so there is a
+        // single tested implementation. This component previously carried its
+        // own copy, which silently drifted from the one in core.js.
+        const result = playCardToRealm(realmName);
+        console.log('playCardToRealm:', result);
     };
 
     const handleBattleCardSelect = useCallback((card) => {
@@ -1395,6 +1390,10 @@ export default function BoardContainer() {
                 playerBoost={handleBoostButton}
                 playerDevelop={handleDevelopButton}
                 playerMine={handlePlayerMine}
+                // Actions.js renders a DETOX button that calls this, but it was
+                // never passed down, so clicking it threw "playerDetox is not a
+                // function".
+                playerDetox={performDetox}
 
                 // Focus state
                 awaitingFocus={uiState.awaitingFocus}
@@ -1409,8 +1408,11 @@ export default function BoardContainer() {
                     }));
                 }}
 
+                actionLog={actionLog}
+
                 // Modal state
                 modalVisible={uiState.modalVisible}
+                modalProps={uiState.modalProps}
                 modalTitle={uiState.modalTitle}
                 modalContent={uiState.modalContent}
                 modalButtons={uiState.modalButtons}
@@ -1495,8 +1497,31 @@ export default function BoardContainer() {
                 <MulliganPhase 
                     onComplete={() => {
                         setShowMulligan(false);
-                        setGameState(prev => ({ ...prev, mode: 'PLAY' }));
+                        setShowDevotion(true);
+                        setGameState(prev => ({ ...prev, mode: 'DEVOTION' }));
                     }}
+                />
+            )}
+
+            {showDevotion && !showMulligan && !showBootstrap && (
+                <DevotionPhase
+                    onComplete={() => {
+                        setShowDevotion(false);
+                        // Setup is over: roll for turn order and start turn 1.
+                        // startTurn sets the mode itself, so there is no manual
+                        // mode write here -- the old 'PLAY' write left the game
+                        // in a mode the turn loop never advances out of.
+                        beginFirstTurn();
+                    }}
+                />
+            )}
+
+            {gameState.mode === 'GAME_OVER' && (
+                <GameOverOverlay
+                    winner={gameState.winner}
+                    reason={gameState.winReason}
+                    devotion={gameState.devotionRevealed ? gameState.playerDevotion : null}
+                    onRestart={() => window.location.reload()}
                 />
             )}
         </div>

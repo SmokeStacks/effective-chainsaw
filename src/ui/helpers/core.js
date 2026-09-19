@@ -1,4 +1,4 @@
-// Import core dependencies
+﻿// Import core dependencies
 import { eventManager } from './eventManager';
 import { 
     getOppositeSide, 
@@ -34,7 +34,23 @@ import {
     playerGainSurge,
     playerLoseSurge,
     enemyGainSurge,
-    enemyLoseSurge
+    enemyLoseSurge,
+    playerGainFate,
+    playerLoseFate,
+    enemyGainFate,
+    enemyLoseFate,
+    playerGainActions,
+    playerLoseActions,
+    enemyGainActions,
+    enemyLoseActions,
+    playerGainWounds,
+    playerLoseWounds,
+    enemyGainWounds,
+    enemyLoseWounds,
+    playerGainBurden,
+    playerLoseBurden,
+    enemyGainBurden,
+    enemyLoseBurden
 } from './game';
 
 // Import state and setters
@@ -47,6 +63,7 @@ import { draftList } from '../../systemDecks/draft';
 // `playerDraw` below so existing call sites keep working without the
 // stale-destructuring bug the local implementation had.
 import { draw as playerDraw, payRezCost } from './player';
+import { draw as enemyDrawCanonical } from './enemy';
 import { rezCostFor } from './activation';
 import { healRegeneratingEntities } from './combatKeywords';
 
@@ -69,41 +86,66 @@ export {
     playerGainSurge,
     playerLoseSurge,
     enemyGainSurge,
-    enemyLoseSurge
+    enemyLoseSurge,
+    // Fate / Actions / Wounds / Burden.
+    //
+    // These used to be defined locally in this file as bare increments, which
+    // silently bypassed the status-absorption rule in notes.txt: Burden is
+    // supposed to soak up Fate gains and Lag to soak up Action gains. Since
+    // glossary.js imports the Fate helpers from here, every Fate-granting
+    // ability ignored Burden entirely. They now resolve to the same canonical
+    // player.js / enemy.js implementations used everywhere else.
+    playerGainFate,
+    playerLoseFate,
+    enemyGainFate,
+    enemyLoseFate,
+    playerGainActions,
+    playerLoseActions,
+    enemyGainActions,
+    enemyLoseActions,
+    playerGainWounds,
+    playerLoseWounds,
+    enemyGainWounds,
+    enemyLoseWounds,
+    playerGainBurden,
+    playerLoseBurden,
+    enemyGainBurden,
+    enemyLoseBurden
 };
 
-// Get state variables
-const {
-    playerBattleSlots = [],
-    enemyBattleSlots = [],
-    battleSelectedCard = null,
-    recruiterCount = 0,
-    priorityLeft = true,
-    enemyRezCards = [],
-    enemyPlanAttack = false,
-    selectedCard = null,
-    selectedInHand = false,
-    draftSelected = false,
-    draft = [],
-    playerBits = 0,
-    playerWounds = 0,
-    enemyWounds = 0,
-    playerActions = 0,
-    enemyActions = 0,
-    playerSolarium = { people: [], places: [], things: [] },
-    playerTheater = { people: [], places: [], things: [] },
-    playerUnderpass = { people: [], places: [], things: [] },
-    playerGrid = { people: [], places: [], things: [] },
-    enemySolarium = { people: [], places: [], things: [] },
-    enemyTheater = { people: [], places: [], things: [] },
-    enemyUnderpass = { people: [], places: [], things: [] },
-    enemyGrid = { people: [], places: [], things: [] },
-    enemyHand = [],
-    playerAshes = 0
-} = state;
+// This file used to destructure ~25 values out of `state` here at module load,
+// with defaults like `playerActions = 0` and empty placeholder realm objects.
+// Because `state` is still empty at import time, every one of those bindings was
+// permanently frozen at its default. Any code reading the bare name therefore
+// saw 0 Actions and empty Realms forever, silently, with no error -- which is
+// what killed Detox and all end-of-turn effect processing.
+//
+// Read `state.<key>` and `stateSetters.set<Key>` at call time instead. Same
+// reason the setters are not destructured here.
 
-// We no longer destructure setters here as we access them directly via stateSetters object
-// This prevents stale references and ensures we always use the most up-to-date setters
+// The four playable Realms. Elysium is excluded: it is reached only by Ascension
+// and takes no part in turn-effect processing or Detox.
+const ACTIVE_REALM_NAMES = ['Solarium', 'Theater', 'Underpass', 'Grid'];
+
+/**
+ * Realm objects for one side, paired with their name and setter, read fresh
+ * from `state` on every call.
+ *
+ * The name is carried explicitly because the realm objects in `state` are bare
+ * `{ people, places, things }` and have no `name` field -- code that assumed
+ * `realm.name` was passing undefined downstream.
+ *
+ * @param {string} side - 'PLAYER' or 'ENEMY'
+ */
+function realmsForSide(side) {
+    const lower = side === 'PLAYER' ? 'player' : 'enemy';
+    const upper = side === 'PLAYER' ? 'Player' : 'Enemy';
+    return ACTIVE_REALM_NAMES.map(name => ({
+        name,
+        realm: state[`${lower}${name}`],
+        setRealm: stateSetters[`set${upper}${name}`],
+    }));
+}
 
 // Export functions
 // `isAttacking` distinguishes the attacker's power calculation from the
@@ -128,60 +170,52 @@ export function adjustEntityPowerExternal(entity, side, isAttacking = false) {
     return Math.max(0, power);
 }
 
-export function playerGainWounds(amount) {
-    stateSetters.setPlayerWounds(prevWounds => prevWounds + amount);
-}
+// Per-turn income granted during the maintenance phase. The player/enemy split
+// is intentional and asymmetric: the enemy trades an action for extra Bits.
+export const PER_TURN_PLAYER_ACTIONS = 3;
+export const PER_TURN_PLAYER_BITS = 1;
+export const PER_TURN_PLAYER_DRAW = 1;
+export const PER_TURN_ENEMY_ACTIONS = 2;
+export const PER_TURN_ENEMY_BITS = 2;
+export const PER_TURN_ENEMY_DRAW = 1;
 
-export function playerLoseWounds(amount) {
-    stateSetters.setPlayerWounds(prevWounds => Math.max(0, prevWounds - amount));
-}
+// Turn 1 is otherwise an ordinary turn; the player just receives extra Bits on
+// top of the standard income, for 4 total.
+export const FIRST_TURN_PLAYER_BONUS_BITS = 3;
 
-export function enemyGainWounds(amount) {
-    stateSetters.setEnemyWounds(prevWounds => prevWounds + amount);
-}
+// notes.txt: "Going second awards +1 Bit". Paid once, on turn 1, to whichever
+// side did not start -- turn order is random, so this is not always the enemy.
+// It stacks with FIRST_TURN_PLAYER_BONUS_BITS: a player who goes second gets
+// both (1 income + 3 player bonus + 1 second bonus = 5).
+export const GOING_SECOND_BONUS_BITS = 1;
 
-export function enemyLoseWounds(amount) {
-    stateSetters.setEnemyWounds(prevWounds => Math.max(0, prevWounds - amount));
-}
+// Maintenance-phase infection and depression (notes.txt: "If a player has 2 or
+// more Wounds, they gain 1 Wound from infection. Likewise for Burden which
+// causes depression.").
+//
+// The threshold is read from the pre-existing total, so a side sitting at
+// exactly 2 gains one and a side at 1 does not. Both sides are evaluated from
+// the same starting snapshot rather than sequentially, so the extra Wound one
+// side gains can never push the other over the line in the same phase.
+export function applyInfectionAndDepression() {
+    const { playerWounds, enemyWounds, playerBurden, enemyBurden } = state;
 
-export function playerGainBurden(amount) {
-    stateSetters.setPlayerBurden(prevBurden => prevBurden + amount);
-}
-
-export function playerLoseBurden(amount) {
-    stateSetters.setPlayerBurden(prevBurden => Math.max(0, prevBurden - amount));
-}
-
-export function enemyGainBurden(amount) {
-    stateSetters.setEnemyBurden(prevBurden => prevBurden + amount);
-}
-
-export function enemyLoseBurden(amount) {
-    stateSetters.setEnemyBurden(prevBurden => Math.max(0, prevBurden - amount));
-}
-
-export function playerGainFate(amount) {
-    stateSetters.setPlayerFate(prevFate => prevFate + amount);
-}
-
-export function playerLoseFate(amount) {
-    stateSetters.setPlayerFate(prevFate => Math.max(0, prevFate - amount));
-}
-
-export function enemyGainFate(amount) {
-    stateSetters.setEnemyFate(prevFate => prevFate + amount);
-}
-
-export function enemyLoseFate(amount) {
-    stateSetters.setEnemyFate(prevFate => Math.max(0, prevFate - amount));
-}
-
-export function playerGainActions(amount) {
-    stateSetters.setPlayerActions(prevActions => Math.max(0, prevActions + amount));
-}
-
-export function playerLoseActions(amount) {
-    stateSetters.setPlayerActions(Math.max(0, state.playerActions - amount));
+    if (playerWounds >= 2) {
+        playerGainWounds(1);
+        console.log(`Player gains 1 Wound from infection (had ${playerWounds}).`);
+    }
+    if (enemyWounds >= 2) {
+        enemyGainWounds(1);
+        console.log(`Enemy gains 1 Wound from infection (had ${enemyWounds}).`);
+    }
+    if (playerBurden >= 2) {
+        playerGainBurden(1);
+        console.log(`Player gains 1 Burden from depression (had ${playerBurden}).`);
+    }
+    if (enemyBurden >= 2) {
+        enemyGainBurden(1);
+        console.log(`Enemy gains 1 Burden from depression (had ${enemyBurden}).`);
+    }
 }
 
 // Spend one player action. If actions reach 0, automatically end the player's turn.
@@ -194,14 +228,6 @@ export function consumePlayerAction() {
     if (remaining === 0 && state.enemyActions > 0) {
         endPlayerTurn();
     }
-}
-
-export function enemyGainActions(amount) {
-    stateSetters.setEnemyActions(prevActions => prevActions + amount);
-}
-
-export function enemyLoseActions(amount) {
-    stateSetters.setEnemyActions(Math.max(0, state.enemyActions - amount));
 }
 
 export function returnToOriginalRealm(cardEntity, side) {
@@ -232,234 +258,6 @@ export function endPlayerTurn() {
     stateSetters.setCurrentPlayer('ENEMY');
 }
 
-export const handleRealmSelect = (realmName) => {
-    console.log('!!! HANDLE REALM SELECT CALLED !!!');
-    console.log('!!! REALM NAME:', realmName, '!!!');
-    console.log('!!! SELECTED CARD:', selectedCard, '!!!');
-    console.log('!!! GAME STATE:', state, '!!!');
-    console.log('!!! REALMS:', { player: state.playerSolarium, enemy: state.enemySolarium }, '!!!');
-
-    console.log('selectedCard', selectedCard)
-    if (!selectedCard) return;
-    if (!selectedCard.card.focus) {
-        console.log('Card has no focus');
-        return;
-    }
-    const soulsAvailable = calculateSoulsAvailable(selectedCard.id);
-    // glossary.txt — Landmark: "Has no Activation cost and enters its Realm
-    // Online." Location: "Enters its Realm Online and must therefore have its
-    // Activation cost paid immediately like a Ritual."
-    //
-    // So only Locations are gated here, and they are charged below once placed.
-    // Everything else (Entities, Syms, Snips) enters Offline and pays when it is
-    // later rezzed.
-    if (selectedCard.card.category === 'LOCATION') {
-        const cost = rezCostFor(selectedCard.card);
-        if (playerBits < cost.bits || playerAshes < cost.ash || soulsAvailable < cost.soul) {
-            console.log('no resources')
-            return;
-        }
-    }
-        const { category, magi, phys, tech } = selectedCard.card;
-    console.log(realmName);
-
-    if (category === 'RITUAL') {
-        // A Ritual pays its Activation cost immediately, so refuse it up front
-        // rather than after the player has picked a target. The charge itself
-        // happens in confirmRitualActivation once the ritual actually resolves.
-        const ritualCost = rezCostFor(selectedCard.card);
-        if (playerBits < ritualCost.bits || playerAshes < ritualCost.ash) {
-            console.log('no resources for ritual');
-            return;
-        }
-
-        // Set up targeting for abilities that need it
-        const targetingAbilities = selectedCard.card.abilities.filter(
-            ability => typeof ability === 'object' && ability.requiresTarget
-        );
-
-        if (targetingAbilities.length > 0) {
-            const ability = targetingAbilities[0]; // Handle first targeting ability
-            const abilityDef = abilitiesDefinitions[ability.name];
-            const filter = abilityDef && typeof abilityDef.targetFilter === 'function'
-                ? abilityDef.targetFilter
-                : (target) => target.card.category === 'ENTITY' && target.owner === 'PLAYER';
-            stateSetters.setPendingRitual({ entity: selectedCard, ability });
-            stateSetters.setTargetSelection({
-                enabled: true,
-                side: 'PLAYER',
-                filter,
-                onSelect: (target) => {
-                    confirmRitualActivation(target);
-                },
-                onCancel: () => {
-                    stateSetters.setPendingRitual(null);
-                    stateSetters.setTargetSelection({ enabled: false });
-                },
-            });
-            // Don't remove from hand yet - wait for target confirmation
-            return;
-        }
-
-        // A Ritual with no targeting ability has nothing to wait for, so it
-        // resolves immediately. Without this it fell through to the placement
-        // switch below, which has no RITUAL case, so the card silently stayed in
-        // hand and never resolved.
-        resolveRitual(selectedCard, null);
-        return;
-    }
-
-    if (battleSelectedCard) {
-        returnToOriginalRealm(battleSelectedCard, 'PLAYER');
-        stateSetters.setBattleSelectedCard(null);
-        const occupiedPlayerSlots = playerBattleSlots.filter(slot => slot !== null).length;
-        const occupiedEnemySlots = enemyBattleSlots.filter(slot => slot !== null).length;
-        const isPlayerBattleEmpty = occupiedPlayerSlots === 1;
-        const isEnemyBattleEmpty = occupiedEnemySlots === 0;
-
-        if (isPlayerBattleEmpty && isEnemyBattleEmpty) {
-            stateSetters.setBattleRealm(null);
-        }
-    }
-    if (!selectedInHand) return;
-    // Recruiter: "Your Dreamers are Impostors." Checked live against the
-    // realm rather than the stale `recruiterCount` (destructured once at
-    // module load and never updated).
-    const hasOnlineRecruiter = getFriendlyEntities('PLAYER').some(
-        (e) => e.card.name === 'Recruiter' && e.online
-    );
-    const isImpostor = selectedCard.card.abilities?.some(
-        (ability) => ability.name === 'Impostor'
-    ) || (selectedCard.card.name === 'Dreamer' && hasOnlineRecruiter);
-
-    if (isImpostor) {
-        stateSetters.setAwaitingImpostor(true);
-        stateSetters.setImpostorRealm(realmName);
-        console.log(`Awaiting Impostor target in realm: ${realmName}`);
-        return;
-    }
-
-    // Initialize variables
-    let canPlace = false;
-    let targetRealmSetter = null;
-    let placementArray = null;
-    let updatedCard = { ...selectedCard, realm: realmName, owner: 'PLAYER' };
-
-    switch (realmName) {
-        case 'Solarium':
-            if (category === 'ENTITY' && magi) {
-                canPlace = true;
-                targetRealmSetter = stateSetters.setPlayerSolarium;
-                placementArray = 'people';
-            }
-            break;
-        case 'Theater':
-            if (category === 'ENTITY' && (magi || phys)) {
-                canPlace = true;
-                targetRealmSetter = stateSetters.setPlayerTheater;
-                placementArray = 'people';
-            } else if (category === 'LOCATION' || category === 'LANDMARK') {
-                canPlace = true;
-                targetRealmSetter = stateSetters.setPlayerTheater;
-                placementArray = 'places';
-                updatedCard.online = true;
-            }
-            break;
-        case 'Underpass':
-            if (category === 'ENTITY' && (tech || phys)) {
-                canPlace = true;
-                targetRealmSetter = stateSetters.setPlayerUnderpass;
-                placementArray = 'people';
-            } else if (category === 'LOCATION' || category === 'LANDMARK') {
-                canPlace = true;
-                targetRealmSetter = stateSetters.setPlayerUnderpass;
-                placementArray = 'places';
-                updatedCard.online = true;
-            } else if (category === 'SNIP' || category === 'SYM') {
-                canPlace = true;
-                targetRealmSetter = stateSetters.setPlayerUnderpass;
-                placementArray = 'things';
-                updatedCard.online = false;
-            }
-            break;
-        case 'Grid':
-            if (category === 'ENTITY' && tech) {
-                canPlace = true;
-                targetRealmSetter = stateSetters.setPlayerGrid;
-                placementArray = 'people';
-            } else if (category === 'SNIP' || category === 'SYM') {
-                canPlace = true;
-                targetRealmSetter = stateSetters.setPlayerGrid;
-                placementArray = 'things';
-                updatedCard.online = false;
-            }
-            break;
-        default:
-            // Invalid realm
-            return;
-    }
-
-    if (canPlace) {
-        console.log('can place');
-
-
-        // Add the card to the appropriate array in the realm
-        targetRealmSetter((prevRealm) => ({
-            ...prevRealm,
-            [placementArray]: [...prevRealm[placementArray], updatedCard],
-        }));
-
-        // A Location enters Online, so its Activation cost is due now. Landmarks
-        // also enter Online but have no cost, and every other category enters
-        // Offline and is charged when rezzed.
-        if (category === 'LOCATION') {
-            payRezCost(selectedCard.card);
-        }
-
-        // Locations and Landmarks enter Online immediately (unlike Entities,
-        // which stay Offline until later rezzed via handleRez), so their
-        // abilities must activate now rather than waiting for a rez step.
-        if (category === 'LOCATION' || category === 'LANDMARK') {
-            activateAbilities(updatedCard, 'PLAYER');
-            eventManager.publish('entityEntered', {
-                side: 'PLAYER',
-                entity: updatedCard,
-                realm: updatedCard.realm,
-            });
-        }
-
-        consumePlayerAction();
-
-        // Remove the card from the player's hand
-        if (draftSelected) {
-            stateSetters.setDraft((prevDraft) => prevDraft.slice(1));
-        } else {
-            // Direct approach to fix card removal
-            
-            // 1. Update the global state directly
-            state.playerHand = state.playerHand.filter(card => card.id !== selectedCard.id);
-            
-            // 2. Use stateSetters to ensure UI updates
-            stateSetters.setPlayerHand(state.playerHand);
-            
-            // 3. Force a re-render by calling setSelectedCard
-            stateSetters.setSelectedCard(null);
-        }
-        stateSetters.setSelectedCard(null);
-        stateSetters.setDraftSelected(false);
-        stateSetters.setTargetType('none');
-    } else {
-        // Cannot place the card in this realm
-        console.log('Cannot place the card in this realm.');
-    }
-};
-
-// function confirmRitualActivation(target) {
-//     const { entity, ability } = pendingRitual;
-//     removeCardFromHand(entity);
-//     triggerRitualAbilities(entity, target, 'PLAYER', ability);
-//     endPlayerTurn();
-// }
 
 /**
  * Resolves a Ritual: spends the card, pays its cost, and fires its abilities.
@@ -500,7 +298,7 @@ export function resolveRitual(entity, target = null) {
     stateSetters.setTargetType('none');
 }
 
-function confirmRitualActivation(target) {
+export function confirmRitualActivation(target) {
     // Access pendingRitual from state, not stateSetters
     if (!state.pendingRitual) {
         console.error('No pending ritual found in state');
@@ -684,39 +482,27 @@ function enemyAdvanceCards() {
     });
 }
 
+// Delegates to enemy.js, the canonical implementation, exactly as playerDraw
+// does for player.js.
+//
+// The version that used to live here read a bare `enemyWounds` from the deleted
+// module-level destructure, so it saw 0 Wounds forever and Wounds never blocked
+// an enemy draw. Its Wound bookkeeping was also wrong independently of that:
+// given w Wounds and a draw of n it subtracted (w - n) from the current total
+// instead of setting the total to (w - n).
 export function enemyDraw(num) {
-    console.log('enemy draw', num)
-    let remainingCards = num;
-
-    if (enemyWounds > 0) {
-        const newWounds = enemyWounds - num;
-        remainingCards = Math.max(0, -newWounds);
-        stateSetters.setEnemyWounds(prevWounds => Math.max(0, prevWounds - newWounds));
-    }
-    if (remainingCards > 0) {
-        stateSetters.setEnemyLibrary(prevLibrary => {
-            const newHandCards = prevLibrary.slice(0, remainingCards);
-            const newLibrary = prevLibrary.slice(remainingCards);
-
-            stateSetters.setEnemyHand(prevHand => [
-                ...prevHand,
-                ...newHandCards
-            ]);
-
-            return newLibrary;
-        });
-    }
+    enemyDrawCanonical(num);
 }
 
 export function enemyPlayCard() {
     console.log('--- enemyPlayCard Invoked ---');
     
     // Debug the state to find discrepancies
+    // This used to also log the stale module-level `enemyHand` binding for
+    // comparison. That binding is gone; `state.enemyHand` is the only truth.
     console.log('enemyPlayCard - Hand state check:', {
         stateEnemyHand: state.enemyHand,
         stateEnemyHandLength: state.enemyHand.length,
-        localEnemyHand: enemyHand,
-        localEnemyHandLength: enemyHand.length
     });
     
     // Use state.enemyHand instead of the local enemyHand variable
@@ -738,8 +524,12 @@ export function enemyPlayCard() {
 
     const { category, magi, phys, tech } = cardToPlay.card;
 
-    // Determine which realm to play the card in
-    const priorityList = priorityLeft ? ['Solarium', 'Theater', 'Underpass', 'Grid'] : ['Grid', 'Underpass', 'Theater', 'Solarium'];
+    // Determine which realm to play the card in. This read a stale module-level
+    // `priorityLeft` frozen at true, so the enemy always searched Realms
+    // left-to-right no matter who actually held priority.
+    const priorityList = state.priorityLeft
+        ? ['Solarium', 'Theater', 'Underpass', 'Grid']
+        : ['Grid', 'Underpass', 'Theater', 'Solarium'];
     console.log('Priority list for playing card:', priorityList);
 
     let realmToPlayIn = null;
@@ -1026,54 +816,67 @@ export function enemyPlayCard() {
     }
 }
 
+// notes.txt: "Detox (spend 3 actions to cleanse all Freeze, Decay and enemy
+// Venom)."
+export const DETOX_ACTION_COST = 3;
+
 export function performDetox(side) {
-    if (side === 'PLAYER' && playerActions >= 3) {
-        stateSetters.setPlayerActions(prev => prev - 3);
-        detoxEntities(side);
-    } else if (side === 'ENEMY' && enemyActions >= 3) {
-        stateSetters.setEnemyActions(prev => prev - 3);
-        detoxEntities(side);
-    } else {
+    const actions = side === 'PLAYER' ? state.playerActions : state.enemyActions;
+    if (actions < DETOX_ACTION_COST) {
         console.log('Not enough actions to detox');
+        return false;
     }
+
+    if (side === 'PLAYER') {
+        stateSetters.setPlayerActions(Math.max(0, state.playerActions - DETOX_ACTION_COST));
+    } else {
+        stateSetters.setEnemyActions(Math.max(0, state.enemyActions - DETOX_ACTION_COST));
+    }
+    detoxEntities(side);
+    return true;
 }
 
-export function detoxEntities(side) { // todo apply effect
-    const realms = side === 'PLAYER'
-        ? [playerSolarium, playerTheater, playerUnderpass, playerGrid]
-        : [enemySolarium, enemyTheater, enemyUnderpass, enemyGrid];
-
-    const friendlyEntities = realms.flatMap(realm => realm.people);
-    friendlyEntities.forEach(entity => {
-        if (entity.freeze > 0) {
-            entity.freeze = 0;
-            console.log(`${entity.card.name}'s Freeze is removed.`);
+/**
+ * Cleanses Freeze, Decay and Venom from the detoxing side's own cards.
+ *
+ * "enemy Venom" in the notes identifies whose Venom it is -- inflicted by the
+ * opponent -- not whose cards are cleaned. The previous version cleaned the
+ * *opponent's* cards, and only when the enemy detoxed. It also mutated entities
+ * in place without going through a setter, so the UI never saw the change.
+ *
+ * @param {string} side - 'PLAYER' or 'ENEMY'
+ */
+export function detoxEntities(side) {
+    const cleanse = (cards) => (cards || []).map(cardEntity => {
+        if (!cardEntity.freeze && !cardEntity.decay && !cardEntity.venom) {
+            return cardEntity;
         }
-        if (entity.decay > 0) {
-            entity.decay = 0;
-            console.log(`${entity.card.name}'s Decay is removed.`);
+        const name = cardEntity.card?.name || cardEntity.id;
+        const cleaned = { ...cardEntity };
+        if (cleaned.freeze > 0) {
+            cleaned.freeze = 0;
+            console.log(`${name}'s Freeze is removed.`);
         }
+        if (cleaned.decay > 0) {
+            cleaned.decay = 0;
+            console.log(`${name}'s Decay is removed.`);
+        }
+        if (cleaned.venom > 0) {
+            cleaned.venom = 0;
+            console.log(`${name}'s Venom is removed.`);
+        }
+        return cleaned;
     });
 
-    if (side !== 'PLAYER') { // Only enemy side clears venom from people, places, and things
-        const enemySide = side === 'PLAYER' ? 'ENEMY' : 'PLAYER';
-        const enemyRealms = enemySide === 'PLAYER'
-            ? [playerSolarium, playerTheater, playerUnderpass, playerGrid]
-            : [enemySolarium, enemyTheater, enemyUnderpass, enemyGrid];
-
-        const enemyEntities = enemyRealms.flatMap(realm => [
-            ...realm.people,
-            ...realm.places,
-            ...realm.things
-        ]);
-
-        enemyEntities.forEach(entity => {
-            if (entity.venom > 0) {
-                entity.venom = 0;
-                console.log(`${entity.card.name}'s Venom is removed.`);
-            }
+    realmsForSide(side).forEach(({ realm, setRealm }) => {
+        if (!realm || !setRealm) return;
+        setRealm({
+            ...realm,
+            people: cleanse(realm.people),
+            places: cleanse(realm.places),
+            things: cleanse(realm.things),
         });
-    }
+    });
 
     console.log(`${side === 'PLAYER' ? 'Player' : 'Enemy'} performed Detox.`);
 }
@@ -1153,15 +956,66 @@ export function createDraft() {
 // Initialize draft array
 let draftArray = createDraft();
 
+/**
+ * notes.txt: "Draft a Dreamer (once per turn, costs 1 Bit)."
+ *
+ * This only *selects* the Dreamer; the Bit and the draft slot are spent in
+ * `consumeDraftedCard` once the card is actually placed, so a cancelled draft
+ * costs nothing. Both limits are checked here so the player is not offered a
+ * draft they cannot complete.
+ */
 export function playerDraft() {
-    // Use the draft array
-    if (draftArray && draftArray.length > 0) {
-        stateSetters.setSelectedCard(draftArray[0]);
-        stateSetters.setDraftSelected(true);
-        stateSetters.setSelectedInHand(true);
-    } else {
-        console.error('Cannot draft: draft deck is empty or undefined');
+    if (!draftArray || draftArray.length === 0) {
+        console.log('Cannot draft: the shared Dreamer deck is empty.');
+        eventManager.publish('actionFailed', { action: 'DRAFT', reason: 'draft_deck_empty' });
+        return false;
     }
+    if (state.playerDrafted) {
+        console.log('Cannot draft: already drafted this turn.');
+        eventManager.publish('actionFailed', { action: 'DRAFT', reason: 'already_drafted' });
+        return false;
+    }
+    if (state.playerBits < DRAFT_COST_BITS) {
+        console.log('Cannot draft: not enough Bits.');
+        eventManager.publish('actionFailed', { action: 'DRAFT', reason: 'insufficient_bits' });
+        return false;
+    }
+
+    stateSetters.setSelectedCard(draftArray[0]);
+    stateSetters.setDraftSelected(true);
+    stateSetters.setSelectedInHand(true);
+    return true;
+}
+
+// notes.txt: "Draft a Dreamer (once per turn, costs 1 Bit)."
+export const DRAFT_COST_BITS = 1;
+
+/**
+ * Spends the drafted Dreamer: removes it from the shared 5-card draft deck,
+ * charges the Bit, and marks the once-per-turn limit as used.
+ *
+ * Without this the placement path called `removeCardFromHand`, which only
+ * filters `playerHand`. A drafted Dreamer is never in hand, so that was a
+ * no-op: the draft deck never depleted and the same Dreamer could be drafted
+ * an unlimited number of times.
+ */
+export function consumeDraftedCard() {
+    const drafted = draftArray[0];
+    draftArray = draftArray.slice(1);
+    playerLoseBits(DRAFT_COST_BITS);
+    stateSetters.setPlayerDrafted(true);
+    console.log(`Drafted ${drafted?.card?.name}; ${draftArray.length} Dreamers remain.`);
+    return drafted;
+}
+
+/** Test seam: the remaining shared Dreamer deck. */
+export function getDraftArray() {
+    return draftArray;
+}
+
+/** Test seam: restore the shared Dreamer deck to a full 5 cards. */
+export function resetDraftArray() {
+    draftArray = createDraft();
 }
 
 export function handlePlayerMine() {
@@ -1211,25 +1065,14 @@ function processEndOfTurnEffects() {
     stateSetters.setPlayerEntitiesDiedThisTurn(0);
     stateSetters.setEnemyEntitiesDiedThisTurn(0);
 
-    // Get all realms and their setters
-    const playerRealms = [
-        { realm: playerSolarium, setRealm: stateSetters.setPlayerSolarium },
-        { realm: playerTheater, setRealm: stateSetters.setPlayerTheater },
-        { realm: playerUnderpass, setRealm: stateSetters.setPlayerUnderpass },
-        { realm: playerGrid, setRealm: stateSetters.setPlayerGrid },
-    ];
+    // Read the realms out of `state` now. These used to come from the frozen
+    // module-level destructure, so this whole function iterated empty arrays and
+    // no Decay or effect duration ever ticked.
+    const allRealms = [...realmsForSide('PLAYER'), ...realmsForSide('ENEMY')];
 
-    const enemyRealms = [
-        { realm: enemySolarium, setRealm: stateSetters.setEnemySolarium },
-        { realm: enemyTheater, setRealm: stateSetters.setEnemyTheater },
-        { realm: enemyUnderpass, setRealm: stateSetters.setEnemyUnderpass },
-        { realm: enemyGrid, setRealm: stateSetters.setEnemyGrid },
-    ];
-
-    const allRealms = [...playerRealms, ...enemyRealms];
-
-    allRealms.forEach(({ realm, setRealm }) => {
-        const newPeople = realm.people.map((entity) => {
+    allRealms.forEach(({ name: realmName, realm, setRealm }) => {
+        if (!realm || !setRealm) return;
+        const newPeople = (realm.people || []).map((entity) => {
             let newEntity = { ...entity };
 
             // Process effects
@@ -1241,7 +1084,7 @@ function processEndOfTurnEffects() {
                             updatedEffect.remainingDuration -= 1;
                             if (updatedEffect.remainingDuration <= 0) {
                                 // Remove effect
-                                removeEffect(newEntity.id, realm.name, newEntity.owner, updatedEffect);
+                                removeEffect(newEntity.id, realmName, newEntity.owner, updatedEffect);
                                 return null; // Mark for removal
                             }
                         }
@@ -1253,7 +1096,7 @@ function processEndOfTurnEffects() {
             // Handle status effects durations
             if (newEntity.decay > 0) {
                 // Handle damage and update entity state
-                handleDamage(realm.name, newEntity.id, newEntity.decay, newEntity.owner);
+                handleDamage(realmName, newEntity.id, newEntity.decay, newEntity.owner);
                 console.log(`${newEntity.card.name} takes ${newEntity.decay} Decay damage.`);
                 newEntity.decay -= 1;
                 console.log(`${newEntity.card.name} Decay decreases to ${newEntity.decay}`);
@@ -1268,12 +1111,16 @@ function processEndOfTurnEffects() {
             ...realm,
             people: newPeople,
             places: realm.places,
-            things: realm.things
+            things: realm.things,
         });
     });
 }
 
 export async function enemyPerformAction() {
+    if (state.mode === 'GAME_OVER') {
+        console.log('enemyPerformAction skipped: game is over.');
+        return;
+    }
     console.log('Enemy perform action:', {
         enemyActions: state.enemyActions,
         playerActions: state.playerActions,
@@ -1290,7 +1137,7 @@ export async function enemyPerformAction() {
         } else if (state.enemyActions > 0) {
             setTimeout(() => enemyPerformAction(), 1000);
         }
-        // Both 0 → domination useEffect fires endTurn()
+        // Both 0 â†’ domination useEffect fires endTurn()
     }
     
     try {
@@ -1331,8 +1178,53 @@ export async function enemyPerformAction() {
 }
 
 
+/**
+ * Randomly decides who takes the first turn.
+ *
+ * Split out from beginFirstTurn so tests can stub Math.random on a single,
+ * obvious seam and assert both branches.
+ *
+ * @returns {boolean} true when the PLAYER starts (priority on the left).
+ */
+export function chooseStartingSide() {
+    return Math.random() < 0.5;
+}
+
+/**
+ * Starts turn 1.
+ *
+ * This did not previously exist, and its absence was a hard soft-lock at game
+ * start: the only call to startTurn outside the turn loop was a BoardContainer
+ * effect gated on both hands holding 5 cards, but setupNewRules deals 4 and the
+ * mulligan refills to 4, so the condition was unreachable and turn 1 never
+ * began. After choosing a Devotion the game sat in mode 'PLAY' with 0 actions,
+ * no Focus prompt and no income -- nothing was clickable and no other effect
+ * could advance it, because the domination hand-off requires mode 'NORMAL'.
+ *
+ * Turn order is randomised here rather than in startTurn: startTurn runs every
+ * turn and alternates priority from the previous turn, so rolling inside it
+ * would re-randomise the order on every single turn.
+ */
+export function beginFirstTurn() {
+    const playerStarts = chooseStartingSide();
+    stateSetters.setPriorityLeft(playerStarts);
+    eventManager.publish('turnOrderDecided', {
+        side: playerStarts ? 'PLAYER' : 'ENEMY',
+    });
+    startTurn(playerStarts);
+}
+
 export function startTurn(currentPriorityLeft) {
-    console.log('start turn', currentPriorityLeft);
+    // Once a win/loss condition has fired the game is over. Without this guard
+    // the unconditional setMode('NORMAL') below would immediately clear the
+    // GAME_OVER mode and play would continue forever.
+    if (state.mode === 'GAME_OVER') {
+        console.log('startTurn skipped: game is over.');
+        return;
+    }
+    const turn = (state.turnNumber || 0) + 1;
+    stateSetters.setTurnNumber(turn);
+    console.log('start turn', turn, currentPriorityLeft);
     const startingPlayer = currentPriorityLeft ? 'PLAYER' : 'ENEMY';
     
     // Always use stateSetters object directly to avoid stale references
@@ -1423,7 +1315,7 @@ export function startTurn(currentPriorityLeft) {
     }));
 
     // Handle start of turn effects
-    playerGainActions(3 + state.playerDriftCount);
+    playerGainActions(PER_TURN_PLAYER_ACTIONS + state.playerDriftCount);
     if (state.playerGlitchyAmount > 0) {
         stateSetters.setPlayerOverload((prev) => prev + state.playerGlitchyAmount);
         console.log(`Player gains ${state.playerGlitchyAmount} Overload due to Glitchy abilities.`);
@@ -1432,13 +1324,49 @@ export function startTurn(currentPriorityLeft) {
         stateSetters.setEnemyOverload((prev) => prev + state.enemyGlitchyAmount);
         console.log(`Enemy gains ${state.enemyGlitchyAmount} Overload due to Glitchy abilities.`);
     }
-    enemyGainActions(2 + state.enemyDriftCount);
-    enemyGainBits(state.enemyDividendAmount);
-    playerGainBits(state.playerDividendAmount);
-    playerDraw(1);
-    enemyDraw(3); // Enemy draws 3 cards at start of turn
+    enemyGainActions(PER_TURN_ENEMY_ACTIONS + state.enemyDriftCount);
+    // Base per-turn Bit income, with any Dividend accumulation on top. The base
+    // amounts used to be smuggled in via enemyDividendAmount defaulting to 2,
+    // which conflated the keyword's accumulator with the income rule and left
+    // the player with no income at all (playerDividendAmount was never declared,
+    // so this read undefined).
+    // "Going second awards +1 Bit", paid once on turn 1 to whoever did not
+    // start. Turn order is randomised, so this can land on either side.
+    const isFirstTurn = turn === 1;
+    const enemyWentSecond = isFirstTurn && startingPlayer === 'PLAYER';
+    const playerWentSecond = isFirstTurn && startingPlayer === 'ENEMY';
+
+    enemyGainBits(
+        PER_TURN_ENEMY_BITS
+        + (enemyWentSecond ? GOING_SECOND_BONUS_BITS : 0)
+        + state.enemyDividendAmount
+    );
+    const firstTurnBonus = isFirstTurn ? FIRST_TURN_PLAYER_BONUS_BITS : 0;
+    playerGainBits(
+        PER_TURN_PLAYER_BITS
+        + firstTurnBonus
+        + (playerWentSecond ? GOING_SECOND_BONUS_BITS : 0)
+        + state.playerDividendAmount
+    );
+    // Infection / depression resolve before the maintenance draw, so a Wound
+    // gained here can absorb that draw (Wounds block draws point-for-point).
+    applyInfectionAndDepression();
+
+    playerDraw(PER_TURN_PLAYER_DRAW);
+    enemyDraw(PER_TURN_ENEMY_DRAW);
     stateSetters.setPlayerFirstAttack(true);
     stateSetters.setEnemyFirstAttack(true);
+    // Looting is claimable once per side per turn.
+    stateSetters.setPlayerLooted(false);
+    stateSetters.setEnemyLooted(false);
+    // Surge is turn-scoped: earned from unblocked Hack damage during the turn's
+    // battles and spent in that turn's Dominance Phase. It used to be cleared at
+    // the end of every battle, i.e. before the Dominance Phase could ever read
+    // it, which made the entire Surge reward for Hacking a no-op.
+    stateSetters.setPlayerSurge(0);
+    stateSetters.setEnemySurge(0);
+    // Drafting a Dreamer is once per turn.
+    stateSetters.setPlayerDrafted && stateSetters.setPlayerDrafted(false);
 
     // "Interfaced Pandora/HeadSpace this turn" flags (Dead Drop, Precognition,
     // etc. key off these) were previously set to true on a successful hack but
@@ -1473,6 +1401,10 @@ export function startTurn(currentPriorityLeft) {
 }
 
 export function endTurn() {
+    if (state.mode === 'GAME_OVER') {
+        console.log('endTurn skipped: game is over.');
+        return;
+    }
     console.log('end turn');
     eventManager.publish('endTurn', { side: 'PLAYER' });
     eventManager.publish('endTurn', { side: 'ENEMY' });
